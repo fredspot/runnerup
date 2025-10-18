@@ -18,4 +18,12 @@
   <string name="_sign_plus" translatable="false">+</string>
   <string name="_sign_minus" translatable="false">-</string>
   <string name="path_simplification_default_tolerance" translatable="false">3</string>
+  
+  <!-- Best Times feature strings -->
+  <string name="best_times">Best Times</string>
+  <string name="compute_best_times">Compute Best Times</string>
+  <string name="best_times_description">Top 3 times</string>
+  <string name="computing_best_times">Computing best times...</string>
+  <string name="best_times_computed">Computed %d best times</string>
+  <string name="best_times_compute_error">Error computing best times</string>
 </resources>

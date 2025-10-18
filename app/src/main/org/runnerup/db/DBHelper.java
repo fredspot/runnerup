@@ -49,7 +49,7 @@ import org.runnerup.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 31;
+  private static final int DBVERSION = 32;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -196,6 +196,21 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.FEED.FLAGS + " text ")
           + ");";
 
+  private static final String CREATE_TABLE_BEST_TIMES =
+      "create table "
+          + DB.BEST_TIMES.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.BEST_TIMES.DISTANCE + " integer not null, ")
+          + (DB.BEST_TIMES.TIME + " integer not null, ")
+          + (DB.BEST_TIMES.PACE + " real not null, ")
+          + (DB.BEST_TIMES.ACTIVITY_ID + " integer not null, ")
+          + (DB.BEST_TIMES.START_TIME + " integer not null, ")
+          + (DB.BEST_TIMES.AVG_HR + " integer, ")
+          + (DB.BEST_TIMES.RANK + " integer not null, ")
+          + ("FOREIGN KEY (" + DB.BEST_TIMES.ACTIVITY_ID + ") REFERENCES " + DB.ACTIVITY.TABLE + "(_id)")
+          + ");";
+
   private static final String CREATE_INDEX_FEED =
       "create index "
           + "if not exists FEED_START_TIME "
@@ -254,6 +269,7 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     arg0.execSQL(CREATE_TABLE_AUDIO_SCHEMES);
     arg0.execSQL(CREATE_TABLE_FEED);
     arg0.execSQL(CREATE_INDEX_FEED);
+    arg0.execSQL(CREATE_TABLE_BEST_TIMES);
 
     onCreateUpgrade(arg0, 0, DBVERSION);
   }
@@ -370,7 +386,9 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     }
 
     // DBVERSION update
-    // if (oldVersion < 32) {
+    if (oldVersion < 32) {
+      arg0.execSQL(CREATE_TABLE_BEST_TIMES);
+    }
     //    migrateFileSyncronizerInfo(arg0);
     //    recreateAccount(arg0);
     // }

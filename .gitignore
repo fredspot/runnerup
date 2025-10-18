@@ -24,3 +24,12 @@ release.properties
 /mapbox.properties
 /runalyze.properties
 /dropbox.properties
+android-sdk/
+
+# Build artifacts
+build/
+.gradle/
+local.properties
+*.iml
+.idea/
+.DS_Store

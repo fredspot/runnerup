@@ -242,6 +242,12 @@
   <string name="Android_text_to_speech_settings">Android text-to-speech settings</string>
   <string name="Start">Start</string>
   <string name="History">History</string>
+  <string name="best_times">Best Times</string>
+  <string name="compute_best_times">Compute Best Times</string>
+  <string name="best_times_description">Top 3 times</string>
+  <string name="computing_best_times">Computing best times...</string>
+  <string name="best_times_computed">Computed %d best times</string>
+  <string name="best_times_compute_error">Error computing best times</string>
   <string name="Basic">Basic</string>
   <string name="Advanced">Advanced</string>
   <string name="Manual_activity_title">Add manual entry</string>

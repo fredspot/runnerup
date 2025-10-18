@@ -113,6 +113,17 @@
         </activity>
 
         <activity
+            android:name=".view.BestTimesDetailActivity"
+            android:label="@string/best_times"
+            android:parentActivityName=".view.MainLayout"
+            android:theme="@style/AppTheme.NoActionBar">
+            <!-- Parent activity meta-data to support 4.0 and lower -->
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".view.MainLayout"/>
+        </activity>
+
+        <activity
             android:name=".view.ManualActivity"
             android:label="@string/Manual_activity_title"
             android:parentActivityName=".view.MainLayout"

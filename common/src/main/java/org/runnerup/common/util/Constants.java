@@ -187,6 +187,17 @@ public interface Constants {
 
       int FEED_TYPE_EVENT_DATE_HEADER = 0;
     }
+
+    interface BEST_TIMES {
+      String TABLE = "best_times";
+      String DISTANCE = "distance";           // target distance in meters
+      String TIME = "time";                   // time in milliseconds
+      String PACE = "pace";                   // pace in seconds per km
+      String ACTIVITY_ID = "activity_id";     // reference to activity
+      String START_TIME = "start_time";       // when this record was achieved
+      String AVG_HR = "avg_hr";              // average heart rate
+      String RANK = "rank";                   // 1, 2, or 3 (top 3)
+    }
   }
 
   interface SPEED_UNIT {
