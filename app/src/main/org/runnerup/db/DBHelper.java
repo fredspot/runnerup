@@ -49,7 +49,7 @@ import org.runnerup.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 32;
+  private static final int DBVERSION = 33;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -211,6 +211,31 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + ("FOREIGN KEY (" + DB.BEST_TIMES.ACTIVITY_ID + ") REFERENCES " + DB.ACTIVITY.TABLE + "(_id)")
           + ");";
 
+  private static final String CREATE_TABLE_YEARLY_STATS =
+      "create table "
+          + DB.YEARLY_STATS.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.YEARLY_STATS.YEAR + " integer not null, ")
+          + (DB.YEARLY_STATS.TOTAL_DISTANCE + " real not null, ")
+          + (DB.YEARLY_STATS.AVG_PACE + " real not null, ")
+          + (DB.YEARLY_STATS.AVG_RUN_LENGTH + " real not null, ")
+          + (DB.YEARLY_STATS.RUN_COUNT + " integer not null ")
+          + ");";
+
+  private static final String CREATE_TABLE_MONTHLY_STATS =
+      "create table "
+          + DB.MONTHLY_STATS.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.MONTHLY_STATS.YEAR + " integer not null, ")
+          + (DB.MONTHLY_STATS.MONTH + " integer not null, ")
+          + (DB.MONTHLY_STATS.TOTAL_DISTANCE + " real not null, ")
+          + (DB.MONTHLY_STATS.AVG_PACE + " real not null, ")
+          + (DB.MONTHLY_STATS.AVG_RUN_LENGTH + " real not null, ")
+          + (DB.MONTHLY_STATS.RUN_COUNT + " integer not null ")
+          + ");";
+
   private static final String CREATE_INDEX_FEED =
       "create index "
           + "if not exists FEED_START_TIME "
@@ -270,6 +295,8 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     arg0.execSQL(CREATE_TABLE_FEED);
     arg0.execSQL(CREATE_INDEX_FEED);
     arg0.execSQL(CREATE_TABLE_BEST_TIMES);
+    arg0.execSQL(CREATE_TABLE_YEARLY_STATS);
+    arg0.execSQL(CREATE_TABLE_MONTHLY_STATS);
 
     onCreateUpgrade(arg0, 0, DBVERSION);
   }
@@ -388,6 +415,10 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     // DBVERSION update
     if (oldVersion < 32) {
       arg0.execSQL(CREATE_TABLE_BEST_TIMES);
+    }
+    if (oldVersion < 33) {
+      arg0.execSQL(CREATE_TABLE_YEARLY_STATS);
+      arg0.execSQL(CREATE_TABLE_MONTHLY_STATS);
     }
     //    migrateFileSyncronizerInfo(arg0);
     //    recreateAccount(arg0);

@@ -74,13 +74,13 @@ public class BestTimesCalculator {
         // Sort by time (fastest first)
         Collections.sort(results, (a, b) -> Long.compare(a.timeMs, b.timeMs));
         
-        // Store top 3 results
-        for (int i = 0; i < Math.min(3, results.size()); i++) {
+        // Store top 25 results
+        for (int i = 0; i < Math.min(25, results.size()); i++) {
           storeBestTime(db, results.get(i), i + 1);
           totalComputed++;
         }
         
-        Log.i(TAG, "Stored " + Math.min(3, results.size()) + " best times for " + targetDistance + "m");
+        Log.i(TAG, "Stored " + Math.min(25, results.size()) + " best times for " + targetDistance + "m");
       }
       
       Log.i(TAG, "Best times computation completed. Total: " + totalComputed);

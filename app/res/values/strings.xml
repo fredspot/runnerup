@@ -22,8 +22,16 @@
   <!-- Best Times feature strings -->
   <string name="best_times">Best Times</string>
   <string name="compute_best_times">Compute Best Times</string>
-  <string name="best_times_description">Top 3 times</string>
+  <string name="best_times_description">Top 25 times</string>
   <string name="computing_best_times">Computing best times...</string>
   <string name="best_times_computed">Computed %d best times</string>
   <string name="best_times_compute_error">Error computing best times</string>
+  <string name="statistics">Statistics</string>
+  <string name="compute_statistics">Compute Statistics</string>
+  <string name="computing_statistics">Computing statistics...</string>
+  <string name="statistics_computed">Computed statistics for %d periods</string>
+  <string name="statistics_compute_error">Error computing statistics</string>
+  <string name="total_distance">Total Distance</string>
+  <string name="avg_pace">Avg Pace</string>
+  <string name="avg_run_length">Avg Run Length</string>
 </resources>

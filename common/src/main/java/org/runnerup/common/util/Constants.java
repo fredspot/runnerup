@@ -196,7 +196,26 @@ public interface Constants {
       String ACTIVITY_ID = "activity_id";     // reference to activity
       String START_TIME = "start_time";       // when this record was achieved
       String AVG_HR = "avg_hr";              // average heart rate
-      String RANK = "rank";                   // 1, 2, or 3 (top 3)
+      String RANK = "rank";                   // 1-25 (top 25)
+    }
+
+    interface YEARLY_STATS {
+      String TABLE = "yearly_stats";
+      String YEAR = "year";                   // year (e.g., 2024)
+      String TOTAL_DISTANCE = "total_distance"; // total distance in meters
+      String AVG_PACE = "avg_pace";           // average pace in seconds per km
+      String AVG_RUN_LENGTH = "avg_run_length"; // average run length in meters
+      String RUN_COUNT = "run_count";         // number of runs
+    }
+
+    interface MONTHLY_STATS {
+      String TABLE = "monthly_stats";
+      String YEAR = "year";                   // year (e.g., 2024)
+      String MONTH = "month";                 // month (1-12)
+      String TOTAL_DISTANCE = "total_distance"; // total distance in meters
+      String AVG_PACE = "avg_pace";           // average pace in seconds per km
+      String AVG_RUN_LENGTH = "avg_run_length"; // average run length in meters
+      String RUN_COUNT = "run_count";         // number of runs
     }
   }
 

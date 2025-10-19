@@ -30,7 +30,7 @@ import org.runnerup.R;
  */
 public class BottomNavFragmentStateAdapter extends FragmentStateAdapter {
   /** The number of fragments that this adapter supplies. */
-  private static final int NUM_PAGES = 4;
+  private static final int NUM_PAGES = 5;
 
   /**
    * Drawable resource IDs for the icons displayed in the bottom navigation tabs. The order of icons
@@ -39,7 +39,7 @@ public class BottomNavFragmentStateAdapter extends FragmentStateAdapter {
    */
   @DrawableRes
   private static final int[] ICONS = {
-    R.drawable.ic_tab_main_24dp, R.drawable.ic_tab_history_24dp, R.drawable.ic_tab_besttimes_24dp, R.drawable.ic_tab_settings_24dp
+    R.drawable.ic_tab_main_24dp, R.drawable.ic_tab_history_24dp, R.drawable.ic_tab_besttimes_24dp, R.drawable.ic_tab_statistics_24dp, R.drawable.ic_tab_settings_24dp
   };
 
   public BottomNavFragmentStateAdapter(@NonNull FragmentActivity fragmentActivity) {
@@ -54,7 +54,8 @@ public class BottomNavFragmentStateAdapter extends FragmentStateAdapter {
     return switch (position) {
       case 1 -> new HistoryFragment();
       case 2 -> new BestTimesFragment();
-      case 3 -> new SettingsContainerFragment();
+      case 3 -> new StatisticsFragment();
+      case 4 -> new SettingsContainerFragment();
       default -> new StartFragment();
     };
   }
