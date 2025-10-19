@@ -169,32 +169,19 @@
         <activity android:name=".view.UploadActivity"
             android:theme="@style/AppTheme"/>
 
+        <!-- ManageWorkoutsActivity completely disabled - not used -->
+        <!--
         <activity
-            android:exported="true"
+            android:exported="false"
             android:name=".view.ManageWorkoutsActivity"
             android:label="@string/Manage_workouts"
             android:parentActivityName=".view.MainLayout"
             android:theme="@style/AppTheme">
-            <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".view.MainLayout"/>
-            <intent-filter tools:ignore="GoogleAppIndexingWarning,AppLinkUrlError">
-                <action android:name="android.intent.action.VIEW"/>
-                <action android:name="android.intent.action.EDIT"/>
-
-                <category android:name="android.intent.category.DEFAULT"/>
-                <data android:mimeType="application/vnd.garmin.workout+json"/>
-            </intent-filter>
-            <!-- Check for application/json too, see http://code.google.com/p/android/issues/detail?id=48594 -->
-            <intent-filter tools:ignore="GoogleAppIndexingWarning,AppLinkUrlError">
-                <action android:name="android.intent.action.VIEW"/>
-                <action android:name="android.intent.action.EDIT"/>
-
-                <category android:name="android.intent.category.DEFAULT"/>
-                <data android:mimeType="application/json"/>
-            </intent-filter>
         </activity>
+        -->
 
         <provider
             android:name=".content.WorkoutFileProvider"

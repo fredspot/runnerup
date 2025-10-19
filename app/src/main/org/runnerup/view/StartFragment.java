@@ -184,6 +184,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   @Override
   public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
+    android.util.Log.d("StartFragment", "onViewCreated() called");
 
     AppCompatDelegate.setCompatVectorFromResourcesEnabled(true);
 
@@ -300,6 +301,21 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     advancedWorkoutListAdapter = new WorkoutListAdapter(inflater);
     advancedWorkoutListAdapter.reload();
     advancedWorkoutSpinner.setAdapter(advancedWorkoutListAdapter);
+    
+    // Explicitly set the spinner to the first valid workout (not "Manage workouts")
+    // This prevents the spinner from defaulting to the "Manage workouts" item during fragment recreation
+    android.util.Log.d("StartFragment", "Adapter count: " + advancedWorkoutListAdapter.getCount());
+    if (advancedWorkoutListAdapter.getCount() > 1) {
+      // Set to first workout (index 0), not the last item which is "Manage workouts"
+      String firstWorkout = advancedWorkoutListAdapter.getItem(0).toString();
+      android.util.Log.d("StartFragment", "About to set spinner to first workout: " + firstWorkout);
+      advancedWorkoutSpinner.setValue(firstWorkout);
+      android.util.Log.d("StartFragment", "Set spinner to first workout: " + firstWorkout);
+    } else {
+      android.util.Log.d("StartFragment", "Adapter count <= 1, not setting spinner value");
+    }
+    
+    android.util.Log.d("StartFragment", "Setting up OnConfigureWorkoutsListener for advancedWorkoutSpinner");
     advancedWorkoutSpinner.setOnSetValueListener(
         new OnConfigureWorkoutsListener(advancedWorkoutListAdapter));
     advancedStepList = view.findViewById(R.id.advanced_step_list);
@@ -399,9 +415,10 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
       this.adapter = adapter;
     }
 
-    @Override
-    public String preSetValue(String newValue) throws IllegalArgumentException {
-      android.util.Log.d("StartFragment", "OnConfigureWorkoutsListener.preSetValue called with: " + newValue + ", isInitialization: " + isInitialization);
+      @Override
+      public String preSetValue(String newValue) throws IllegalArgumentException {
+        android.util.Log.d("StartFragment", "OnConfigureWorkoutsListener.preSetValue called with: '" + newValue + "', isInitialization: " + isInitialization);
+        android.util.Log.d("StartFragment", "Stack trace for preSetValue:", new Exception("Stack trace for debugging"));
       
       // Prevent launching ManageWorkoutsActivity during initialization
       if (isInitialization) {
@@ -419,9 +436,13 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
       
       if (newValue != null
           && newValue.contentEquals((String) adapter.getItem(adapter.getCount() - 1))) {
-        android.util.Log.d("StartFragment", "Launching ManageWorkoutsActivity for: " + newValue);
-        Intent i = new Intent(requireContext(), ManageWorkoutsActivity.class);
-        startActivity(i);
+        android.util.Log.d("StartFragment", "ManageWorkoutsActivity disabled - not launching for: " + newValue);
+        // ManageWorkoutsActivity is disabled - just return the first workout instead
+        if (adapter.getCount() > 1) {
+          String firstWorkout = adapter.getItem(0).toString();
+          android.util.Log.d("StartFragment", "Returning first workout instead: " + firstWorkout);
+          return firstWorkout;
+        }
         throw new IllegalArgumentException();
       }
       loadAdvanced(newValue);

@@ -28,11 +28,8 @@
             android:key="@string/pref_cue_workouts"
             android:summary="@string/Downloadeditremove_workouts"
             android:title="@string/Manage_workouts"
-            app:iconSpaceReserved="false">
-            <intent
-                android:targetClass="org.runnerup.view.ManageWorkoutsActivity"
-                android:targetPackage="@string/applicationIdFull" />
-        </Preference>
+            app:iconSpaceReserved="false"
+            android:enabled="false" />
     </PreferenceCategory>
 
     <PreferenceCategory

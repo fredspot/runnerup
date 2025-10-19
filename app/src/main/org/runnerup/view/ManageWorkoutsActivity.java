@@ -98,6 +98,8 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    android.util.Log.d("ManageWorkoutsActivity", "onCreate() called - this should NOT happen automatically!");
+    android.util.Log.d("ManageWorkoutsActivity", "Stack trace:", new Exception("Stack trace for debugging"));
     setContentView(R.layout.manage_workouts);
 
     PHONE_STRING = getResources().getString(org.runnerup.common.R.string.my_phone);
