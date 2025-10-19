@@ -17,23 +17,19 @@
 
 package org.runnerup.view;
 
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
-import android.widget.Button;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -51,7 +47,6 @@ public class StatisticsFragment extends Fragment
 
   private SQLiteDatabase mDB = null;
   private StatisticsListAdapter adapter = null;
-  private Button computeButton = null;
   private List<YearlyStatsEntity> yearlyStats = new ArrayList<>();
   private Formatter formatter = null;
 
@@ -64,14 +59,8 @@ public class StatisticsFragment extends Fragment
     super.onViewCreated(view, savedInstanceState);
 
     ListView listView = view.findViewById(R.id.statistics_list);
-    computeButton = view.findViewById(R.id.compute_statistics_button);
 
     Context context = requireContext();
-    
-    // Set up compute button
-    computeButton.setOnClickListener(v -> {
-      new ComputeStatisticsTask().execute();
-    });
 
     mDB = DBHelper.getWritableDatabase(context);
     formatter = new Formatter(context);
@@ -118,48 +107,6 @@ public class StatisticsFragment extends Fragment
     }
   }
 
-  /**
-   * AsyncTask to compute statistics in background.
-   */
-  private class ComputeStatisticsTask extends AsyncTask<Void, Void, Integer> {
-    private ProgressDialog progressDialog;
-
-    @Override
-    protected void onPreExecute() {
-      progressDialog = new ProgressDialog(requireContext());
-      progressDialog.setMessage(getString(R.string.computing_statistics));
-      progressDialog.setCancelable(false);
-      progressDialog.show();
-    }
-
-    @Override
-    protected Integer doInBackground(Void... params) {
-      try {
-        return StatisticsCalculator.computeStatistics(mDB);
-      } catch (Exception e) {
-        return 0;
-      }
-    }
-
-    @Override
-    protected void onPostExecute(Integer result) {
-      progressDialog.dismiss();
-      
-      if (result > 0) {
-        Toast.makeText(requireContext(), 
-            getString(R.string.statistics_computed, result), 
-            Toast.LENGTH_LONG).show();
-        // Close current DB connection and reopen to ensure fresh data
-        DBHelper.closeDB(mDB);
-        mDB = DBHelper.getWritableDatabase(requireContext());
-        loadYears();
-      } else {
-        Toast.makeText(requireContext(), 
-            getString(R.string.statistics_compute_error), 
-            Toast.LENGTH_LONG).show();
-      }
-    }
-  }
 
   /**
    * Adapter for displaying yearly statistics list.

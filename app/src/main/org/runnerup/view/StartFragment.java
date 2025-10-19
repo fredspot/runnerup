@@ -393,6 +393,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
   private class OnConfigureWorkoutsListener implements OnSetValueListener {
     final WorkoutListAdapter adapter;
+    private boolean isInitialization = true;
 
     OnConfigureWorkoutsListener(WorkoutListAdapter adapter) {
       this.adapter = adapter;
@@ -400,8 +401,25 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
     @Override
     public String preSetValue(String newValue) throws IllegalArgumentException {
+      android.util.Log.d("StartFragment", "OnConfigureWorkoutsListener.preSetValue called with: " + newValue + ", isInitialization: " + isInitialization);
+      
+      // Prevent launching ManageWorkoutsActivity during initialization
+      if (isInitialization) {
+        isInitialization = false;
+        android.util.Log.d("StartFragment", "During initialization, preventing ManageWorkoutsActivity launch");
+        if (newValue != null && newValue.contentEquals((String) adapter.getItem(adapter.getCount() - 1))) {
+          // During initialization, just return the first valid workout instead of launching ManageWorkoutsActivity
+          if (adapter.getCount() > 1) {
+            String firstWorkout = adapter.getItem(0).toString();
+            android.util.Log.d("StartFragment", "Returning first workout instead: " + firstWorkout);
+            return firstWorkout;
+          }
+        }
+      }
+      
       if (newValue != null
           && newValue.contentEquals((String) adapter.getItem(adapter.getCount() - 1))) {
+        android.util.Log.d("StartFragment", "Launching ManageWorkoutsActivity for: " + newValue);
         Intent i = new Intent(requireContext(), ManageWorkoutsActivity.class);
         startActivity(i);
         throw new IllegalArgumentException();

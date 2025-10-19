@@ -22,6 +22,77 @@ public class StatisticsCalculator {
   private static final String TAG = "StatisticsCalculator";
 
   /**
+   * Checks if statistics data is stale (needs recomputation).
+   * 
+   * @param db Database instance
+   * @return true if data is stale and needs recomputation
+   */
+  public static boolean isDataStale(SQLiteDatabase db) {
+    try {
+      // Get last computation info
+      String sql = "SELECT " + Constants.DB.COMPUTATION_TRACKING.LAST_ACTIVITY_ID + 
+                   " FROM " + Constants.DB.COMPUTATION_TRACKING.TABLE +
+                   " WHERE " + Constants.DB.COMPUTATION_TRACKING.COMPUTATION_TYPE + " = 'statistics'";
+      
+      try (Cursor cursor = db.rawQuery(sql, null)) {
+        if (!cursor.moveToFirst()) {
+          // No tracking record exists, data is stale
+          Log.i(TAG, "No computation tracking record found for statistics, data is stale");
+          return true;
+        }
+        
+        long lastActivityId = cursor.getLong(0);
+        
+        // Get latest activity ID
+        String latestSql = "SELECT MAX(" + Constants.DB.PRIMARY_KEY + ") FROM " + Constants.DB.ACTIVITY.TABLE +
+                          " WHERE " + Constants.DB.ACTIVITY.SPORT + " = ? AND " + Constants.DB.ACTIVITY.DELETED + " = ?";
+        
+        try (Cursor latestCursor = db.rawQuery(latestSql, new String[]{
+          String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING), "0"})) {
+          
+          if (latestCursor.moveToFirst()) {
+            long latestActivityId = latestCursor.getLong(0);
+            boolean isStale = latestActivityId > lastActivityId;
+            Log.i(TAG, "Statistics staleness check: last=" + lastActivityId + 
+                      ", latest=" + latestActivityId + ", stale=" + isStale);
+            return isStale;
+          }
+        }
+      }
+      
+      return true; // Default to stale if we can't determine
+    } catch (Exception e) {
+      Log.e(TAG, "Error checking statistics staleness: " + e.getMessage(), e);
+      return true; // Default to stale on error
+    }
+  }
+
+  /**
+   * Updates computation tracking after successful computation.
+   * 
+   * @param db Database instance
+   * @param lastActivityId ID of the last activity processed
+   */
+  public static void updateComputationTracking(SQLiteDatabase db, long lastActivityId) {
+    try {
+      long currentTime = System.currentTimeMillis() / 1000; // Unix timestamp in seconds
+      
+      ContentValues values = new ContentValues();
+      values.put(Constants.DB.COMPUTATION_TRACKING.COMPUTATION_TYPE, "statistics");
+      values.put(Constants.DB.COMPUTATION_TRACKING.LAST_COMPUTED_TIME, currentTime);
+      values.put(Constants.DB.COMPUTATION_TRACKING.LAST_ACTIVITY_ID, lastActivityId);
+      
+      // Use INSERT OR REPLACE to handle both new and existing records
+      db.replace(Constants.DB.COMPUTATION_TRACKING.TABLE, null, values);
+      
+      Log.i(TAG, "Updated computation tracking for statistics: activityId=" + lastActivityId + 
+                ", time=" + currentTime);
+    } catch (Exception e) {
+      Log.e(TAG, "Error updating computation tracking: " + e.getMessage(), e);
+    }
+  }
+
+  /**
    * Computes statistics for all years and months using lap data.
    * 
    * @param db Database instance
@@ -44,6 +115,8 @@ public class StatisticsCalculator {
         Log.i(TAG, "No running activities found, skipping statistics computation");
         return 0;
       }
+      
+      long lastActivityId = 0;
       
       // Compute yearly statistics
       Map<Integer, YearlyStats> yearlyStats = computeYearlyStats(db, activityIds);
@@ -68,6 +141,13 @@ public class StatisticsCalculator {
       }
       
       int totalComputed = yearlyCount + monthlyCount;
+      
+      // Update computation tracking with the latest activity ID
+      if (!activityIds.isEmpty()) {
+        lastActivityId = activityIds.get(0); // Activities are ordered by start_time DESC, so first is latest
+        updateComputationTracking(db, lastActivityId);
+      }
+      
       Log.i(TAG, "Statistics computation completed. Total: " + totalComputed + " records");
       return totalComputed;
       

@@ -217,6 +217,13 @@ public interface Constants {
       String AVG_RUN_LENGTH = "avg_run_length"; // average run length in meters
       String RUN_COUNT = "run_count";         // number of runs
     }
+
+    interface COMPUTATION_TRACKING {
+      String TABLE = "computation_tracking";
+      String COMPUTATION_TYPE = "computation_type"; // 'best_times' or 'statistics'
+      String LAST_COMPUTED_TIME = "last_computed_time"; // Unix timestamp
+      String LAST_ACTIVITY_ID = "last_activity_id"; // ID of last activity when computed
+    }
   }
 
   interface SPEED_UNIT {

@@ -49,7 +49,7 @@ import org.runnerup.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 33;
+  private static final int DBVERSION = 34;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -236,6 +236,16 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.MONTHLY_STATS.RUN_COUNT + " integer not null ")
           + ");";
 
+  private static final String CREATE_TABLE_COMPUTATION_TRACKING =
+      "create table "
+          + DB.COMPUTATION_TRACKING.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.COMPUTATION_TRACKING.COMPUTATION_TYPE + " text not null unique, ")
+          + (DB.COMPUTATION_TRACKING.LAST_COMPUTED_TIME + " integer not null, ")
+          + (DB.COMPUTATION_TRACKING.LAST_ACTIVITY_ID + " integer not null ")
+          + ");";
+
   private static final String CREATE_INDEX_FEED =
       "create index "
           + "if not exists FEED_START_TIME "
@@ -297,6 +307,7 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     arg0.execSQL(CREATE_TABLE_BEST_TIMES);
     arg0.execSQL(CREATE_TABLE_YEARLY_STATS);
     arg0.execSQL(CREATE_TABLE_MONTHLY_STATS);
+    arg0.execSQL(CREATE_TABLE_COMPUTATION_TRACKING);
 
     onCreateUpgrade(arg0, 0, DBVERSION);
   }
@@ -419,6 +430,9 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     if (oldVersion < 33) {
       arg0.execSQL(CREATE_TABLE_YEARLY_STATS);
       arg0.execSQL(CREATE_TABLE_MONTHLY_STATS);
+    }
+    if (oldVersion < 34) {
+      arg0.execSQL(CREATE_TABLE_COMPUTATION_TRACKING);
     }
     //    migrateFileSyncronizerInfo(arg0);
     //    recreateAccount(arg0);

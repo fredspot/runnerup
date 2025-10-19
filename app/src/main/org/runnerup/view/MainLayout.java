@@ -31,6 +31,7 @@ import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -55,7 +56,9 @@ import java.io.InputStream;
 import java.util.List;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants.DB;
+import org.runnerup.db.BestTimesCalculator;
 import org.runnerup.db.DBHelper;
+import org.runnerup.db.StatisticsCalculator;
 import org.runnerup.util.FileUtil;
 import org.runnerup.util.Formatter;
 import org.runnerup.util.GoogleApiHelper;
@@ -200,6 +203,9 @@ public class MainLayout extends AppCompatActivity {
 
     // Handle back navigation
     getOnBackPressedDispatcher().addCallback(this, onBackPressed);
+
+    // Start auto-computation of statistics and best times
+    new AutoComputeTask().execute();
   }
 
   /**
@@ -392,5 +398,44 @@ public class MainLayout extends AppCompatActivity {
     }
     builder.show();
     wv.loadUrl("file:///android_asset/changes.html");
+  }
+
+  /**
+   * AsyncTask to automatically compute statistics and best times on app startup.
+   */
+  private class AutoComputeTask extends AsyncTask<Void, Void, Void> {
+    private static final String TAG = "AutoComputeTask";
+
+    @Override
+    protected Void doInBackground(Void... params) {
+      SQLiteDatabase db = DBHelper.getWritableDatabase(MainLayout.this);
+      
+      try {
+        // Check and compute Best Times if stale
+        if (BestTimesCalculator.isDataStale(db)) {
+          Log.i(TAG, "Best times data is stale, computing...");
+          int computed = BestTimesCalculator.computeBestTimes(db);
+          Log.i(TAG, "Computed " + computed + " best times");
+        } else {
+          Log.i(TAG, "Best times data is fresh, skipping computation");
+        }
+        
+        // Check and compute Statistics if stale
+        if (StatisticsCalculator.isDataStale(db)) {
+          Log.i(TAG, "Statistics data is stale, computing...");
+          int computed = StatisticsCalculator.computeStatistics(db);
+          Log.i(TAG, "Computed " + computed + " statistics records");
+        } else {
+          Log.i(TAG, "Statistics data is fresh, skipping computation");
+        }
+        
+      } catch (Exception e) {
+        Log.e(TAG, "Error during auto-computation: " + e.getMessage(), e);
+      } finally {
+        DBHelper.closeDB(db);
+      }
+      
+      return null;
+    }
   }
 }

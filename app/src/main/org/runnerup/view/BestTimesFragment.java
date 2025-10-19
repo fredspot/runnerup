@@ -17,23 +17,19 @@
 
 package org.runnerup.view;
 
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
-import android.widget.Button;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -49,7 +45,6 @@ public class BestTimesFragment extends Fragment
 
   private SQLiteDatabase mDB = null;
   private BestTimesListAdapter adapter = null;
-  private Button computeButton = null;
   private List<Integer> distances = new ArrayList<>();
 
   // Target distances in meters
@@ -65,14 +60,8 @@ public class BestTimesFragment extends Fragment
     super.onViewCreated(view, savedInstanceState);
 
     ListView listView = view.findViewById(R.id.best_times_list);
-    computeButton = view.findViewById(R.id.compute_best_times_button);
 
     Context context = requireContext();
-    
-    // Set up compute button
-    computeButton.setOnClickListener(v -> {
-      new ComputeBestTimesTask().execute();
-    });
 
     mDB = DBHelper.getWritableDatabase(context);
     listView.setDividerHeight(2);
@@ -119,48 +108,6 @@ public class BestTimesFragment extends Fragment
     }
   }
 
-  /**
-   * AsyncTask to compute best times in background.
-   */
-  private class ComputeBestTimesTask extends AsyncTask<Void, Void, Integer> {
-    private ProgressDialog progressDialog;
-
-    @Override
-    protected void onPreExecute() {
-      progressDialog = new ProgressDialog(requireContext());
-      progressDialog.setMessage(getString(R.string.computing_best_times));
-      progressDialog.setCancelable(false);
-      progressDialog.show();
-    }
-
-    @Override
-    protected Integer doInBackground(Void... params) {
-      try {
-        return BestTimesCalculator.computeBestTimes(mDB);
-      } catch (Exception e) {
-        return 0;
-      }
-    }
-
-    @Override
-    protected void onPostExecute(Integer result) {
-      progressDialog.dismiss();
-      
-      if (result > 0) {
-        Toast.makeText(requireContext(), 
-            getString(R.string.best_times_computed, result), 
-            Toast.LENGTH_LONG).show();
-        // Close current DB connection and reopen to ensure fresh data
-        DBHelper.closeDB(mDB);
-        mDB = DBHelper.getWritableDatabase(requireContext());
-        loadDistances();
-      } else {
-        Toast.makeText(requireContext(), 
-            getString(R.string.best_times_compute_error), 
-            Toast.LENGTH_LONG).show();
-      }
-    }
-  }
 
   /**
    * Adapter for displaying distance list.
