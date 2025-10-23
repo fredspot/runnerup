@@ -37,6 +37,7 @@ import org.runnerup.R;
 import org.runnerup.common.util.Constants;
 import org.runnerup.db.BestTimesCalculator;
 import org.runnerup.db.DBHelper;
+import org.runnerup.db.entities.BestTimesSummaryEntity;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,7 +46,8 @@ public class BestTimesFragment extends Fragment
 
   private SQLiteDatabase mDB = null;
   private BestTimesListAdapter adapter = null;
-  private List<Integer> distances = new ArrayList<>();
+  private List<BestTimesSummaryEntity> summaries = new ArrayList<>();
+  private org.runnerup.util.Formatter formatter;
 
   // Target distances in meters
   private static final int[] TARGET_DISTANCES = {1000, 5000, 10000, 15000, 20000, 21097, 30000, 40000, 42195};
@@ -64,6 +66,7 @@ public class BestTimesFragment extends Fragment
     Context context = requireContext();
 
     mDB = DBHelper.getWritableDatabase(context);
+    formatter = new org.runnerup.util.Formatter(context);
     listView.setDividerHeight(2);
     listView.setOnItemClickListener(this);
     listView.setOnItemLongClickListener((parent, view1, position, id) -> {
@@ -91,21 +94,24 @@ public class BestTimesFragment extends Fragment
   }
 
   private void loadDistances() {
-    distances.clear();
-    String sql = "SELECT DISTINCT " + Constants.DB.BEST_TIMES.DISTANCE + 
+    summaries.clear();
+    String sql = "SELECT " + Constants.DB.BEST_TIMES.DISTANCE + 
+                 ", AVG(" + Constants.DB.BEST_TIMES.TIME + ") as avg_time" +
+                 ", COUNT(*) as count" +
                  " FROM " + Constants.DB.BEST_TIMES.TABLE + 
+                 " GROUP BY " + Constants.DB.BEST_TIMES.DISTANCE +
                  " ORDER BY " + Constants.DB.BEST_TIMES.DISTANCE;
     
-    android.util.Log.d("BestTimesFragment", "Loading distances from database...");
+    android.util.Log.d("BestTimesFragment", "Loading best times summaries from database...");
     try (Cursor cursor = mDB.rawQuery(sql, null)) {
       int count = 0;
       while (cursor.moveToNext()) {
-        int distance = cursor.getInt(0);
-        distances.add(distance);
-        android.util.Log.d("BestTimesFragment", "Found distance: " + distance + "m");
+        BestTimesSummaryEntity summary = new BestTimesSummaryEntity(cursor);
+        summaries.add(summary);
+        android.util.Log.d("BestTimesFragment", "Found summary: " + summary.getDistance() + "m, avg=" + summary.getAverageTime() + "ms, count=" + summary.getCount());
         count++;
       }
-      android.util.Log.d("BestTimesFragment", "Total distances found: " + count);
+      android.util.Log.d("BestTimesFragment", "Total summaries found: " + count);
     }
     adapter.notifyDataSetChanged();
   }
@@ -137,8 +143,8 @@ public class BestTimesFragment extends Fragment
 
   @Override
   public void onItemClick(AdapterView<?> arg0, View arg1, int position, long id) {
-    if (position < distances.size()) {
-      int distance = distances.get(position);
+    if (position < summaries.size()) {
+      int distance = summaries.get(position).getDistance();
       Intent intent = new Intent(requireContext(), BestTimesDetailActivity.class);
       intent.putExtra("DISTANCE", distance);
       startActivity(intent);
@@ -158,12 +164,12 @@ public class BestTimesFragment extends Fragment
 
     @Override
     public int getCount() {
-      return distances.size();
+      return summaries.size();
     }
 
     @Override
     public Object getItem(int position) {
-      return distances.get(position);
+      return summaries.get(position);
     }
 
     @Override
@@ -177,15 +183,21 @@ public class BestTimesFragment extends Fragment
         convertView = inflater.inflate(R.layout.best_times_row, parent, false);
       }
       
-      int distance = distances.get(position);
+      BestTimesSummaryEntity summary = summaries.get(position);
       
       TextView distanceText = convertView.findViewById(R.id.distance_text);
       TextView descriptionText = convertView.findViewById(R.id.description_text);
       
       // Find the label for this distance
-      String label = getDistanceLabel(distance);
+      String label = getDistanceLabel(summary.getDistance());
       distanceText.setText(label);
-      descriptionText.setText(getString(R.string.best_times_description));
+      
+      // Format the average time and count
+      long timeInSeconds = summary.getAverageTime() / 1000;
+      String avgTimeStr = formatter.formatElapsedTime(
+          org.runnerup.util.Formatter.Format.TXT_LONG, timeInSeconds);
+      String countStr = summary.getCount() + " runs";
+      descriptionText.setText(avgTimeStr + " (" + countStr + ")");
       
       return convertView;
     }
