@@ -58,6 +58,7 @@ import org.runnerup.R;
 import org.runnerup.common.util.Constants.DB;
 import org.runnerup.db.BestTimesCalculator;
 import org.runnerup.db.DBHelper;
+import org.runnerup.db.HRZoneCalculator;
 import org.runnerup.db.MonthlyComparisonCalculator;
 import org.runnerup.db.StatisticsCalculator;
 import org.runnerup.util.FileUtil;
@@ -434,6 +435,15 @@ public class MainLayout extends AppCompatActivity {
         Log.i(TAG, "Computing monthly comparison...");
         int monthlyComputed = MonthlyComparisonCalculator.computeComparison(db);
         Log.i(TAG, "Computed " + monthlyComputed + " monthly comparison records");
+        
+        // Check and compute HR Zones if stale
+        if (HRZoneCalculator.isDataStale(db)) {
+          Log.i(TAG, "HR zone data is stale, computing...");
+          int hrComputed = HRZoneCalculator.computeHRZones(db);
+          Log.i(TAG, "Computed " + hrComputed + " HR zone records");
+        } else {
+          Log.i(TAG, "HR zone data is fresh, skipping computation");
+        }
         
       } catch (Exception e) {
         Log.e(TAG, "Error during auto-computation: " + e.getMessage(), e);

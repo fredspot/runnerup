@@ -46,56 +46,49 @@ public class HRZoneCalculator implements Constants {
       zoneStats[i] = new ZoneStats(i);
     }
 
-    // Get all location records with HR data
-    String sql = "SELECT " + Constants.DB.LOCATION.ACTIVITY + ", " + 
-                 Constants.DB.LOCATION.TIME + ", " + Constants.DB.LOCATION.HR + ", " +
-                 Constants.DB.LOCATION.ELAPSED + ", " + Constants.DB.LOCATION.DISTANCE +
-                 " FROM " + Constants.DB.LOCATION.TABLE +
-                 " WHERE " + Constants.DB.LOCATION.HR + " > 0 AND " +
-                 Constants.DB.LOCATION.TYPE + " = ?" +
-                 " ORDER BY " + Constants.DB.LOCATION.ACTIVITY + ", " + Constants.DB.LOCATION.TIME;
+    // Get all laps with HR data
+    String sql = "SELECT l." + Constants.DB.PRIMARY_KEY + ", l." + Constants.DB.LAP.ACTIVITY + 
+                 ", l." + Constants.DB.LAP.DISTANCE + ", l." + Constants.DB.LAP.TIME +
+                 ", COALESCE(hr_data.avg_hr, 0) as avg_hr" +
+                 " FROM " + Constants.DB.LAP.TABLE + " l" +
+                 " INNER JOIN " + Constants.DB.ACTIVITY.TABLE + " a" +
+                 " ON l." + Constants.DB.LAP.ACTIVITY + " = a." + Constants.DB.PRIMARY_KEY +
+                 " LEFT JOIN (" +
+                 "   SELECT " + Constants.DB.LOCATION.ACTIVITY + ", AVG(" + Constants.DB.LOCATION.HR + ") as avg_hr" +
+                 "   FROM " + Constants.DB.LOCATION.TABLE +
+                 "   WHERE " + Constants.DB.LOCATION.HR + " > 0" +
+                 "   GROUP BY " + Constants.DB.LOCATION.ACTIVITY +
+                 ") hr_data ON l." + Constants.DB.LAP.ACTIVITY + " = hr_data." + Constants.DB.LOCATION.ACTIVITY +
+                 " WHERE a." + Constants.DB.ACTIVITY.SPORT + " = ? AND " +
+                 "a." + Constants.DB.ACTIVITY.DELETED + " = 0" +
+                 " ORDER BY l." + Constants.DB.LAP.ACTIVITY + ", l." + Constants.DB.PRIMARY_KEY;
 
-    List<HRReading> readings = new ArrayList<>();
-    try (Cursor cursor = db.rawQuery(sql, new String[]{String.valueOf(Constants.DB.LOCATION.TYPE_GPS)})) {
+    List<LapData> laps = new ArrayList<>();
+    try (Cursor cursor = db.rawQuery(sql, new String[]{String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING)})) {
       while (cursor.moveToNext()) {
-        long activityId = cursor.getLong(0);
-        long time = cursor.getLong(1);
-        int hr = cursor.getInt(2);
-        double elapsed = cursor.getDouble(3);
-        double distance = cursor.getDouble(4);
-
-        readings.add(new HRReading(activityId, time, hr, elapsed, distance));
+        long lapId = cursor.getLong(0);
+        long activityId = cursor.getLong(1);
+        double distance = cursor.getDouble(2);
+        long time = cursor.getLong(3);
+        double avgHR = cursor.getDouble(4);
+        
+        laps.add(new LapData(lapId, activityId, distance, time, avgHR));
       }
     }
 
-    Log.d(TAG, "Found " + readings.size() + " HR readings");
+    Log.d(TAG, "Found " + laps.size() + " laps");
 
-    // Process readings and assign to zones
-    for (int i = 0; i < readings.size() - 1; i++) {
-      HRReading reading = readings.get(i);
-      HRReading nextReading = readings.get(i + 1);
-
-      // Only process consecutive readings from the same activity
-      if (reading.activityId != nextReading.activityId) {
-        continue;
-      }
-
-      // Determine zone for this reading
-      int zone = getZone(reading.hr);
-
-      // Calculate time interval
-      long timeInterval = nextReading.time - reading.time;
-      if (timeInterval <= 0) {
-        continue;
-      }
-
-      // Add time to zone
-      zoneStats[zone].addTime(timeInterval);
-
-      // Calculate distance interval
-      double distanceInterval = nextReading.distance - reading.distance;
-      if (distanceInterval > 0) {
-        zoneStats[zone].addDistance(distanceInterval);
+    // For each lap, assign to zone based on average HR
+    for (LapData lap : laps) {
+      if (lap.avgHR > 0) {
+        // Determine zone for this lap
+        int zone = getZone((int)lap.avgHR);
+        
+        // Add lap data to zone
+        // lap.time is in seconds, convert to milliseconds
+        zoneStats[zone].addLap(lap.distance, lap.time * 1000);
+        
+        Log.d(TAG, "Lap " + lap.lapId + " in zone " + zone + ", avgHR=" + lap.avgHR + ", distance=" + lap.distance + "m, time=" + lap.time + "s");
       }
     }
 
@@ -110,7 +103,7 @@ public class HRZoneCalculator implements Constants {
 
       db.insert(Constants.DB.HR_ZONE_STATS.TABLE, null, values);
 
-      Log.d(TAG, "Zone " + stats.zoneNumber + ": time=" + stats.totalTime + "ms, pace=" + stats.calculateAvgPace());
+      Log.d(TAG, "Zone " + stats.zoneNumber + ": time=" + stats.totalTime + "ms, distance=" + stats.totalDistance + "m, pace=" + stats.calculateAvgPace());
     }
 
     Log.i(TAG, "HR zone computation completed");
@@ -141,19 +134,19 @@ public class HRZoneCalculator implements Constants {
     }
   }
 
-  private static class HRReading {
+  private static class LapData {
+    long lapId;
     long activityId;
-    long time;
-    int hr;
-    double elapsed;
     double distance;
+    long time;
+    double avgHR;
 
-    HRReading(long activityId, long time, int hr, double elapsed, double distance) {
+    LapData(long lapId, long activityId, double distance, long time, double avgHR) {
+      this.lapId = lapId;
       this.activityId = activityId;
-      this.time = time;
-      this.hr = hr;
-      this.elapsed = elapsed;
       this.distance = distance;
+      this.time = time;
+      this.avgHR = avgHR;
     }
   }
 
@@ -168,17 +161,16 @@ public class HRZoneCalculator implements Constants {
       this.totalDistance = 0;
     }
 
-    void addTime(long time) {
-      this.totalTime += time;
-    }
-
-    void addDistance(double distance) {
+    void addLap(double distance, long time) {
       this.totalDistance += distance;
+      this.totalTime += time;
     }
 
     double calculateAvgPace() {
       if (totalDistance > 0 && totalTime > 0) {
-        return (totalTime / totalDistance) * 1000.0; // seconds per km
+        // totalTime is in milliseconds, totalDistance is in meters
+        // Convert to seconds per km: (ms / m) * 1000 / 1000 = s/km
+        return (totalTime / totalDistance); // seconds per km
       }
       return 0;
     }
@@ -235,4 +227,3 @@ public class HRZoneCalculator implements Constants {
     }
   }
 }
-
