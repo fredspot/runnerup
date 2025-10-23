@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+      ~ Copyright (C) 2024 RunnerUp
+      ~
+      ~  This program is free software: you can redistribute it and/or modify
+      ~  it under the terms of the GNU General Public License as published by
+      ~  the Free Software Foundation, either version 3 of the License, or
+      ~  (at your option) any later version.
+      ~
+      ~  This program is distributed in the hope that it will be useful,
+      ~  but WITHOUT ANY WARRANTY; without even the implied warranty of
+      ~  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      ~  GNU General Public License for more details.
+      ~
+      ~  You should have received a copy of the GNU General Public License
+      ~  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/monthly_comparison_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/colorPrimary"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Header Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="3"
+                android:background="@color/colorPrimaryDark"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Metric"
+                    android:textColor="@color/colorText"
+                    android:textStyle="bold"
+                    android:textSize="16sp"/>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/all_other_months"
+                    android:textColor="@color/colorText"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/this_month"
+                    android:textColor="@color/colorText"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:textAlignment="center"/>
+
+            </LinearLayout>
+
+            <!-- Avg Pace Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="3"
+                android:background="?android:attr/selectableItemBackground"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/avg_pace"
+                    android:textSize="14sp"/>
+
+                <TextView
+                    android:id="@+id/other_months_avg_pace"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/this_month_avg_pace"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textAlignment="center"/>
+
+            </LinearLayout>
+
+            <!-- Total Distance Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="3"
+                android:background="?android:attr/selectableItemBackground"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/total_distance"
+                    android:textSize="14sp"/>
+
+                <TextView
+                    android:id="@+id/other_months_total_km"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/this_month_total_km"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textAlignment="center"/>
+
+            </LinearLayout>
+
+            <!-- Avg BPM Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="3"
+                android:background="?android:attr/selectableItemBackground"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/average_bpm"
+                    android:textSize="14sp"/>
+
+                <TextView
+                    android:id="@+id/other_months_avg_bpm"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/this_month_avg_bpm"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textAlignment="center"/>
+
+            </LinearLayout>
+
+            <!-- PB Count Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="3"
+                android:background="?android:attr/selectableItemBackground"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/personal_bests"
+                    android:textSize="14sp"/>
+
+                <TextView
+                    android:id="@+id/other_months_pb_count"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/this_month_pb_count"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textSize="14sp"
+                    android:textAlignment="center"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

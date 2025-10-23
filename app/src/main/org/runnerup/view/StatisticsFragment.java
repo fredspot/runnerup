@@ -19,7 +19,6 @@ package org.runnerup.view;
 
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -28,27 +27,36 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.BaseAdapter;
-import android.widget.ListView;
+import android.widget.GridView;
+import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
-import org.runnerup.db.StatisticsCalculator;
 import org.runnerup.db.DBHelper;
-import org.runnerup.db.entities.YearlyStatsEntity;
-import org.runnerup.util.Formatter;
-import java.util.ArrayList;
-import java.util.List;
 
 public class StatisticsFragment extends Fragment
     implements Constants, OnItemClickListener {
 
   private SQLiteDatabase mDB = null;
-  private StatisticsListAdapter adapter = null;
-  private List<YearlyStatsEntity> yearlyStats = new ArrayList<>();
-  private Formatter formatter = null;
+  private StatisticsGridAdapter adapter = null;
+
+  // Categories for the grid
+  private static final int[] CATEGORY_ICONS = {
+    R.drawable.ic_tab_main_24dp, // VS icon (placeholder)
+    R.drawable.ic_tab_history_24dp, // Calendar icon (placeholder)
+    R.drawable.ic_heartrate_white_24dp, // Heart icon
+    R.drawable.ic_tab_besttimes_24dp, // Line chart icon (placeholder)
+  };
+
+  private static final int[] CATEGORY_LABELS = {
+    R.string.statistics_monthly_comparison,
+    R.string.statistics_year_month_breakdown,
+    R.string.statistics_hr_zones,
+    R.string.statistics_yearly_progress,
+  };
 
   public StatisticsFragment() {
     super(R.layout.statistics);
@@ -58,24 +66,14 @@ public class StatisticsFragment extends Fragment
   public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
 
-    ListView listView = view.findViewById(R.id.statistics_list);
+    GridView gridView = view.findViewById(R.id.statistics_grid);
 
     Context context = requireContext();
 
     mDB = DBHelper.getWritableDatabase(context);
-    formatter = new Formatter(context);
-    listView.setDividerHeight(2);
-    listView.setOnItemClickListener(this);
-    adapter = new StatisticsListAdapter(context);
-    listView.setAdapter(adapter);
-
-    loadYears();
-  }
-
-  @Override
-  public void onResume() {
-    super.onResume();
-    loadYears();
+    gridView.setOnItemClickListener(this);
+    adapter = new StatisticsGridAdapter(context);
+    gridView.setAdapter(adapter);
   }
 
   @Override
@@ -84,48 +82,50 @@ public class StatisticsFragment extends Fragment
     DBHelper.closeDB(mDB);
   }
 
-  private void loadYears() {
-    yearlyStats.clear();
-    String sql = "SELECT * FROM " + Constants.DB.YEARLY_STATS.TABLE + 
-                 " ORDER BY " + Constants.DB.YEARLY_STATS.YEAR + " DESC";
-    
-    try (Cursor cursor = mDB.rawQuery(sql, null)) {
-      while (cursor.moveToNext()) {
-        yearlyStats.add(new YearlyStatsEntity(cursor));
-      }
-    }
-    adapter.notifyDataSetChanged();
-  }
-
   @Override
   public void onItemClick(AdapterView<?> arg0, View arg1, int position, long id) {
-    if (position < yearlyStats.size()) {
-      YearlyStatsEntity stats = yearlyStats.get(position);
-      Intent intent = new Intent(requireContext(), StatisticsDetailActivity.class);
-      intent.putExtra("YEAR", stats.getYear());
-      startActivity(intent);
+    Intent intent;
+    switch (position) {
+      case 0: // Monthly Comparison
+        intent = new Intent(requireContext(), MonthlyComparisonActivity.class);
+        startActivity(intent);
+        break;
+      case 1: // Year/Month Breakdown
+        // Show yearly stats list in a new activity
+        intent = new Intent(requireContext(), YearlyStatsActivity.class);
+        startActivity(intent);
+        break;
+      case 2: // HR Zones
+        intent = new Intent(requireContext(), HRZoneActivity.class);
+        startActivity(intent);
+        break;
+      case 3: // Yearly Progress
+        intent = new Intent(requireContext(), YearlyCumulativeActivity.class);
+        startActivity(intent);
+        break;
+      default:
+        break;
     }
   }
 
-
   /**
-   * Adapter for displaying yearly statistics list.
+   * Adapter for displaying statistics grid.
    */
-  class StatisticsListAdapter extends BaseAdapter {
+  class StatisticsGridAdapter extends BaseAdapter {
     private final LayoutInflater inflater;
 
-    StatisticsListAdapter(Context context) {
+    StatisticsGridAdapter(Context context) {
       inflater = LayoutInflater.from(context);
     }
 
     @Override
     public int getCount() {
-      return yearlyStats.size();
+      return CATEGORY_ICONS.length;
     }
 
     @Override
     public Object getItem(int position) {
-      return yearlyStats.get(position);
+      return position;
     }
 
     @Override
@@ -136,26 +136,14 @@ public class StatisticsFragment extends Fragment
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
       if (convertView == null) {
-        convertView = inflater.inflate(R.layout.statistics_row, parent, false);
+        convertView = inflater.inflate(R.layout.statistics_card, parent, false);
       }
       
-      YearlyStatsEntity stats = yearlyStats.get(position);
+      ImageView iconView = convertView.findViewById(R.id.statistics_card_icon);
+      TextView labelView = convertView.findViewById(R.id.statistics_card_label);
       
-      TextView yearText = convertView.findViewById(R.id.year_text);
-      TextView statsSummaryText = convertView.findViewById(R.id.stats_summary_text);
-      
-      // Year
-      yearText.setText(String.valueOf(stats.getYear()));
-      
-      // Summary stats
-      if (stats.getTotalDistance() != null && stats.getAvgPace() != null && stats.getRunCount() != null) {
-        String distanceStr = formatter.formatDistance(Formatter.Format.TXT_SHORT, stats.getTotalDistance().longValue());
-        String paceStr = formatter.formatPace(Formatter.Format.TXT_SHORT, stats.getAvgPace() / 1000.0); // Convert to seconds per meter
-        String summary = distanceStr + " • " + paceStr + " • " + stats.getRunCount() + " runs";
-        statsSummaryText.setText(summary);
-      } else {
-        statsSummaryText.setText("");
-      }
+      iconView.setImageResource(CATEGORY_ICONS[position]);
+      labelView.setText(CATEGORY_LABELS[position]);
       
       return convertView;
     }

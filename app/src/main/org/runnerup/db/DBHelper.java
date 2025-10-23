@@ -49,7 +49,7 @@ import org.runnerup.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 34;
+  private static final int DBVERSION = 35;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -246,6 +246,45 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.COMPUTATION_TRACKING.LAST_ACTIVITY_ID + " integer not null ")
           + ");";
 
+  private static final String CREATE_TABLE_MONTHLY_COMPARISON =
+      "create table "
+          + DB.MONTHLY_COMPARISON.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.MONTHLY_COMPARISON.CURRENT_MONTH_YEAR + " text not null, ")
+          + (DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE + " real, ")
+          + (DB.MONTHLY_COMPARISON.CURRENT_TOTAL_KM + " real, ")
+          + (DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM + " integer, ")
+          + (DB.MONTHLY_COMPARISON.CURRENT_PB_COUNT + " integer, ")
+          + (DB.MONTHLY_COMPARISON.OTHER_AVG_PACE + " real, ")
+          + (DB.MONTHLY_COMPARISON.OTHER_TOTAL_KM + " real, ")
+          + (DB.MONTHLY_COMPARISON.OTHER_AVG_BPM + " integer, ")
+          + (DB.MONTHLY_COMPARISON.OTHER_PB_COUNT + " integer, ")
+          + (DB.MONTHLY_COMPARISON.LAST_COMPUTED + " integer not null ")
+          + ");";
+
+  private static final String CREATE_TABLE_HR_ZONE_STATS =
+      "create table "
+          + DB.HR_ZONE_STATS.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.HR_ZONE_STATS.ZONE_NUMBER + " integer not null unique, ")
+          + (DB.HR_ZONE_STATS.TIME_IN_ZONE + " integer not null, ")
+          + (DB.HR_ZONE_STATS.AVG_PACE_IN_ZONE + " real, ")
+          + (DB.HR_ZONE_STATS.LAST_COMPUTED + " integer not null ")
+          + ");";
+
+  private static final String CREATE_TABLE_YEARLY_CUMULATIVE =
+      "create table "
+          + DB.YEARLY_CUMULATIVE.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.YEARLY_CUMULATIVE.DATE + " text not null, ")
+          + (DB.YEARLY_CUMULATIVE.CUMULATIVE_KM + " real not null, ")
+          + (DB.YEARLY_CUMULATIVE.YEAR + " integer not null, ")
+          + (DB.YEARLY_CUMULATIVE.LAST_COMPUTED + " integer not null ")
+          + ");";
+
   private static final String CREATE_INDEX_FEED =
       "create index "
           + "if not exists FEED_START_TIME "
@@ -308,6 +347,9 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     arg0.execSQL(CREATE_TABLE_YEARLY_STATS);
     arg0.execSQL(CREATE_TABLE_MONTHLY_STATS);
     arg0.execSQL(CREATE_TABLE_COMPUTATION_TRACKING);
+    arg0.execSQL(CREATE_TABLE_MONTHLY_COMPARISON);
+    arg0.execSQL(CREATE_TABLE_HR_ZONE_STATS);
+    arg0.execSQL(CREATE_TABLE_YEARLY_CUMULATIVE);
 
     onCreateUpgrade(arg0, 0, DBVERSION);
   }
@@ -433,6 +475,11 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     }
     if (oldVersion < 34) {
       arg0.execSQL(CREATE_TABLE_COMPUTATION_TRACKING);
+    }
+    if (oldVersion < 35) {
+      arg0.execSQL(CREATE_TABLE_MONTHLY_COMPARISON);
+      arg0.execSQL(CREATE_TABLE_HR_ZONE_STATS);
+      arg0.execSQL(CREATE_TABLE_YEARLY_CUMULATIVE);
     }
     //    migrateFileSyncronizerInfo(arg0);
     //    recreateAccount(arg0);

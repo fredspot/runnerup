@@ -224,6 +224,51 @@ public interface Constants {
       String LAST_COMPUTED_TIME = "last_computed_time"; // Unix timestamp
       String LAST_ACTIVITY_ID = "last_activity_id"; // ID of last activity when computed
     }
+
+    interface MONTHLY_COMPARISON {
+      String TABLE = "monthly_comparison";
+      String CURRENT_MONTH_YEAR = "current_month_year"; // e.g., "2025-01"
+      String CURRENT_AVG_PACE = "current_avg_pace";     // seconds per km
+      String CURRENT_TOTAL_KM = "current_total_km";     // meters
+      String CURRENT_AVG_BPM = "current_avg_bpm";      // int
+      String CURRENT_PB_COUNT = "current_pb_count";     // int
+      String OTHER_AVG_PACE = "other_avg_pace";        // seconds per km
+      String OTHER_TOTAL_KM = "other_total_km";         // meters
+      String OTHER_AVG_BPM = "other_avg_bpm";          // int
+      String OTHER_PB_COUNT = "other_pb_count";         // int
+      String LAST_COMPUTED = "last_computed";          // timestamp
+    }
+
+    interface HR_ZONE_STATS {
+      String TABLE = "hr_zone_stats";
+      String ZONE_NUMBER = "zone_number";             // 0-5
+      String TIME_IN_ZONE = "time_in_zone";           // milliseconds
+      String AVG_PACE_IN_ZONE = "avg_pace_in_zone";   // seconds per km
+      String LAST_COMPUTED = "last_computed";          // timestamp
+    }
+
+    interface YEARLY_CUMULATIVE {
+      String TABLE = "yearly_cumulative";
+      String DATE = "date";                           // YYYY-MM-DD
+      String CUMULATIVE_KM = "cumulative_km";         // meters from Jan 1 to this date
+      String YEAR = "year";                           // int
+      String LAST_COMPUTED = "last_computed";          // timestamp
+    }
+
+    // Heart Rate Zone Constants (MHR = 186)
+    interface HR_ZONES {
+      int MHR = 186;
+      int ZONE0_MAX = 117;    // <63% MHR
+      int ZONE1_MIN = 117;    // 63-71% MHR
+      int ZONE1_MAX = 132;
+      int ZONE2_MIN = 132;    // 71-78% MHR
+      int ZONE2_MAX = 145;
+      int ZONE3_MIN = 145;    // 78-85% MHR
+      int ZONE3_MAX = 158;
+      int ZONE4_MIN = 158;    // 85-92% MHR
+      int ZONE4_MAX = 171;
+      int ZONE5_MIN = 171;    // >92% MHR
+    }
   }
 
   interface SPEED_UNIT {

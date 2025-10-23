@@ -58,6 +58,7 @@ import org.runnerup.R;
 import org.runnerup.common.util.Constants.DB;
 import org.runnerup.db.BestTimesCalculator;
 import org.runnerup.db.DBHelper;
+import org.runnerup.db.MonthlyComparisonCalculator;
 import org.runnerup.db.StatisticsCalculator;
 import org.runnerup.util.FileUtil;
 import org.runnerup.util.Formatter;
@@ -428,6 +429,11 @@ public class MainLayout extends AppCompatActivity {
         } else {
           Log.i(TAG, "Statistics data is fresh, skipping computation");
         }
+        
+        // Always compute Monthly Comparison (computes every time at startup)
+        Log.i(TAG, "Computing monthly comparison...");
+        int monthlyComputed = MonthlyComparisonCalculator.computeComparison(db);
+        Log.i(TAG, "Computed " + monthlyComputed + " monthly comparison records");
         
       } catch (Exception e) {
         Log.e(TAG, "Error during auto-computation: " + e.getMessage(), e);

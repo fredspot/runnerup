@@ -135,6 +135,46 @@
         </activity>
 
         <activity
+            android:name=".view.YearlyStatsActivity"
+            android:label="@string/statistics_year_month_breakdown"
+            android:parentActivityName=".view.MainLayout"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".view.MainLayout"/>
+        </activity>
+
+        <activity
+            android:name=".view.MonthlyComparisonActivity"
+            android:label="@string/monthly_comparison_title"
+            android:parentActivityName=".view.MainLayout"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".view.MainLayout"/>
+        </activity>
+
+        <activity
+            android:name=".view.HRZoneActivity"
+            android:label="@string/hr_zones_title"
+            android:parentActivityName=".view.MainLayout"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".view.MainLayout"/>
+        </activity>
+
+        <activity
+            android:name=".view.YearlyCumulativeActivity"
+            android:label="@string/yearly_progress_title"
+            android:parentActivityName=".view.MainLayout"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".view.MainLayout"/>
+        </activity>
+
+        <activity
             android:name=".view.ManualActivity"
             android:label="@string/Manual_activity_title"
             android:parentActivityName=".view.MainLayout"
