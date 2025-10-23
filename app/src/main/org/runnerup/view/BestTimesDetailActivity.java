@@ -49,8 +49,8 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
   private BestTimesListAdapter adapter = null;
 
   // Distance labels
-  private static final int[] TARGET_DISTANCES = {1000, 5000, 10000, 21097, 42195};
-  private static final String[] DISTANCE_LABELS = {"1km", "5km", "10km", "Half Marathon", "Marathon"};
+  private static final int[] TARGET_DISTANCES = {1000, 5000, 10000, 15000, 20000, 21097, 30000, 40000, 42195};
+  private static final String[] DISTANCE_LABELS = {"1km", "5km", "10km", "15km", "20km", "Half Marathon", "30km", "40km", "Marathon"};
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {

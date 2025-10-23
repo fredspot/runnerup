@@ -22,7 +22,7 @@ public class BestTimesCalculator {
   private static final String TAG = "BestTimesCalculator";
   
   // Target distances in meters
-  private static final int[] TARGET_DISTANCES = {1000, 5000, 10000, 21097, 42195};
+  private static final int[] TARGET_DISTANCES = {1000, 5000, 10000, 15000, 20000, 21097, 30000, 40000, 42195};
   
   // Pace validation limits (seconds per km)
   private static final double MIN_PACE_PER_KM = 120.0; // 2:00/km
@@ -49,6 +49,32 @@ public class BestTimesCalculator {
         }
         
         long lastActivityId = cursor.getLong(0);
+        
+        // Check if distance list has changed by comparing computed distances with target distances
+        String distanceCheckSql = "SELECT DISTINCT " + Constants.DB.BEST_TIMES.DISTANCE + 
+                                " FROM " + Constants.DB.BEST_TIMES.TABLE + 
+                                " ORDER BY " + Constants.DB.BEST_TIMES.DISTANCE;
+        
+        List<Integer> computedDistances = new ArrayList<>();
+        try (Cursor distanceCursor = db.rawQuery(distanceCheckSql, null)) {
+          while (distanceCursor.moveToNext()) {
+            computedDistances.add(distanceCursor.getInt(0));
+          }
+        }
+        
+        // Check if all target distances are present in computed data
+        boolean allDistancesPresent = true;
+        for (int targetDistance : TARGET_DISTANCES) {
+          if (!computedDistances.contains(targetDistance)) {
+            Log.i(TAG, "Distance " + targetDistance + "m not found in computed data, data is stale");
+            allDistancesPresent = false;
+            break;
+          }
+        }
+        
+        if (!allDistancesPresent) {
+          return true; // Distance list has changed, data is stale
+        }
         
         // Get latest activity ID
         String latestSql = "SELECT MAX(" + Constants.DB.PRIMARY_KEY + ") FROM " + Constants.DB.ACTIVITY.TABLE +
@@ -277,9 +303,21 @@ public class BestTimesCalculator {
     } else if (targetDistance == 10000) {
       // For 10km: find fastest 10 consecutive laps
       bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 10);
+    } else if (targetDistance == 15000) {
+      // For 15km: find fastest 15 consecutive laps
+      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 15);
+    } else if (targetDistance == 20000) {
+      // For 20km: find fastest 20 consecutive laps
+      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 20);
     } else if (targetDistance == 21097) {
       // For Half Marathon: find fastest ~21 consecutive laps
       bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 21);
+    } else if (targetDistance == 30000) {
+      // For 30km: find fastest 30 consecutive laps
+      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 30);
+    } else if (targetDistance == 40000) {
+      // For 40km: find fastest 40 consecutive laps
+      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 40);
     } else if (targetDistance == 42195) {
       // For Marathon: find fastest ~42 consecutive laps
       bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 42);

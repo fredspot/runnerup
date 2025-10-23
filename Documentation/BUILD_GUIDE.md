@@ -66,6 +66,18 @@ yes | sdkmanager --licenses
 sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 ```
 
+**Alternative Method (if sdkmanager fails):**
+If the sdkmanager command fails with "Could not find or load main class", you can manually accept licenses:
+```bash
+# Create licenses directory
+mkdir -p $ANDROID_HOME/licenses
+
+# Accept Android SDK license
+echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+
+# The build process will automatically install required components
+```
+
 ## Build Process
 
 ### 1. Navigate to Project Directory
@@ -80,6 +92,10 @@ cd /path/to/runnerup
 
 ### 3. Build Debug APK
 ```bash
+# For the latest debug variant (recommended)
+./gradlew assembleLatestDebug
+
+# Alternative: standard debug build
 ./gradlew assembleDebug
 ```
 
@@ -90,7 +106,8 @@ cd /path/to/runnerup
 
 ## Output Location
 
-- **Debug APK**: `app/build/outputs/apk/debug/app-debug.apk`
+- **Latest Debug APK**: `app/build/outputs/apk/latest/debug/app-latest-debug.apk`
+- **Standard Debug APK**: `app/build/outputs/apk/debug/app-debug.apk`
 - **Release APK**: `app/build/outputs/apk/release/app-release.apk`
 
 ## Common Issues and Solutions
@@ -134,6 +151,28 @@ export ANDROID_HOME=~/Android/Sdk
 sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 ```
 
+### Issue: SDK license not accepted
+```
+Failed to install the following Android SDK packages as some licences have not been accepted.
+```
+**Solution**: Accept licenses manually if sdkmanager fails:
+```bash
+# Create licenses directory
+mkdir -p $ANDROID_HOME/licenses
+
+# Accept Android SDK license
+echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+
+# Build will automatically install required components
+./gradlew assembleLatestDebug --no-daemon
+```
+
+### Issue: sdkmanager command not found
+```
+Error: Could not find or load main class com.android.sdklib.tool.sdkmanager.SdkManagerCli
+```
+**Solution**: This indicates incomplete SDK installation. Use the manual license method above and let Gradle handle component installation.
+
 ## Debugging APK Installation
 
 ### 1. Enable USB Debugging on Device
@@ -152,8 +191,8 @@ sudo apt install android-tools-adb
 # Check device connection
 adb devices
 
-# Install APK
-adb install app/build/outputs/apk/debug/app-debug.apk
+# Install APK (use the correct path based on your build)
+adb install app/build/outputs/apk/latest/debug/app-latest-debug.apk
 
 # View logs for debugging
 adb logcat
@@ -221,5 +260,7 @@ git lfs version
 
 ---
 
-**Last Updated**: December 2024  
-**Tested On**: Ubuntu 22.04 LTS, OpenJDK 17, Android SDK 34
+**Last Updated**: January 2025  
+**Tested On**: Ubuntu 22.04 LTS, OpenJDK 17, Android SDK 35  
+**Build Status**: ✅ Successfully tested with `./gradlew assembleLatestDebug`  
+**APK Location**: `app/build/outputs/apk/latest/debug/app-latest-debug.apk`

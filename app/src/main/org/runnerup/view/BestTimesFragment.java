@@ -48,8 +48,8 @@ public class BestTimesFragment extends Fragment
   private List<Integer> distances = new ArrayList<>();
 
   // Target distances in meters
-  private static final int[] TARGET_DISTANCES = {1000, 5000, 10000, 21097, 42195};
-  private static final String[] DISTANCE_LABELS = {"1km", "5km", "10km", "Half Marathon", "Marathon"};
+  private static final int[] TARGET_DISTANCES = {1000, 5000, 10000, 15000, 20000, 21097, 30000, 40000, 42195};
+  private static final String[] DISTANCE_LABELS = {"1km", "5km", "10km", "15km", "20km", "Half Marathon", "30km", "40km", "Marathon"};
 
   public BestTimesFragment() {
     super(R.layout.best_times);
@@ -66,6 +66,12 @@ public class BestTimesFragment extends Fragment
     mDB = DBHelper.getWritableDatabase(context);
     listView.setDividerHeight(2);
     listView.setOnItemClickListener(this);
+    listView.setOnItemLongClickListener((parent, view1, position, id) -> {
+      // Long press to force recomputation
+      android.util.Log.d("BestTimesFragment", "Long press detected - forcing recomputation");
+      forceRecomputation();
+      return true;
+    });
     adapter = new BestTimesListAdapter(context);
     listView.setAdapter(adapter);
 
@@ -90,12 +96,43 @@ public class BestTimesFragment extends Fragment
                  " FROM " + Constants.DB.BEST_TIMES.TABLE + 
                  " ORDER BY " + Constants.DB.BEST_TIMES.DISTANCE;
     
+    android.util.Log.d("BestTimesFragment", "Loading distances from database...");
     try (Cursor cursor = mDB.rawQuery(sql, null)) {
+      int count = 0;
       while (cursor.moveToNext()) {
-        distances.add(cursor.getInt(0));
+        int distance = cursor.getInt(0);
+        distances.add(distance);
+        android.util.Log.d("BestTimesFragment", "Found distance: " + distance + "m");
+        count++;
       }
+      android.util.Log.d("BestTimesFragment", "Total distances found: " + count);
     }
     adapter.notifyDataSetChanged();
+  }
+
+  private void forceRecomputation() {
+    android.util.Log.d("BestTimesFragment", "Forcing recomputation of best times...");
+    
+    // Clear computation tracking to force recomputation
+    mDB.delete(Constants.DB.COMPUTATION_TRACKING.TABLE, 
+               Constants.DB.COMPUTATION_TRACKING.COMPUTATION_TYPE + " = ?", 
+               new String[]{"best_times"});
+    
+    android.util.Log.d("BestTimesFragment", "Cleared computation tracking, triggering recomputation...");
+    
+    // Trigger recomputation in background
+    new android.os.AsyncTask<Void, Void, Integer>() {
+      @Override
+      protected Integer doInBackground(Void... params) {
+        return BestTimesCalculator.computeBestTimes(mDB);
+      }
+      
+      @Override
+      protected void onPostExecute(Integer result) {
+        android.util.Log.d("BestTimesFragment", "Recomputation completed: " + result + " best times computed");
+        loadDistances(); // Refresh the list
+      }
+    }.execute();
   }
 
   @Override
