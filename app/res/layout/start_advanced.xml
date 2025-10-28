@@ -19,6 +19,7 @@
     android:id="@+id/start_advanced_tab"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/backgroundPrimary"
     android:orientation="vertical">
 
     <org.runnerup.widget.TitleSpinner
@@ -29,9 +30,10 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
         android:key="@string/pref_advanced_audio"
-        android:layout_marginLeft="@dimen/activity_margin"
-        android:layout_marginRight="@dimen/activity_margin"
-        android:layout_marginTop="@dimen/activity_margin"
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="16dp"
         android:text="@string/Audio_cue_settings"
         runnerup:type="spinner_txt" />
 
@@ -44,8 +46,8 @@
         android:layout_below="@id/advanced_audio_cue_spinner"
         android:key="@string/pref_advanced_workout"
         android:layout_marginBottom="16dp"
-        android:layout_marginLeft="@dimen/activity_margin"
-        android:layout_marginRight="@dimen/activity_margin"
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp"
         android:text="@string/Workout"
         runnerup:type="spinner_txt" />
 

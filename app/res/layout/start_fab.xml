@@ -8,4 +8,6 @@
     android:padding="16dp"
     app:backgroundTint="@color/colorPrimaryFab"
     app:fabSize="normal"
+    app:elevation="8dp"
+    app:maxImageSize="56dp"
     app:srcCompat="@drawable/ic_start_white_24dp" />

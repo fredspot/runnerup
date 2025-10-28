@@ -31,27 +31,27 @@
         <item name="android:tabWidgetStyle">@style/BottomNavigationTabWidget</item>
     </style>
 
-    <style name="ButtonText" parent="Widget.AppCompat.Button.Colored">
+    <style name="ButtonText" parent="Widget.AppCompat.Button">
         <item name="android:textColor">@color/btn_text_color</item>
-        <item name="android:layout_margin">3dp</item>
-        <item name="android:textSize">20sp</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
     </style>
 
     <style name="RunHeader" parent="AppTheme">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:textColor">@android:color/white</item>
-        <item name="android:textSize">15sp</item>
-        <item name="android:textStyle">italic</item>
+        <item name="android:textColor">@color/colorTextSecondary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
     </style>
 
     <style name="RunInfo" parent="AppTheme">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:gravity">right</item>
-        <item name="android:textColor">@android:color/white</item>
+        <item name="android:gravity">end</item>
+        <item name="android:textColor">@color/colorText</item>
         <item name="android:textSize">20sp</item>
     </style>
 
@@ -96,6 +96,18 @@
 
     <style name="StatusText">
         <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/colorText</item>
+    </style>
+    
+    <!-- Modern card style -->
+    <style name="CardTitle">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/colorTextSecondary</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    
+    <style name="CardValue">
+        <item name="android:textSize">16sp</item>
         <item name="android:textColor">@color/colorText</item>
     </style>
 

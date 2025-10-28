@@ -19,11 +19,12 @@
     android:id="@+id/start_interval_tab"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/backgroundPrimary"
     android:clipToPadding="false"
     android:paddingBottom="@dimen/margin_for_fab"
-    android:paddingLeft="@dimen/activity_margin"
-    android:paddingRight="@dimen/activity_margin"
-    android:paddingTop="@dimen/activity_margin"> <!--todo test if it scrolls on smaller screens-->
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:paddingTop="24dp"> <!--todo test if it scrolls on smaller screens-->
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -34,6 +35,7 @@
             android:id="@+id/interval_audio_cue_spinner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:key="@string/pref_interval_audio"
             android:text="@string/Audio_cue_settings"
             runnerup:type="spinner_txt" />
@@ -41,6 +43,7 @@
         <org.runnerup.widget.TitleSpinner
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:defaultValue="8"
             android:inputType="number"
             android:key="@string/pref_interval_repetitions"
@@ -52,6 +55,7 @@
             android:id="@+id/interval_type"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:entries="@array/types"
             android:defaultValue="1"
             android:key="@string/pref_interval_type"
@@ -62,6 +66,7 @@
             android:id="@+id/start_interval_time"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:defaultValue="00:01:00"
             android:inputType="time"
             android:key="@string/pref_interval_time"
@@ -73,6 +78,7 @@
             android:id="@+id/interval_distance"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:defaultValue="1000"
             android:inputType="numberDecimal"
             android:key="@string/pref_interval_distance"
@@ -84,6 +90,7 @@
             android:id="@+id/interval_rest_type"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:entries="@array/types"
             android:key="@string/pref_interval_rest_type"
             android:prompt="@string/Type"
@@ -93,6 +100,7 @@
             android:id="@+id/interval_rest_time"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:defaultValue="00:01:00"
             android:inputType="time"
             android:key="@string/pref_interval_rest_time"
@@ -104,6 +112,7 @@
             android:id="@+id/interval_rest_distance"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:defaultValue="200"
             android:inputType="numberDecimal"
             android:key="@string/pref_interval_rest_distance"
@@ -123,7 +132,7 @@
                 android:minWidth="48dp"
                 android:minHeight="48dp"
                 android:checked="true"
-                android:enabled="false"
+                android:enabled="true"
                 android:text="@string/warm_up" />
 
             <CheckBox
@@ -133,7 +142,7 @@
                 android:minWidth="48dp"
                 android:minHeight="48dp"
                 android:checked="true"
-                android:enabled="false"
+                android:enabled="true"
                 android:text="@string/cool_down" />
         </LinearLayout>
     </LinearLayout>

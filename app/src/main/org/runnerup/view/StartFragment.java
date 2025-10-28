@@ -122,7 +122,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   private org.runnerup.tracker.GpsStatus mGpsStatus = null;
 
   private TabHost tabHost = null;
-  private View startButton = null;
+  private Button startButton = null;
 
   private ImageView expandIcon = null;
   private TextView noDevicesConnected = null;
@@ -201,17 +201,35 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     gpsSearchingState = new GpsSearchingState(context, this);
     gpsBoundState = new GpsBoundState(context);
 
-    ClassicSpinner sportSpinner = view.findViewById(R.id.sport_spinner);
-    ArrayAdapter<CharSequence> adapter =
-        new ArrayAdapter<CharSequence>(
-            context, R.layout.actionbar_spinner, Sport.getStringArray(getResources()));
-    adapter.setDropDownViewResource(R.layout.actionbar_dropdown_spinner);
-    sportSpinner.setAdapter(adapter);
-    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-    sportSpinner.setViewSelection(
-        prefs.getInt(getResources().getString(R.string.pref_sport), DB.ACTIVITY.SPORT_RUNNING));
+    // Workout mode selector (replaces sport spinner - only running now)
+    ClassicSpinner modeSpinner = view.findViewById(R.id.workout_mode_spinner);
+    String[] modeArray = {
+        getString(org.runnerup.common.R.string.Basic),
+        getString(org.runnerup.common.R.string.Interval),
+        getString(org.runnerup.common.R.string.Advanced)
+    };
+    ArrayAdapter<String> modeAdapter =
+        new ArrayAdapter<>(context, R.layout.actionbar_spinner, modeArray);
+    modeAdapter.setDropDownViewResource(R.layout.actionbar_dropdown_spinner);
+    modeSpinner.setAdapter(modeAdapter);
+    modeSpinner.setViewSelection(0); // Default to Basic
+    
+    // Set up mode spinner listener to switch tabs
+    modeSpinner.setViewOnItemSelectedListener(
+        new AdapterView.OnItemSelectedListener() {
+          @Override
+          public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            if (tabHost != null) {
+              tabHost.setCurrentTab(position);
+            }
+          }
 
-    startButton = view.findViewById(R.id.start_button);
+          @Override
+          public void onNothingSelected(AdapterView<?> parent) {
+          }
+        });
+
+    startButton = view.findViewById(R.id.start_gps_button);
     startButton.setOnClickListener(startButtonClick);
 
     expandIcon = view.findViewById(R.id.expand_icon);
@@ -337,25 +355,10 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     mWearNotifier = new TrackerWear.WearNotifier(requireActivity().getApplicationContext());
     mWearNotifier.onViewCreated();
 
-    var listener = sportSpinner.getViewOnItemSelectedListener();
-    sportSpinner.setViewOnItemSelectedListener(
-        new AdapterView.OnItemSelectedListener() {
-          @Override
-          public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-            if (listener != null) {
-              listener.onItemSelected(parent, view, position, id);
-            }
-            setGpsNotRequired(Sport.isWithoutGps((int) id));
-            StartFragment.this.updateView();
-          }
-
-          @Override
-          public void onNothingSelected(AdapterView<?> parent) {
-            if (listener != null) {
-              listener.onNothingSelected(parent);
-            }
-          }
-        });
+    // Set sport to running only
+    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+    prefs.edit().putInt(getResources().getString(R.string.pref_sport), DB.ACTIVITY.SPORT_RUNNING).apply();
+    setGpsNotRequired(Sport.isWithoutGps(DB.ACTIVITY.SPORT_RUNNING));
   }
 
   private void setGpsNotRequired(boolean val) {
@@ -700,6 +703,15 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
         if (tabId.contentEquals(TAB_ADVANCED)) {
           loadAdvanced(null);
         }
+        // Sync mode spinner with tab selection
+        View view = getView();
+        if (view != null) {
+          ClassicSpinner modeSpinner = view.findViewById(R.id.workout_mode_spinner);
+          if (modeSpinner != null) {
+            int tabIndex = tabHost.getCurrentTab();
+            modeSpinner.setViewSelection(tabIndex);
+          }
+        }
         updateView();
       };
 
@@ -752,9 +764,17 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
   private final OnClickListener startButtonClick =
       v -> {
+        if (mTracker == null) return;
+        
         if (mTracker.getState() == TrackerState.CONNECTED) {
+          // GPS is ready, start the workout
           startWorkout();
-          return;
+        } else {
+          // GPS not ready, start GPS search
+          if (checkPermissions(true)) {
+            return;
+          }
+          startGps();
         }
         updateView();
       };
@@ -975,9 +995,10 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   }
 
   public void updateView() {
-    updateStartGpsButtonView();
-    updateStartButtonView();
+    updateNewStartButton();
     updateGPSView();
+    updateNewHRIndicator();
+    updateNewSatelliteInfo();
     boolean hrPresent = updateHRView();
     boolean wearPresent = updateWearOSView();
 
@@ -1174,6 +1195,64 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     }
 
     return true;
+  }
+
+  private void updateNewStartButton() {
+    if (startButton == null) return;
+    
+    boolean gpsStarted = mGpsStatus != null && mGpsStatus.isStarted();
+    boolean gpsFixed = mGpsStatus != null && mGpsStatus.isFixed();
+    boolean trackerConnected = mTracker != null && mTracker.getState() == TrackerState.CONNECTED;
+    
+    if (gpsStarted && gpsFixed && trackerConnected) {
+      // GPS is ready, show green "Start Activity" button
+      startButton.setText("Start Activity");
+      startButton.setBackgroundResource(R.drawable.button_start_activity);
+      startButton.setEnabled(true);
+    } else if (gpsStarted) {
+      // GPS is searching, show greyed out "Start Activity" button
+      startButton.setText("Start Activity");
+      startButton.setBackgroundResource(R.drawable.button_start_gps_disabled);
+      startButton.setEnabled(false);
+    } else {
+      // Not started, show blue "Start GPS" button
+      startButton.setText("Start GPS");
+      startButton.setBackgroundResource(R.drawable.button_start_gps);
+      startButton.setEnabled(true);
+    }
+    startButton.setVisibility(View.VISIBLE);
+  }
+  
+  private void updateNewHRIndicator() {
+    ImageView hrIndicator = getView().findViewById(R.id.new_hr_indicator);
+    if (hrIndicator == null) return;
+    
+    if (mTracker != null && mTracker.isComponentConnected(TrackerHRM.NAME)) {
+      // Bright white when connected
+      hrIndicator.setColorFilter(getResources().getColor(android.R.color.white));
+      hrIndicator.setAlpha(1.0f);
+    } else {
+      // Barely visible grey when not connected
+      hrIndicator.setColorFilter(0xFF808080);  // Medium grey
+      hrIndicator.setAlpha(0.2f);
+    }
+  }
+  
+  private void updateNewSatelliteInfo() {
+    LinearLayout satelliteInfo = getView().findViewById(R.id.new_satellite_info);
+    TextView satelliteCount = getView().findViewById(R.id.new_satellite_count);
+    if (satelliteInfo == null || satelliteCount == null) return;
+    
+    boolean gpsStarted = mGpsStatus != null && mGpsStatus.isStarted();
+    
+    if (gpsStarted) {
+      int fixed = mGpsStatus.getSatellitesFixed();
+      int available = mGpsStatus.getSatellitesAvailable();
+      satelliteCount.setText(fixed + "/" + available);
+      satelliteInfo.setVisibility(View.VISIBLE);
+    } else {
+      satelliteInfo.setVisibility(View.GONE);
+    }
   }
 
   @Override

@@ -19,6 +19,7 @@
     android:id="@+id/start_view"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
+    android:background="@color/backgroundPrimary"
     android:orientation="vertical" >
 
     <TableLayout
@@ -27,7 +28,12 @@
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
         android:layout_alignParentLeft="true"
-        android:layout_alignParentTop="true">
+        android:layout_alignParentTop="true"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:layout_marginTop="16dp">
 
         <TableRow
             android:layout_width="fill_parent"
@@ -36,12 +42,12 @@
             <TextView
                 style="@style/RunHeader"
                 android:gravity="end"
-                android:text="@string/time" />
+                android:text="@string/Time" />
 
             <TextView
                 style="@style/RunHeader"
                 android:gravity="end"
-                android:text="@string/distance" />
+                android:text="@string/Distance" />
 
             <TextView
                 style="@style/RunHeader"
@@ -62,7 +68,8 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/countdown_background"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:layout_marginBottom="8dp">
 
             <LinearLayout
                 android:layout_width="fill_parent"
@@ -104,7 +111,8 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/countdown_background"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:layout_marginBottom="8dp">
 
             <LinearLayout
                 android:layout_width="fill_parent"
@@ -145,7 +153,8 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/countdown_background"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:layout_marginBottom="8dp">
 
             <LinearLayout
                 android:layout_width="fill_parent"
@@ -188,7 +197,8 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/countdown_background"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:layout_marginBottom="8dp">
 
             <LinearLayout
                 android:layout_width="fill_parent"
@@ -258,14 +268,24 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_above="@id/run_table_row1"
-        android:layout_below="@id/countdown_layout" >
+        android:layout_below="@id/countdown_layout"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:divider="@color/backgroundPrimary"
+        android:dividerHeight="8dp" >
     </ListView>
 
     <TableRow
         android:id="@+id/run_table_row1"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_above="@id/run_table_row2" >
+        android:layout_above="@id/run_table_row2"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp" >
 
         <Button
             android:id="@+id/new_lap_button"
@@ -273,11 +293,12 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@drawable/btn_blue"
-            android:text="@string/Lap"
-            android:drawableEnd="@drawable/ic_av_newlap"
-            android:drawableRight="@drawable/ic_av_newlap"
-            android:drawablePadding="-32dp" />
+            android:background="@drawable/button_modern_lap"
+            android:layout_marginEnd="8dp"
+            android:layout_marginRight="8dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp"
+            android:text="@string/Lap" />
 
         <Button
             android:id="@+id/pause_button"
@@ -285,18 +306,23 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@drawable/btn_blue"
-            android:text="@string/Pause"
-            android:drawableEnd="@drawable/ic_av_pause"
-            android:drawableRight="@drawable/ic_av_pause"
-            android:drawablePadding="-32dp" />
+            android:background="@drawable/button_modern_pause"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp"
+            android:text="@string/Pause" />
     </TableRow>
 
     <TableRow
         android:id="@+id/run_table_row2"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true" >
+        android:layout_alignParentBottom="true"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp" >
 
         <Button
             android:id="@+id/stop_button"
@@ -304,11 +330,10 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@drawable/btn_red"
-            android:text="@string/Stop"
-            android:drawableEnd="@drawable/ic_av_stop"
-            android:drawableRight="@drawable/ic_av_stop"
-            android:drawablePadding="-32dp" />
+            android:background="@drawable/button_modern_stop"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp"
+            android:text="@string/Stop" />
     </TableRow>
 
 </RelativeLayout>

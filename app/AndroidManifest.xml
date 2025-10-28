@@ -95,7 +95,7 @@
         <activity
             android:name=".view.RunActivity"
             android:configChanges="keyboardHidden|orientation"
-            android:theme="@style/AppTheme"/>
+            android:theme="@style/AppTheme.NoActionBar"/>
 
         <activity
             android:name=".view.AudioCueSettingsActivity"

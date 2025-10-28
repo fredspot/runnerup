@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    style="@style/TextAppearance.AppCompat.Title"
-    android:layout_width="match_parent"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:gravity="left" />
+    android:textColor="@color/colorText"
+    android:textSize="16sp"
+    android:textStyle="bold"
+    android:gravity="center"
+    android:paddingStart="8dp"
+    android:paddingEnd="28dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:drawableEnd="@drawable/ic_dropdown_arrow"
+    android:drawablePadding="8dp" />

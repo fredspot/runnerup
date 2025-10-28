@@ -20,28 +20,45 @@
               xmlns:tools="http://schemas.android.com/tools"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
+              android:background="@color/backgroundPrimary"
               android:orientation="vertical"
               tools:context=".view.StartFragment">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/start_actionbar"
+    <LinearLayout
+        android:id="@+id/start_actionbar_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/colorPrimary"
-        android:elevation="4dp"
+        android:background="@color/backgroundPrimary"
+        android:elevation="0dp"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:gravity="center_vertical"
         tools:ignore="UnusedAttribute">
 
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Run"
+            android:textColor="@color/colorText"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
         <org.runnerup.widget.ClassicSpinner
-            android:id="@+id/sport_spinner"
+            android:id="@+id/workout_mode_spinner"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:contentDescription="@string/Sport"
-            android:key="@string/pref_sport"
-            android:minWidth="48dp"
+            android:background="@drawable/spinner_background"
+            android:dropDownSelector="@color/colorAccent"
+            android:minWidth="120dp"
             android:minHeight="48dp"
             android:spinnerMode="dropdown" />
 
-    </androidx.appcompat.widget.Toolbar>
+    </LinearLayout>
 
     <TabHost
         android:id="@+id/tabhost_start"
@@ -56,16 +73,16 @@
             <TabWidget
                 android:id="@android:id/tabs"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="0dp"
                 android:layout_alignParentTop="true"
                 android:minWidth="48dp"
-                android:minHeight="48dp" />
+                android:minHeight="48dp"
+                android:visibility="gone" />
 
             <FrameLayout
                 android:id="@android:id/tabcontent"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_below="@android:id/tabs" >
+                android:layout_height="match_parent">
 
                 <include layout="@layout/start_basic" />
 
@@ -80,9 +97,8 @@
                 android:layout_height="wrap_content"
                 android:layout_alignParentBottom="true"
                 android:animateLayoutChanges="true"
-                android:background="#424242"
-                android:clickable="true"
-                android:focusable="true"
+                android:background="@color/backgroundPrimary"
+                android:visibility="gone"
                 android:orientation="vertical"
                 tools:ignore="UnusedAttribute">
 
@@ -90,7 +106,10 @@
                     android:id="@+id/status_frame"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:padding="16dp"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="16dp"
                     android:orientation="vertical">
 
                     <LinearLayout
@@ -218,18 +237,76 @@
 
             </RelativeLayout>
 
-            <include
-                layout="@layout/start_fab"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentBottom="true"
-                android:layout_alignParentEnd="true"
-                android:layout_alignParentRight="true"
-                android:layout_marginBottom="20dp"
-                android:layout_marginLeft="@dimen/activity_margin"
-                android:layout_marginRight="@dimen/activity_margin"/>
-
         </RelativeLayout>
     </TabHost>
+    
+    <!-- New Start GPS Button and Indicators -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:background="@color/backgroundPrimary">
+
+        <Button
+            android:id="@+id/start_gps_button"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="Start GPS"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/button_text_colors"
+            android:background="@drawable/button_start_gps"
+            android:elevation="4dp" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+
+            <ImageView
+                android:id="@+id/new_hr_indicator"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentLeft="true"
+                android:tint="#808080"
+                android:src="@drawable/ic_heartrate_white_24dp"
+                android:contentDescription="@string/Heart_Rate_Monitor" />
+
+            <LinearLayout
+                android:id="@+id/new_satellite_info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_alignParentRight="true"
+                android:gravity="end"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/new_satellite_icon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_gps_3"
+                    android:contentDescription="GPS" />
+
+                <TextView
+                    android:id="@+id/new_satellite_count"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="14sp"
+                    android:text="0/0" />
+
+            </LinearLayout>
+
+        </RelativeLayout>
+
+    </LinearLayout>
 
 </LinearLayout>

@@ -372,15 +372,11 @@ public class RunActivity extends AppCompatActivity implements TickListener {
     if (enabled) {
       pauseButton.setText(org.runnerup.common.R.string.Pause);
       ViewCompat.setBackground(
-          pauseButton, AppCompatResources.getDrawable(this, R.drawable.btn_blue));
-      pauseButton.setCompoundDrawablesWithIntrinsicBounds(
-          0, 0, org.runnerup.common.R.drawable.ic_av_pause, 0);
+          pauseButton, AppCompatResources.getDrawable(this, R.drawable.button_modern_pause));
     } else {
       pauseButton.setText(org.runnerup.common.R.string.Resume);
       ViewCompat.setBackground(
-          pauseButton, AppCompatResources.getDrawable(this, R.drawable.btn_green));
-      pauseButton.setCompoundDrawablesWithIntrinsicBounds(
-          0, 0, org.runnerup.common.R.drawable.ic_av_play_arrow, 0);
+          pauseButton, AppCompatResources.getDrawable(this, R.drawable.button_modern_pause));
     }
   }
 
