@@ -105,6 +105,8 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   private static final int MODE_DETAILS = 1;
   private boolean edit = false;
   private boolean uploading = false;
+  private boolean hasUnsavedChanges = false;
+  private MenuItem saveMenuItem = null;
 
   private Button saveButton = null;
   private Button uploadButton = null;
@@ -223,9 +225,9 @@ public class DetailActivity extends AppCompatActivity implements Constants {
 
     TabHost th = findViewById(R.id.tabhost);
     th.setup();
-    TabSpec tabSpec = th.newTabSpec("notes");
+    TabSpec tabSpec = th.newTabSpec("overview");
     tabSpec.setIndicator(
-        WidgetUtil.createHoloTabIndicator(this, getString(org.runnerup.common.R.string.Notes)));
+        WidgetUtil.createHoloTabIndicator(this, "Overview"));
     tabSpec.setContent(R.id.tab_main);
     th.addTab(tabSpec);
 
@@ -249,15 +251,16 @@ public class DetailActivity extends AppCompatActivity implements Constants {
         WidgetUtil.createHoloTabIndicator(this, getString(org.runnerup.common.R.string.Graph)));
     tabSpec.setContent(R.id.tab_graph);
     th.addTab(tabSpec);
-    // Get graph tab (cannot hardcode index due to optional map tab).
+    // Get graph tab (cannot hardcode index due to optional map tab and removed upload tab).
     int graphTabIndex = th.getTabWidget().getChildCount() - 1;
     graphTab = th.getTabWidget().getChildTabViewAt(graphTabIndex);
 
-    tabSpec = th.newTabSpec("share");
-    tabSpec.setIndicator(
-        WidgetUtil.createHoloTabIndicator(this, getString(org.runnerup.common.R.string.Upload)));
-    tabSpec.setContent(R.id.tab_upload);
-    th.addTab(tabSpec);
+    // Upload tab removed
+    // tabSpec = th.newTabSpec("share");
+    // tabSpec.setIndicator(
+    //     WidgetUtil.createHoloTabIndicator(this, getString(org.runnerup.common.R.string.Upload)));
+    // tabSpec.setContent(R.id.tab_upload);
+    // th.addTab(tabSpec);
 
     fillHeaderData();
     requery();
@@ -268,12 +271,13 @@ public class DetailActivity extends AppCompatActivity implements Constants {
       adapters.add(adapter);
       lv.setAdapter(adapter);
     }
-    {
-      ListView lv = findViewById(R.id.report_list);
-      ReportListAdapter adapter = new ReportListAdapter();
-      adapters.add(adapter);
-      lv.setAdapter(adapter);
-    }
+    // Upload tab removed - no longer initialize report list
+    // {
+    //   ListView lv = findViewById(R.id.report_list);
+    //   ReportListAdapter adapter = new ReportListAdapter();
+    //   adapters.add(adapter);
+    //   lv.setAdapter(adapter);
+    // }
 
     getOnBackPressedDispatcher()
         .addCallback(
@@ -321,14 +325,38 @@ public class DetailActivity extends AppCompatActivity implements Constants {
                                     formatter, mDB, mID, use_distance_as_x);
 
     if (this.mode == MODE_SAVE) {
+      // Hide buttons (they will be removed from UI)
+      View buttonsLayout = findViewById(R.id.buttons);
+      buttonsLayout.setVisibility(View.GONE);
+      
       resumeButton.setOnClickListener(resumeButtonClick);
       discardButton.setOnClickListener(discardButtonClick);
       setEdit(true);
+      
+      // Auto-save the activity
+      autoSaveActivity();
     } else if (this.mode == MODE_DETAILS) {
       resumeButton.setVisibility(View.GONE);
       discardButton.setVisibility(View.GONE);
       setEdit(false);
     }
+  }
+  
+  private void autoSaveActivity() {
+    // Auto-save the activity when screen loads
+    saveActivity();
+    
+    // Set result to indicate activity was saved
+    final Intent returnIntent = new Intent();
+    int sportValue = sport.getValueInt();
+    if (Sport.hasManualDistance(sportValue)) {
+      returnIntent.putExtra("MANUAL_DISTANCE", headerData.getAsDouble(DB.ACTIVITY.DISTANCE));
+    }
+    setResult(RESULT_OK, returnIntent);
+    
+    // Track activity is already saved
+    hasUnsavedChanges = false;
+    updateSaveMenuVisibility();
   }
 
   private void setEdit(boolean value) {
@@ -378,6 +406,24 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   @Override
   public boolean onCreateOptionsMenu(Menu menu) {
     getMenuInflater().inflate(R.menu.detail_menu, menu);
+    saveMenuItem = menu.findItem(R.id.menu_save_activity);
+    updateSaveMenuVisibility();
+    
+    // Add text change listener to notes field
+    if (notes != null && mode == MODE_SAVE) {
+      notes.addTextChangedListener(new android.text.TextWatcher() {
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+        
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before, int count) {
+          markAsUnsaved();
+        }
+        
+        @Override
+        public void afterTextChanged(android.text.Editable s) {}
+      });
+    }
     return true;
   }
 
@@ -386,8 +432,12 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     int id = item.getItemId();
     if (id == android.R.id.home) {
       return super.onOptionsItemSelected(item);
+    } else if (id == R.id.menu_save_activity) {
+      saveActivity();
+      hasUnsavedChanges = false;
+      updateSaveMenuVisibility();
     } else if (id == R.id.menu_delete_activity) {
-      deleteButtonClick.onClick(null);
+deleteButtonClick.onClick(null);
     } else if (id == R.id.menu_edit_activity) {
       if (!edit) {
         setEdit(true);
@@ -1085,5 +1135,19 @@ public class DetailActivity extends AppCompatActivity implements Constants {
             })
         .setSingleChoiceItems(items, which[0], (dialog, w) -> which[0] = w)
         .show();
+  }
+  
+  private void markAsUnsaved() {
+    if (!hasUnsavedChanges) {
+      hasUnsavedChanges = true;
+      updateSaveMenuVisibility();
+    }
+  }
+  
+  private void updateSaveMenuVisibility() {
+    if (saveMenuItem != null) {
+      // Only show save icon in MODE_SAVE when there are unsaved changes
+      saveMenuItem.setVisible(mode == MODE_SAVE && hasUnsavedChanges);
+    }
   }
 }

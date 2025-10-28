@@ -20,6 +20,7 @@
     android:id="@+id/detail_view"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
+    android:background="@color/backgroundPrimary"
     android:orientation="vertical">
 
     <LinearLayout
@@ -27,7 +28,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
-        android:background="@color/colorPrimary"
+        android:background="@color/backgroundPrimary"
         android:elevation="4dp"
         android:orientation="vertical"
         tools:ignore="UnusedAttribute">
@@ -42,6 +43,7 @@
             android:layout_height="48dp"
             android:gravity="center"
             android:orientation="horizontal"
+            android:background="@color/backgroundCard"
             android:paddingStart="16dp"
             android:paddingLeft="16dp"
             android:paddingEnd="16dp"
@@ -59,7 +61,7 @@
             <View
                 android:layout_width="1dp"
                 android:layout_height="16dp"
-                android:background="@android:color/white" />
+                android:background="@color/colorTextSecondary" />
 
             <TextView
                 android:id="@+id/activity_time"
@@ -103,7 +105,12 @@
             <TabWidget
                 android:id="@android:id/tabs"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp"
+                android:gravity="center" />
 
             <FrameLayout
                 android:id="@android:id/tabcontent"
@@ -123,7 +130,8 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="1px"
                         android:prompt="@string/Type"
-                        android:text="@string/Sport" />
+                        android:text="@string/Sport"
+                        android:visibility="gone" />
 
 		    <org.runnerup.widget.TitleSpinner
 			android:id="@+id/summary_manual_distance"
@@ -151,18 +159,13 @@
                         android:id="@+id/hrzonesBarLayout"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:background="@android:color/black"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginStart="0dp"
+                        android:layout_marginEnd="0dp"
+                        android:background="@android:color/transparent"
                         android:orientation="vertical"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:text="@string/Heartrate_zones_distribution"
-                            android:textAlignment="center"
-                            android:textColor="@android:color/white" />
-                    </LinearLayout>
+                        android:padding="16dp"
+                        android:visibility="gone" />
                 </LinearLayout>
 
                 <LinearLayout

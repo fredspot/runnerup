@@ -43,7 +43,7 @@ public class WidgetUtil {
     TextView txtTab = new TextView(ctx);
     txtTab.setText(title);
     // txtTab.setTextColor(Color.WHITE);
-    // txtTab.setGravity(Gravity.CENTER_HORIZONTAL);
+    txtTab.setGravity(android.view.Gravity.CENTER);
     Drawable drawable = AppCompatResources.getDrawable(ctx, R.drawable.tab_indicator_holo);
     ViewCompat.setBackground(txtTab, drawable);
 

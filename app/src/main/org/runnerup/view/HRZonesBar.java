@@ -29,24 +29,15 @@ import org.runnerup.R;
 
 public class HRZonesBar extends View {
 
-  private static final int colorLow = Color.WHITE; // Color for the zone 0
-  private static final int colorHigh = Color.parseColor("#ff0000"); // Color for the last zone
+  private static final int zoneColor = Color.parseColor("#53B1FC"); // Same blue as START GPS button
 
-  // The two arrays will be used to make the gradient
-  private static final int[] dColorLow =
-      new int[] {Color.red(colorLow), Color.green(colorLow), Color.blue(colorLow)};
-  private static final int[] dColorDiff =
-      new int[] {
-        Color.red(colorHigh) - dColorLow[0],
-        Color.green(colorHigh) - dColorLow[1],
-        Color.blue(colorHigh) - dColorLow[2]
-      };
+  // Single blue color for all zones (same as START GPS button)
 
-  private static final float borderSize = 10; // Border around the chart
-  private static final float separatorSize = 2; // Separator between two zones
-  private static final int minBarHeight = 15;
-  private static final int maxBarHeight = 40;
-  private static final double chartSize = 0.8;
+  private static final float borderSize = 8; // Border around the chart
+  private static final float separatorSize = 24; // Separator between two zones
+  private static final int minBarHeight = 90;
+  private static final int maxBarHeight = 150;
+  private static final double chartSize = 0.85;
 
   private final Paint paint = new Paint();
   private final Paint fontPaint = new Paint();
@@ -84,16 +75,18 @@ public class HRZonesBar extends View {
       return;
     }
 
-    // Font size and style
-    int fontSize = (int) calculatedBarHeight / 2;
+    // Font size and style - modern and readable (85% of 56)
+    int fontSize = 48;
     fontPaint.setTextSize(fontSize);
     fontPaint.setFlags(Paint.ANTI_ALIAS_FLAG);
-    fontPaint.setColor(Color.WHITE);
+    fontPaint.setColor(getResources().getColor(org.runnerup.R.color.colorText));
     fontPaint.setStyle(Paint.Style.FILL);
     fontPaint.setTextAlign(Paint.Align.LEFT);
+    fontPaint.setFakeBoldText(true);
 
-    paint.setStrokeWidth(0);
-    paint.setStyle(Paint.Style.FILL);
+      paint.setStrokeWidth(2);
+      paint.setStyle(Paint.Style.FILL);
+      paint.setAntiAlias(true);
 
     canvas.drawColor(Color.TRANSPARENT);
 
@@ -105,12 +98,7 @@ public class HRZonesBar extends View {
 
     // do the drawing
     for (int i = 0; i < hrzData.length; i++) {
-      int rectColor =
-          Color.rgb(
-              dColorLow[0] + (i * dColorDiff[0]) / hrzData.length,
-              dColorLow[1] + (i * dColorDiff[1]) / hrzData.length,
-              dColorLow[2] + (i * dColorDiff[2]) / hrzData.length);
-      paint.setColor(rectColor);
+      paint.setColor(zoneColor);
 
       // calculate per cent value of Zone duration
       double hrzPart = hrzData[i] / sum;
@@ -119,29 +107,44 @@ public class HRZonesBar extends View {
       // calculate text and bar length
       String zoneName = getResources().getString(org.runnerup.common.R.string.Zone) + " " + i;
       float textLen = fontPaint.measureText(zoneName);
-      float chartWidth = (float) ((totalWidth - textLen - 4 * borderSize) * chartSize);
+      String percentText = percent + "%";
+      float percentTextLen = fontPaint.measureText(percentText);
+      
+      // Reserve space for labels and add margins
+      float labelAreaWidth = textLen + percentTextLen + 6 * borderSize;
+      float chartWidth = (float) ((totalWidth - labelAreaWidth) * chartSize);
       float barLen = (float) (chartWidth * hrzPart);
 
-      // elements x-offset
+      // elements x-offset with margin between labels and bars (more space)
       float zoneOffset = borderSize;
-      float barOffset = zoneOffset + textLen + borderSize;
-      float percentOffset = barOffset + chartWidth + borderSize;
-      //noinspection IntegerDivisionInFloatingPointContext
-      float y = topOffset + (i + 1) * borderSize + calculatedBarHeight * (i + 1) - fontSize / 2;
+      float barOffset = zoneOffset + textLen + 4 * borderSize;
+      float percentOffset = barOffset + chartWidth + 2 * borderSize;
+      
+      // Center text vertically on the bar - account for separatorSize
+      float barTop = topOffset + i * calculatedBarHeight + (i + 1) * (borderSize + separatorSize);
+      float y = barTop + calculatedBarHeight / 2 + fontSize / 3;
 
       // draw actual values and bars
-      if (calculatedBarHeight > minBarHeight) {
-        canvas.drawText(zoneName, zoneOffset, y, fontPaint);
-        canvas.drawText(percent + "%", percentOffset, y, fontPaint);
-      }
+      canvas.drawText(zoneName, zoneOffset, y, fontPaint);
+      canvas.drawText(percent + "%", percentOffset, y, fontPaint);
 
       if (hrzPart >= 0) {
-        canvas.drawRect(
+        // Draw rounded rectangles for modern look - use the barTop already calculated
+        android.graphics.RectF rect = new android.graphics.RectF(
             barOffset,
-            topOffset + i * calculatedBarHeight + (i + 1) * borderSize,
+            barTop,
             barOffset + barLen,
-            topOffset + (i + 1) * calculatedBarHeight + (i + 1) * borderSize,
-            paint);
+            barTop + calculatedBarHeight);
+        
+        // Draw rounded corners
+        float cornerRadius = 6f;
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint);
+        
+        // Add subtle border/outline
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(Color.argb(50, 255, 255, 255)); // Semi-transparent white border
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint);
+        paint.setStyle(Paint.Style.FILL);
       }
     }
   }
