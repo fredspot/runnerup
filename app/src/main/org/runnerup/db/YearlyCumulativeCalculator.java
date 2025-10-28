@@ -65,11 +65,13 @@ public class YearlyCumulativeCalculator implements Constants {
     Calendar cal = Calendar.getInstance();
     cal.set(year, Calendar.JANUARY, 1, 0, 0, 0);
     cal.set(Calendar.MILLISECOND, 0);
-    long yearStart = cal.getTimeInMillis();
+    long yearStartMillis = cal.getTimeInMillis();
+    long yearStart = yearStartMillis / 1000; // Convert to seconds
 
     cal.set(year, Calendar.DECEMBER, 31, 23, 59, 59);
     cal.set(Calendar.MILLISECOND, 999);
-    long yearEnd = cal.getTimeInMillis();
+    long yearEndMillis = cal.getTimeInMillis();
+    long yearEnd = yearEndMillis / 1000; // Convert to seconds
 
     // Get all activities for this year
     String sql = "SELECT " + Constants.DB.ACTIVITY.START_TIME + ", " + Constants.DB.ACTIVITY.DISTANCE +
@@ -92,7 +94,8 @@ public class YearlyCumulativeCalculator implements Constants {
         double distance = cursor.getDouble(1);
 
         // Get date string
-        String dateStr = dateFormat.format(new Date(startTime));
+        // start_time is stored in seconds, Date expects milliseconds
+        String dateStr = dateFormat.format(new Date(startTime * 1000));
 
         // Add to daily total
         dailyTotals.put(dateStr, dailyTotals.getOrDefault(dateStr, 0.0) + distance);

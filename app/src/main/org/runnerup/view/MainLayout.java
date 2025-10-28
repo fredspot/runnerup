@@ -61,6 +61,7 @@ import org.runnerup.db.DBHelper;
 import org.runnerup.db.HRZoneCalculator;
 import org.runnerup.db.MonthlyComparisonCalculator;
 import org.runnerup.db.StatisticsCalculator;
+import org.runnerup.db.YearlyCumulativeCalculator;
 import org.runnerup.util.FileUtil;
 import org.runnerup.util.Formatter;
 import org.runnerup.util.GoogleApiHelper;
@@ -443,6 +444,15 @@ public class MainLayout extends AppCompatActivity {
           Log.i(TAG, "Computed " + hrComputed + " HR zone records");
         } else {
           Log.i(TAG, "HR zone data is fresh, skipping computation");
+        }
+        
+        // Check and compute Yearly Cumulative if stale
+        if (YearlyCumulativeCalculator.isDataStale(db)) {
+          Log.i(TAG, "Yearly cumulative data is stale, computing...");
+          int cumulativeComputed = YearlyCumulativeCalculator.computeCumulative(db);
+          Log.i(TAG, "Computed " + cumulativeComputed + " yearly cumulative records");
+        } else {
+          Log.i(TAG, "Yearly cumulative data is fresh, skipping computation");
         }
         
       } catch (Exception e) {
