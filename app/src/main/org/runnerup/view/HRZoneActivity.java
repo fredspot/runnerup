@@ -21,12 +21,19 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.CompoundButton;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.Switch;
 import android.widget.TextView;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.content.ContextCompat;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
 import org.runnerup.db.DBHelper;
@@ -60,14 +67,38 @@ public class HRZoneActivity extends AppCompatActivity {
     mDB = DBHelper.getReadableDatabase(this);
     formatter = new Formatter(this);
 
-    // Apply system bars insets to avoid UI overlap
-    ViewUtil.Insets(findViewById(R.id.hr_zone_root), true);
+    // Handle window insets for proper spacing
+    View rootView = findViewById(R.id.hr_zone_root);
+    ViewCompat.setOnApplyWindowInsetsListener(rootView, new OnApplyWindowInsetsListener() {
+      @NonNull
+      @Override
+      public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat windowInsets) {
+        Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+        ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+        mlp.topMargin = insets.top;
+        return WindowInsetsCompat.CONSUMED;
+      }
+    });
 
     // Setup toggle
     Switch toggle = findViewById(R.id.toggle_display);
+    TextView toggleLabelLeft = findViewById(R.id.toggle_label_left);
+    TextView toggleLabelRight = findViewById(R.id.toggle_label_right);
+    
     toggle.setChecked(true); // Start with Time mode (right side)
     toggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
       showTime = isChecked;
+      if (showTime) {
+        toggleLabelLeft.setTextColor(ContextCompat.getColor(HRZoneActivity.this, R.color.colorTextSecondary));
+        toggleLabelRight.setTextColor(ContextCompat.getColor(HRZoneActivity.this, R.color.colorAccent));
+        toggleLabelRight.getPaint().setFakeBoldText(true);
+        toggleLabelLeft.getPaint().setFakeBoldText(false);
+      } else {
+        toggleLabelLeft.setTextColor(ContextCompat.getColor(HRZoneActivity.this, R.color.colorAccent));
+        toggleLabelRight.setTextColor(ContextCompat.getColor(HRZoneActivity.this, R.color.colorTextSecondary));
+        toggleLabelLeft.getPaint().setFakeBoldText(true);
+        toggleLabelRight.getPaint().setFakeBoldText(false);
+      }
       updateDisplay();
     });
 
@@ -123,22 +154,34 @@ public class HRZoneActivity extends AppCompatActivity {
       return;
     }
 
-    // Find max value for normalization
-    double maxValue = 0;
-    for (HRZoneData data : zoneData) {
-      double value = showTime ? data.timeInZone : data.avgPace;
-      if (value > maxValue) {
-        maxValue = value;
+    if (showTime) {
+      // For time: find max value for normalization
+      double maxValue = 0;
+      for (HRZoneData data : zoneData) {
+        if (data.timeInZone > maxValue) {
+          maxValue = data.timeInZone;
+        }
       }
-    }
-
-    // Update each zone display
-    for (HRZoneData data : zoneData) {
-      updateZoneDisplay(data, maxValue);
+      
+      // Update each zone display with time normalization
+      for (HRZoneData data : zoneData) {
+        updateZoneDisplay(data, maxValue, 0);
+      }
+    } else {
+      // For pace: use fixed range (3:20 = 200 seconds to 10:00 = 600 seconds per km)
+      // Fastest pace (min time): 3:20 = 200 seconds per km
+      // Slowest pace (max time): 10:00 = 600 seconds per km
+      double minPace = 200.0; // 3:20 per km in seconds
+      double maxPace = 600.0; // 10:00 per km in seconds
+      
+      // Update each zone display with fixed pace normalization
+      for (HRZoneData data : zoneData) {
+        updateZoneDisplay(data, maxPace, minPace);
+      }
     }
   }
 
-  private void updateZoneDisplay(HRZoneData data, double maxValue) {
+  private void updateZoneDisplay(HRZoneData data, double maxValue, double minValue) {
     int zoneNumber = data.zoneNumber;
     
     // Get views
@@ -151,7 +194,29 @@ public class HRZoneActivity extends AppCompatActivity {
 
     // Calculate normalized value
     double value = showTime ? data.timeInZone : data.avgPace;
-    int normalizedProgress = maxValue > 0 ? (int)((value / maxValue) * 100) : 0;
+    int normalizedProgress;
+    
+    if (showTime) {
+      // For time: higher value = bigger bar (normal behavior)
+      normalizedProgress = maxValue > 0 ? (int)((value / maxValue) * 100) : 0;
+    } else {
+      // For pace: faster pace (lower value) = bigger bar (inverted)
+      // Use fixed range: fastest (3:20 = 200s) to slowest (10:00 = 600s)
+      // Clamp value to range if outside
+      double clampedValue = value;
+      if (value < minValue) {
+        clampedValue = minValue; // Faster than 3:20, treat as 3:20
+      } else if (value > maxValue) {
+        clampedValue = maxValue; // Slower than 10:00, treat as 10:00
+      }
+      
+      if (value > 0) {
+        // Invert: (max - value) / (max - min) so faster = bigger bar
+        normalizedProgress = (int)(((maxValue - clampedValue) / (maxValue - minValue)) * 100);
+      } else {
+        normalizedProgress = 0; // Invalid value
+      }
+    }
 
     // Update progress bar
     bar.setProgress(normalizedProgress);

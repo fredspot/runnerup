@@ -20,13 +20,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/hr_zone_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/backgroundPrimary">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/colorPrimary"
+        android:background="@color/backgroundPrimary"
+        android:elevation="0dp"
+        app:titleTextColor="@color/colorText"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
@@ -48,20 +51,24 @@
 
             <!-- Toggle Button -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="24dp"
-                android:orientation="horizontal">
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/modern_card_background"
+                android:padding="12dp"
+                android:orientation="horizontal"
+                android:gravity="center">
 
                 <TextView
                     android:id="@+id/toggle_label_left"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Pace"
+                    android:textColor="@color/colorTextSecondary"
                     android:textSize="16sp"
                     android:layout_gravity="center_vertical"
-                    android:layout_marginEnd="8dp"/>
+                    android:layout_marginEnd="12dp"/>
 
                 <Switch
                     android:id="@+id/toggle_display"
@@ -73,9 +80,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Time"
+                    android:textColor="@color/colorAccent"
                     android:textSize="16sp"
+                    android:textStyle="bold"
                     android:layout_gravity="center_vertical"
-                    android:layout_marginStart="8dp"/>
+                    android:layout_marginStart="12dp"/>
 
             </LinearLayout>
 
@@ -83,33 +92,47 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
+                android:orientation="vertical"
+                android:background="@drawable/modern_card_background"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
 
-                <TextView
-                    android:id="@+id/zone_0_label"
-                    android:layout_width="80dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/zone_0"
-                    android:textSize="14sp"/>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/zone_0_label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/zone_0"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/zone_0_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                </LinearLayout>
 
                 <ProgressBar
                     android:id="@+id/zone_0_bar"
                     style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="24dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="8dp"
                     android:max="100"
-                    android:progress="0"/>
-
-                <TextView
-                    android:id="@+id/zone_0_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="--"
-                    android:textSize="14sp"/>
+                    android:progress="0"
+                    android:progressTint="@color/colorAccent"/>
 
             </LinearLayout>
 
@@ -117,33 +140,47 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
+                android:orientation="vertical"
+                android:background="@drawable/modern_card_background"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
 
-                <TextView
-                    android:id="@+id/zone_1_label"
-                    android:layout_width="80dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/zone_1"
-                    android:textSize="14sp"/>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/zone_1_label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/zone_1"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/zone_1_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                </LinearLayout>
 
                 <ProgressBar
                     android:id="@+id/zone_1_bar"
                     style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="24dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="8dp"
                     android:max="100"
-                    android:progress="0"/>
-
-                <TextView
-                    android:id="@+id/zone_1_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="--"
-                    android:textSize="14sp"/>
+                    android:progress="0"
+                    android:progressTint="@color/colorAccent"/>
 
             </LinearLayout>
 
@@ -151,33 +188,47 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
+                android:orientation="vertical"
+                android:background="@drawable/modern_card_background"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
 
-                <TextView
-                    android:id="@+id/zone_2_label"
-                    android:layout_width="80dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/zone_2"
-                    android:textSize="14sp"/>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/zone_2_label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/zone_2"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/zone_2_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                </LinearLayout>
 
                 <ProgressBar
                     android:id="@+id/zone_2_bar"
                     style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="24dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="8dp"
                     android:max="100"
-                    android:progress="0"/>
-
-                <TextView
-                    android:id="@+id/zone_2_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="--"
-                    android:textSize="14sp"/>
+                    android:progress="0"
+                    android:progressTint="@color/colorAccent"/>
 
             </LinearLayout>
 
@@ -185,33 +236,47 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
+                android:orientation="vertical"
+                android:background="@drawable/modern_card_background"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
 
-                <TextView
-                    android:id="@+id/zone_3_label"
-                    android:layout_width="80dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/zone_3"
-                    android:textSize="14sp"/>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/zone_3_label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/zone_3"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/zone_3_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                </LinearLayout>
 
                 <ProgressBar
                     android:id="@+id/zone_3_bar"
                     style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="24dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="8dp"
                     android:max="100"
-                    android:progress="0"/>
-
-                <TextView
-                    android:id="@+id/zone_3_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="--"
-                    android:textSize="14sp"/>
+                    android:progress="0"
+                    android:progressTint="@color/colorAccent"/>
 
             </LinearLayout>
 
@@ -219,33 +284,47 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
+                android:orientation="vertical"
+                android:background="@drawable/modern_card_background"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
 
-                <TextView
-                    android:id="@+id/zone_4_label"
-                    android:layout_width="80dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/zone_4"
-                    android:textSize="14sp"/>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/zone_4_label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/zone_4"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/zone_4_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                </LinearLayout>
 
                 <ProgressBar
                     android:id="@+id/zone_4_bar"
                     style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="24dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="8dp"
                     android:max="100"
-                    android:progress="0"/>
-
-                <TextView
-                    android:id="@+id/zone_4_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="--"
-                    android:textSize="14sp"/>
+                    android:progress="0"
+                    android:progressTint="@color/colorAccent"/>
 
             </LinearLayout>
 
@@ -253,33 +332,47 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
+                android:orientation="vertical"
+                android:background="@drawable/modern_card_background"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp">
 
-                <TextView
-                    android:id="@+id/zone_5_label"
-                    android:layout_width="80dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/zone_5"
-                    android:textSize="14sp"/>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/zone_5_label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/zone_5"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/zone_5_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"/>
+
+                </LinearLayout>
 
                 <ProgressBar
                     android:id="@+id/zone_5_bar"
                     style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="24dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="8dp"
                     android:max="100"
-                    android:progress="0"/>
-
-                <TextView
-                    android:id="@+id/zone_5_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="--"
-                    android:textSize="14sp"/>
+                    android:progress="0"
+                    android:progressTint="@color/colorAccent"/>
 
             </LinearLayout>
 
