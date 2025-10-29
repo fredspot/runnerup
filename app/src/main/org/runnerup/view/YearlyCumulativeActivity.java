@@ -22,10 +22,20 @@ import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import com.jjoe64.graphview.GraphView;
+import com.jjoe64.graphview.GridLabelRenderer;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 import org.runnerup.R;
@@ -39,6 +49,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import android.widget.TextView;
 
 public class YearlyCumulativeActivity extends AppCompatActivity {
 
@@ -60,8 +71,18 @@ public class YearlyCumulativeActivity extends AppCompatActivity {
     // Initialize database
     mDB = DBHelper.getReadableDatabase(this);
 
-    // Apply system bars insets to avoid UI overlap
-    ViewUtil.Insets(findViewById(R.id.yearly_cumulative_root), true);
+    // Handle window insets for proper spacing
+    View rootView = findViewById(R.id.yearly_cumulative_root);
+    ViewCompat.setOnApplyWindowInsetsListener(rootView, new OnApplyWindowInsetsListener() {
+      @NonNull
+      @Override
+      public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat windowInsets) {
+        Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+        ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+        mlp.topMargin = insets.top;
+        return WindowInsetsCompat.CONSUMED;
+      }
+    });
 
     // Load and display cumulative data
     loadCumulativeData();
@@ -108,19 +129,30 @@ public class YearlyCumulativeActivity extends AppCompatActivity {
     // Create and configure the graph
     GraphView graph = findViewById(R.id.graph);
     
-    // Create series for current year
+    // Calculate total KM for each year (last data point value)
+    // Database stores in meters, so divide by 1000 to get km
+    double currentYearTotalKm = currentYearData.isEmpty() ? 0 : currentYearData.get(currentYearData.size() - 1).getY() / 1000.0;
+    double lastYearTotalKm = lastYearData.isEmpty() ? 0 : lastYearData.get(lastYearData.size() - 1).getY() / 1000.0;
+    
+    // Create series for current year - use accent blue
+    int currentYearColor = ContextCompat.getColor(this, R.color.colorAccent);
     LineGraphSeries<DataPoint> currentYearSeries = new LineGraphSeries<>(currentYearData.toArray(new DataPoint[0]));
-    currentYearSeries.setColor(Color.RED);
+    currentYearSeries.setColor(currentYearColor);
     currentYearSeries.setTitle(String.valueOf(currentYear));
-    currentYearSeries.setDrawDataPoints(true);
-    currentYearSeries.setDataPointsRadius(5);
+    currentYearSeries.setDrawDataPoints(false); // No dots, just lines
+    currentYearSeries.setThickness(4);
+    currentYearSeries.setDrawBackground(true);
+    currentYearSeries.setBackgroundColor(Color.argb(15, Color.red(currentYearColor), Color.green(currentYearColor), Color.blue(currentYearColor)));
 
-    // Create series for last year
+    // Create series for last year - use grey
+    int lastYearColor = ContextCompat.getColor(this, R.color.colorTextSecondary);
     LineGraphSeries<DataPoint> lastYearSeries = new LineGraphSeries<>(lastYearData.toArray(new DataPoint[0]));
-    lastYearSeries.setColor(Color.BLUE);
+    lastYearSeries.setColor(lastYearColor);
     lastYearSeries.setTitle(String.valueOf(lastYear));
-    lastYearSeries.setDrawDataPoints(true);
-    lastYearSeries.setDataPointsRadius(5);
+    lastYearSeries.setDrawDataPoints(false); // No dots, just lines
+    lastYearSeries.setThickness(3);
+    lastYearSeries.setDrawBackground(true);
+    lastYearSeries.setBackgroundColor(Color.argb(10, Color.red(lastYearColor), Color.green(lastYearColor), Color.blue(lastYearColor)));
 
     // Add series to graph
     graph.addSeries(currentYearSeries);
@@ -131,16 +163,24 @@ public class YearlyCumulativeActivity extends AppCompatActivity {
     graph.getViewport().setYAxisBoundsManual(true);
     
     // Set axis bounds based on data
+    double minX = Double.MAX_VALUE;
+    double maxX = Double.MIN_VALUE;
+    double minY = 0;
+    double maxY = Double.MIN_VALUE;
+    double currentYearLastY = 0;
+    double lastYearLastY = 0;
+    double viewportMaxY = 0;
+    
     if (!currentYearData.isEmpty() || !lastYearData.isEmpty()) {
-      double minX = Double.MAX_VALUE;
-      double maxX = Double.MIN_VALUE;
-      double minY = 0;
-      double maxY = Double.MIN_VALUE;
-      
       for (DataPoint point : currentYearData) {
         minX = Math.min(minX, point.getX());
         maxX = Math.max(maxX, point.getX());
         maxY = Math.max(maxY, point.getY());
+      }
+      
+      // Get last Y value for current year (for label positioning)
+      if (!currentYearData.isEmpty()) {
+        currentYearLastY = currentYearData.get(currentYearData.size() - 1).getY();
       }
       
       for (DataPoint point : lastYearData) {
@@ -149,23 +189,77 @@ public class YearlyCumulativeActivity extends AppCompatActivity {
         maxY = Math.max(maxY, point.getY());
       }
       
+      // Get last Y value for last year (for label positioning)
+      if (!lastYearData.isEmpty()) {
+        lastYearLastY = lastYearData.get(lastYearData.size() - 1).getY();
+      }
+      
       graph.getViewport().setMinX(minX);
       graph.getViewport().setMaxX(maxX);
       graph.getViewport().setMinY(minY);
-      graph.getViewport().setMaxY(maxY * 1.1); // Add 10% padding
+      viewportMaxY = maxY * 1.15; // Add 15% padding for labels
+      graph.getViewport().setMaxY(viewportMaxY);
     }
 
-    // Set axis labels
-    graph.getGridLabelRenderer().setNumHorizontalLabels(12); // Every 30 days = 365/30 ≈ 12
-    graph.getGridLabelRenderer().setNumVerticalLabels(6);
-    graph.getGridLabelRenderer().setHumanRounding(false);
+    // Configure graph styling for dark theme - hide all axes, grids, and labels
+    GridLabelRenderer renderer = graph.getGridLabelRenderer();
     
-    // Hide X-axis labels
-    graph.getGridLabelRenderer().setHorizontalLabelsVisible(false);
+    // Hide all labels and grids - use only available API methods
+    renderer.setHorizontalLabelsVisible(false);
+    renderer.setVerticalLabelsVisible(false);
+    renderer.setGridStyle(GridLabelRenderer.GridStyle.NONE);
+    // Set label count to 0 to completely hide them
+    renderer.setNumHorizontalLabels(0);
+    renderer.setNumVerticalLabels(0);
+    // Hide axis titles by setting them to empty strings
+    renderer.setHorizontalAxisTitle("");
+    renderer.setVerticalAxisTitle("");
     
-    // Set axis title
-    graph.getGridLabelRenderer().setHorizontalAxisTitle("Day of Year");
-    graph.getGridLabelRenderer().setVerticalAxisTitle("Cumulative KM");
+    // Set graph background transparent (card background will show)
+    graph.setBackgroundColor(Color.TRANSPARENT);
+    
+    // Add text views to show total KM at the end of each line
+    TextView currentYearTotalView = findViewById(R.id.current_year_total);
+    TextView lastYearTotalView = findViewById(R.id.last_year_total);
+    final double finalViewportMaxY = viewportMaxY;
+    final double finalCurrentYearLastY = currentYearLastY;
+    final double finalLastYearLastY = lastYearLastY;
+    
+    if (currentYearTotalView != null) {
+      currentYearTotalView.setText(String.format(Locale.getDefault(), "%.1f km", currentYearTotalKm));
+      currentYearTotalView.setTextColor(currentYearColor);
+      currentYearTotalView.setVisibility(View.VISIBLE);
+      
+      // Position at the Y value of the last data point (top of current year line)
+      if (finalCurrentYearLastY > 0 && finalViewportMaxY > 0) {
+        currentYearTotalView.post(() -> {
+          ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) currentYearTotalView.getLayoutParams();
+          // Invert because bias 0 = top, 1 = bottom. Higher Y values should be near top (low bias)
+          float bias = (float) (1.0 - (finalCurrentYearLastY / finalViewportMaxY));
+          params.verticalBias = Math.max(0.05f, Math.min(0.95f, bias)); // Clamp between 5% and 95%
+          currentYearTotalView.setLayoutParams(params);
+        });
+      }
+    }
+    
+    if (lastYearTotalView != null && lastYearTotalKm > 0) {
+      lastYearTotalView.setText(String.format(Locale.getDefault(), "%.1f km", lastYearTotalKm));
+      lastYearTotalView.setTextColor(lastYearColor);
+      lastYearTotalView.setVisibility(View.VISIBLE);
+      
+      // Position at the Y value of the last data point (top of last year line)
+      if (finalLastYearLastY > 0 && finalViewportMaxY > 0) {
+        lastYearTotalView.post(() -> {
+          ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) lastYearTotalView.getLayoutParams();
+          // Invert because bias 0 = top, 1 = bottom. Higher Y values should be near top (low bias)
+          // Position it slightly above the line for better visibility (subtract offset)
+          float normalizedY = (float) (finalLastYearLastY / finalViewportMaxY);
+          float bias = (float) (1.0 - normalizedY - 0.03); // Subtract 0.03 to move it up more
+          params.verticalBias = Math.max(0.05f, Math.min(0.95f, bias)); // Clamp between 5% and 95%
+          lastYearTotalView.setLayoutParams(params);
+        });
+      }
+    }
   }
 
   private List<DataPoint> loadYearData(int year) {

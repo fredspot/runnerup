@@ -20,13 +20,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/yearly_cumulative_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/backgroundPrimary">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/colorPrimary"
+        android:background="@color/backgroundPrimary"
+        android:elevation="0dp"
+        app:titleTextColor="@color/colorText"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
@@ -52,6 +55,8 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_marginBottom="16dp"
+                android:background="@drawable/modern_card_background"
+                android:padding="16dp"
                 android:gravity="center">
 
                 <LinearLayout
@@ -62,17 +67,19 @@
                     android:gravity="center">
 
                     <View
-                        android:layout_width="24dp"
-                        android:layout_height="4dp"
-                        android:background="#FF0000"
-                        android:layout_marginEnd="8dp"/>
+                        android:layout_width="32dp"
+                        android:layout_height="6dp"
+                        android:background="@color/colorAccent"
+                        android:layout_marginEnd="12dp"/>
 
                     <TextView
                         android:id="@+id/label_current_year"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2025"
-                        android:textSize="14sp"/>
+                        android:textColor="@color/colorText"
+                        android:textSize="16sp"
+                        android:textStyle="bold"/>
 
                 </LinearLayout>
 
@@ -84,27 +91,66 @@
                     android:gravity="center">
 
                     <View
-                        android:layout_width="24dp"
-                        android:layout_height="4dp"
-                        android:background="#0000FF"
-                        android:layout_marginEnd="8dp"/>
+                        android:layout_width="32dp"
+                        android:layout_height="6dp"
+                        android:background="@color/colorTextSecondary"
+                        android:layout_marginEnd="12dp"/>
 
                     <TextView
                         android:id="@+id/label_last_year"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2024"
-                        android:textSize="14sp"/>
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="16sp"/>
 
                 </LinearLayout>
 
             </LinearLayout>
 
             <!-- Chart -->
-            <com.jjoe64.graphview.GraphView
-                android:id="@+id/graph"
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
-                android:layout_height="400dp"/>
+                android:layout_height="wrap_content"
+                android:background="@drawable/modern_card_background"
+                android:padding="16dp">
+
+                <com.jjoe64.graphview.GraphView
+                    android:id="@+id/graph"
+                    android:layout_width="match_parent"
+                    android:layout_height="450dp"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"/>
+
+                <TextView
+                    android:id="@+id/current_year_total"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginEnd="8dp"
+                    app:layout_constraintTop_toTopOf="@id/graph"
+                    app:layout_constraintEnd_toEndOf="@id/graph"/>
+
+                <TextView
+                    android:id="@+id/last_year_total"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginEnd="8dp"
+                    app:layout_constraintTop_toTopOf="@id/graph"
+                    app:layout_constraintBottom_toBottomOf="@id/graph"
+                    app:layout_constraintEnd_toEndOf="@id/graph"
+                    app:layout_constraintVertical_bias="0.5"/>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
 
         </LinearLayout>
 
