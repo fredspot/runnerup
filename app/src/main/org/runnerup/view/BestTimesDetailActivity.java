@@ -32,6 +32,11 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import android.view.ViewGroup;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -76,7 +81,26 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
     ListView listView = findViewById(R.id.best_times_detail_list);
     adapter = new BestTimesListAdapter();
     listView.setAdapter(adapter);
+    listView.setDividerHeight(16); // Spacing between cards
     listView.setOnItemClickListener(this);
+
+    // Apply system bars insets to avoid UI overlap with status bar
+    View rootView = findViewById(R.id.best_times_detail_layout);
+    ViewCompat.setOnApplyWindowInsetsListener(
+        rootView,
+        new OnApplyWindowInsetsListener() {
+          @NonNull
+          @Override
+          public WindowInsetsCompat onApplyWindowInsets(
+              @NonNull View v, @NonNull WindowInsetsCompat windowInsets) {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(insets.left, 0, insets.right, insets.bottom);
+
+            ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+            mlp.topMargin = insets.top;
+            return WindowInsetsCompat.CONSUMED;
+          }
+        });
 
     // Load data
     loadBestTimes();

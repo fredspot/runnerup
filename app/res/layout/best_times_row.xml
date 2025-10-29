@@ -16,32 +16,99 @@
       ~  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="fill_parent"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:gravity="center_vertical">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <!-- Category on the left (20% width) -->
+    <TextView
+        android:id="@+id/distance_text"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:layout_weight="0.2"
+        android:textAppearance="@style/ListItem"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="@color/colorText"
+        android:paddingEnd="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:gravity="start|center_vertical"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?android:attr/selectableItemBackground" />
 
-        <TextView
-            android:id="@+id/distance_text"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textAppearance="@style/ListItem"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+    <!-- Best run card on the right (80% width) -->
+    <LinearLayout
+        android:id="@+id/best_run_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.8"
+        android:orientation="vertical"
+        android:background="@drawable/modern_card_background"
+        android:padding="12dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?android:attr/selectableItemBackground">
 
-        <TextView
-            android:id="@+id/description_text"
-            android:layout_width="wrap_content"
+        <!-- Time row -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textAppearance="@style/ListDescription"
-            android:textSize="14sp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/time_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="@style/ListItem"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/colorText" />
+
+            <TextView
+                android:id="@+id/pace_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/ListItem"
+                android:textSize="16sp"
+                android:textColor="@color/colorTextSecondary" />
+
+        </LinearLayout>
+
+        <!-- Date and heart rate row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/date_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="@style/ListDescription"
+                android:textSize="14sp"
+                android:textColor="@color/colorTextSecondary" />
+
+            <TextView
+                android:id="@+id/hr_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/ListDescription"
+                android:textSize="14sp"
+                android:textColor="@color/colorTextSecondary" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

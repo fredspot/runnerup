@@ -38,8 +38,12 @@ import org.runnerup.common.util.Constants;
 import org.runnerup.db.BestTimesCalculator;
 import org.runnerup.db.DBHelper;
 import org.runnerup.db.entities.BestTimesSummaryEntity;
+import org.runnerup.db.entities.BestTimesEntity;
 import java.util.ArrayList;
 import java.util.List;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class BestTimesFragment extends Fragment
     implements Constants, OnItemClickListener {
@@ -47,6 +51,7 @@ public class BestTimesFragment extends Fragment
   private SQLiteDatabase mDB = null;
   private BestTimesListAdapter adapter = null;
   private List<BestTimesSummaryEntity> summaries = new ArrayList<>();
+  private List<BestTimesEntity> bestTimes = new ArrayList<>(); // Rank 1 best times for each distance
   private org.runnerup.util.Formatter formatter;
 
   // Target distances in meters
@@ -67,8 +72,8 @@ public class BestTimesFragment extends Fragment
 
     mDB = DBHelper.getWritableDatabase(context);
     formatter = new org.runnerup.util.Formatter(context);
-    listView.setDividerHeight(2);
-    listView.setOnItemClickListener(this);
+    listView.setDividerHeight(16); // Spacing between cards
+    // Remove row-level click listener - individual parts handle clicks
     listView.setOnItemLongClickListener((parent, view1, position, id) -> {
       // Long press to force recomputation
       android.util.Log.d("BestTimesFragment", "Long press detected - forcing recomputation");
@@ -95,6 +100,9 @@ public class BestTimesFragment extends Fragment
 
   private void loadDistances() {
     summaries.clear();
+    bestTimes.clear();
+    
+    // Load summaries (averages and counts)
     String sql = "SELECT " + Constants.DB.BEST_TIMES.DISTANCE + 
                  ", AVG(" + Constants.DB.BEST_TIMES.TIME + ") as avg_time" +
                  ", COUNT(*) as count" +
@@ -113,6 +121,23 @@ public class BestTimesFragment extends Fragment
       }
       android.util.Log.d("BestTimesFragment", "Total summaries found: " + count);
     }
+    
+    // Load rank 1 best time for each distance
+    for (BestTimesSummaryEntity summary : summaries) {
+      String bestTimeSql = "SELECT * FROM " + Constants.DB.BEST_TIMES.TABLE +
+                           " WHERE " + Constants.DB.BEST_TIMES.DISTANCE + " = ?" +
+                           " AND " + Constants.DB.BEST_TIMES.RANK + " = 1" +
+                           " LIMIT 1";
+      try (Cursor cursor = mDB.rawQuery(bestTimeSql, new String[]{String.valueOf(summary.getDistance())})) {
+        if (cursor.moveToFirst()) {
+          BestTimesEntity bestTime = new BestTimesEntity(cursor);
+          bestTimes.add(bestTime);
+        } else {
+          bestTimes.add(null); // No best time found for this distance
+        }
+      }
+    }
+    
     adapter.notifyDataSetChanged();
   }
 
@@ -143,12 +168,8 @@ public class BestTimesFragment extends Fragment
 
   @Override
   public void onItemClick(AdapterView<?> arg0, View arg1, int position, long id) {
-    if (position < summaries.size()) {
-      int distance = summaries.get(position).getDistance();
-      Intent intent = new Intent(requireContext(), BestTimesDetailActivity.class);
-      intent.putExtra("DISTANCE", distance);
-      startActivity(intent);
-    }
+    // Clicks are handled individually by distance TextView and card in the adapter
+    // This method is required by OnItemClickListener interface but not used
   }
 
 
@@ -184,20 +205,83 @@ public class BestTimesFragment extends Fragment
       }
       
       BestTimesSummaryEntity summary = summaries.get(position);
+      BestTimesEntity bestTime = position < bestTimes.size() ? bestTimes.get(position) : null;
       
       TextView distanceText = convertView.findViewById(R.id.distance_text);
-      TextView descriptionText = convertView.findViewById(R.id.description_text);
+      View cardLayout = convertView.findViewById(R.id.best_run_card);
+      TextView timeText = convertView.findViewById(R.id.time_text);
+      TextView paceText = convertView.findViewById(R.id.pace_text);
+      TextView dateText = convertView.findViewById(R.id.date_text);
+      TextView hrText = convertView.findViewById(R.id.hr_text);
+      
+      // Set click listener for distance (opens top 25 runs)
+      distanceText.setOnClickListener(v -> {
+        int distance = summary.getDistance();
+        Intent intent = new Intent(requireContext(), BestTimesDetailActivity.class);
+        intent.putExtra("DISTANCE", distance);
+        startActivity(intent);
+      });
+      
+      // Set click listener for card (opens activity detail)
+      if (bestTime != null && bestTime.getActivityId() != null) {
+        cardLayout.setOnClickListener(v -> {
+          Intent intent = new Intent(requireContext(), DetailActivity.class);
+          intent.putExtra("ID", bestTime.getActivityId());
+          intent.putExtra("mode", "details");
+          startActivity(intent);
+        });
+        cardLayout.setClickable(true);
+      } else {
+        cardLayout.setClickable(false);
+      }
       
       // Find the label for this distance
       String label = getDistanceLabel(summary.getDistance());
       distanceText.setText(label);
       
-      // Format the average time and count
-      long timeInSeconds = summary.getAverageTime() / 1000;
-      String avgTimeStr = formatter.formatElapsedTime(
-          org.runnerup.util.Formatter.Format.TXT_LONG, timeInSeconds);
-      String countStr = summary.getCount() + " runs";
-      descriptionText.setText(avgTimeStr + " (" + countStr + ")");
+      // Display best run card data
+      if (bestTime != null) {
+        // Time
+        if (bestTime.getTime() != null) {
+          long timeInSeconds = bestTime.getTime() / 1000;
+          timeText.setText(formatter.formatElapsedTime(
+              org.runnerup.util.Formatter.Format.TXT_LONG, timeInSeconds));
+        } else {
+          timeText.setText("-");
+        }
+        
+        // Pace
+        if (bestTime.getPace() != null) {
+          double pacePerMeter = bestTime.getPace() / 1000.0;
+          paceText.setText(formatter.formatPace(
+              org.runnerup.util.Formatter.Format.TXT_LONG, pacePerMeter));
+        } else {
+          paceText.setText("-");
+        }
+        
+        // Date
+        if (bestTime.getStartTime() != null) {
+          Date date = new Date(bestTime.getStartTime() * 1000);
+          SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+          dateText.setText(dateFormat.format(date));
+        } else {
+          dateText.setText("-");
+        }
+        
+        // Heart rate
+        if (bestTime.getAvgHr() != null && bestTime.getAvgHr() > 0) {
+          hrText.setText(formatter.formatHeartRate(
+              org.runnerup.util.Formatter.Format.TXT_SHORT, bestTime.getAvgHr()));
+        } else {
+          hrText.setText("-");
+        }
+      } else {
+        // No best time data available
+        timeText.setText("-");
+        paceText.setText("-");
+        dateText.setText("-");
+        hrText.setText("-");
+      }
       
       return convertView;
     }
