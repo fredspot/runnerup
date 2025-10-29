@@ -995,6 +995,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   }
 
   public void updateView() {
+    if (getView() == null) return;
     updateNewStartButton();
     updateGPSView();
     updateNewHRIndicator();
@@ -1003,9 +1004,13 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     boolean wearPresent = updateWearOSView();
 
     if (!hrPresent && !wearPresent && statusDetailsShown) {
-      noDevicesConnected.setVisibility(View.VISIBLE);
+      if (noDevicesConnected != null) {
+        noDevicesConnected.setVisibility(View.VISIBLE);
+      }
     } else {
-      noDevicesConnected.setVisibility(View.GONE);
+      if (noDevicesConnected != null) {
+        noDevicesConnected.setVisibility(View.GONE);
+      }
     }
   }
 
@@ -1224,7 +1229,9 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   }
   
   private void updateNewHRIndicator() {
-    ImageView hrIndicator = getView().findViewById(R.id.new_hr_indicator);
+    View view = getView();
+    if (view == null) return;
+    ImageView hrIndicator = view.findViewById(R.id.new_hr_indicator);
     if (hrIndicator == null) return;
     
     if (mTracker != null && mTracker.isComponentConnected(TrackerHRM.NAME)) {
@@ -1239,8 +1246,10 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   }
   
   private void updateNewSatelliteInfo() {
-    LinearLayout satelliteInfo = getView().findViewById(R.id.new_satellite_info);
-    TextView satelliteCount = getView().findViewById(R.id.new_satellite_count);
+    View view = getView();
+    if (view == null) return;
+    LinearLayout satelliteInfo = view.findViewById(R.id.new_satellite_info);
+    TextView satelliteCount = view.findViewById(R.id.new_satellite_count);
     if (satelliteInfo == null || satelliteCount == null) return;
     
     boolean gpsStarted = mGpsStatus != null && mGpsStatus.isStarted();
