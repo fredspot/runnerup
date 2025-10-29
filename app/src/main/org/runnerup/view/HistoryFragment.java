@@ -87,7 +87,18 @@ public class HistoryFragment extends Fragment
           startActivityForResult(i, 0);
         });
     
-    filterButton.setOnClickListener(v -> showFilterDialog());
+    filterButton.setOnClickListener(v -> {
+      if (selectedYear != -1 && selectedMonth != -1) {
+        // If filter is active, clear it immediately
+        selectedYear = -1;
+        selectedMonth = -1;
+        LoaderManager.getInstance(this).restartLoader(0, null, this);
+        filterButton.setText("Filter");
+      } else {
+        // Otherwise, show the filter dialog
+        showFilterDialog();
+      }
+    });
 
     mDB = DBHelper.getReadableDatabase(context);
     formatter = new Formatter(context);
