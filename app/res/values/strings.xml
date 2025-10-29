@@ -44,7 +44,7 @@
   <!-- Monthly Comparison -->
   <string name="monthly_comparison_title">Month Comparison</string>
   <string name="this_month">This Month</string>
-  <string name="all_other_months">All Other Months</string>
+  <string name="all_other_months">All Others</string>
   <string name="personal_bests">Personal Bests</string>
   <string name="average_bpm">Average BPM</string>
   

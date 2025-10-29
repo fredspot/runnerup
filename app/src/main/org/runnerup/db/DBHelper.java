@@ -49,7 +49,7 @@ import org.runnerup.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 35;
+  private static final int DBVERSION = 37;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -260,6 +260,12 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.MONTHLY_COMPARISON.OTHER_TOTAL_KM + " real, ")
           + (DB.MONTHLY_COMPARISON.OTHER_AVG_BPM + " integer, ")
           + (DB.MONTHLY_COMPARISON.OTHER_PB_COUNT + " integer, ")
+          + (DB.MONTHLY_COMPARISON.CURRENT_AVG_DISTANCE_PER_RUN + " real, ")
+          + (DB.MONTHLY_COMPARISON.CURRENT_TOP25_COUNT + " integer, ")
+          + (DB.MONTHLY_COMPARISON.OTHER_AVG_DISTANCE_PER_RUN + " real, ")
+          + (DB.MONTHLY_COMPARISON.OTHER_TOP25_COUNT + " integer, ")
+          + (DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM_5MIN_KM + " integer, ")
+          + (DB.MONTHLY_COMPARISON.OTHER_AVG_BPM_5MIN_KM + " integer, ")
           + (DB.MONTHLY_COMPARISON.LAST_COMPUTED + " integer not null ")
           + ");";
 
@@ -480,6 +486,24 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
       arg0.execSQL(CREATE_TABLE_MONTHLY_COMPARISON);
       arg0.execSQL(CREATE_TABLE_HR_ZONE_STATS);
       arg0.execSQL(CREATE_TABLE_YEARLY_CUMULATIVE);
+    }
+    if (oldVersion < 36) {
+      // Add new columns to monthly_comparison table
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.CURRENT_AVG_DISTANCE_PER_RUN + " real");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.CURRENT_TOP25_COUNT + " integer");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.OTHER_AVG_DISTANCE_PER_RUN + " real");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.OTHER_TOP25_COUNT + " integer");
+    }
+    if (oldVersion < 37) {
+      // Add BPM at 5min/km pace columns
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM_5MIN_KM + " integer");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.OTHER_AVG_BPM_5MIN_KM + " integer");
     }
     //    migrateFileSyncronizerInfo(arg0);
     //    recreateAccount(arg0);

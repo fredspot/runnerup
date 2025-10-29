@@ -35,7 +35,7 @@ public class MonthlyComparisonCalculator implements Constants {
    * @return number of records computed
    */
   public static int computeComparison(SQLiteDatabase db) {
-    Log.i(TAG, "Starting monthly comparison computation...");
+    Log.i(TAG, "=== Starting monthly comparison computation ===");
 
     // Clear existing data
     db.delete(Constants.DB.MONTHLY_COMPARISON.TABLE, null, null);
@@ -64,10 +64,16 @@ public class MonthlyComparisonCalculator implements Constants {
     values.put(Constants.DB.MONTHLY_COMPARISON.CURRENT_TOTAL_KM, currentStats.totalKm);
     values.put(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM, currentStats.avgBpm);
     values.put(Constants.DB.MONTHLY_COMPARISON.CURRENT_PB_COUNT, currentStats.pbCount);
+    values.put(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_DISTANCE_PER_RUN, currentStats.avgDistancePerRun);
+    values.put(Constants.DB.MONTHLY_COMPARISON.CURRENT_TOP25_COUNT, currentStats.top25Count);
     values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_PACE, otherStats.avgPace);
     values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_TOTAL_KM, otherStats.totalKm);
     values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_BPM, otherStats.avgBpm);
     values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_PB_COUNT, otherStats.pbCount);
+    values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_DISTANCE_PER_RUN, otherStats.avgDistancePerRun);
+    values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_TOP25_COUNT, otherStats.top25Count);
+    values.put(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM_5MIN_KM, currentStats.avgBpm5MinKm);
+    values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_BPM_5MIN_KM, otherStats.avgBpm5MinKm);
     values.put(Constants.DB.MONTHLY_COMPARISON.LAST_COMPUTED, System.currentTimeMillis());
 
     db.insert(Constants.DB.MONTHLY_COMPARISON.TABLE, null, values);
@@ -81,6 +87,9 @@ public class MonthlyComparisonCalculator implements Constants {
     double totalKm;
     int avgBpm;
     int pbCount;
+    double avgDistancePerRun; // in meters
+    int top25Count;
+    int avgBpm5MinKm; // average BPM for laps run at ~5min/km pace (4:50-5:10)
   }
 
   private static MonthlyStats getMonthlyStats(SQLiteDatabase db, int year, int month) {
@@ -89,6 +98,7 @@ public class MonthlyComparisonCalculator implements Constants {
     // Get stats from monthly_stats table
     String sql = "SELECT " + Constants.DB.MONTHLY_STATS.TOTAL_DISTANCE + ", " + 
                  Constants.DB.MONTHLY_STATS.AVG_PACE + ", " + Constants.DB.MONTHLY_STATS.AVG_RUN_LENGTH +
+                 ", " + Constants.DB.MONTHLY_STATS.RUN_COUNT +
                  " FROM " + Constants.DB.MONTHLY_STATS.TABLE +
                  " WHERE " + Constants.DB.MONTHLY_STATS.YEAR + " = ? AND " + 
                  Constants.DB.MONTHLY_STATS.MONTH + " = ?";
@@ -97,6 +107,15 @@ public class MonthlyComparisonCalculator implements Constants {
       if (cursor.moveToFirst()) {
         stats.totalKm = cursor.getDouble(0) / 1000.0; // convert to km
         stats.avgPace = cursor.getDouble(1); // already in seconds per km
+        double avgRunLength = cursor.getDouble(2); // AVG_RUN_LENGTH is in meters
+        int runCount = cursor.getInt(3);
+        
+        // Calculate average distance per run
+        if (avgRunLength > 0) {
+          stats.avgDistancePerRun = avgRunLength; // Already calculated in monthly_stats
+        } else if (runCount > 0) {
+          stats.avgDistancePerRun = cursor.getDouble(0) / runCount; // total_distance / run_count
+        }
       }
     }
 
@@ -171,6 +190,54 @@ public class MonthlyComparisonCalculator implements Constants {
       }
     }
 
+    // Count runs in top 25 for all distances (activities that appear in best_times with rank <= 25)
+    String top25Sql = "SELECT COUNT(DISTINCT bt." + Constants.DB.BEST_TIMES.ACTIVITY_ID + ")" +
+                      " FROM " + Constants.DB.BEST_TIMES.TABLE + " bt" +
+                      " WHERE bt." + Constants.DB.BEST_TIMES.RANK + " <= 25" +
+                      " AND bt." + Constants.DB.BEST_TIMES.ACTIVITY_ID + " IN (" +
+                      "SELECT _id FROM " + Constants.DB.ACTIVITY.TABLE +
+                      " WHERE " + Constants.DB.ACTIVITY.START_TIME + " >= ? AND " + Constants.DB.ACTIVITY.START_TIME + " <= ?)";
+    
+    try (Cursor top25Cursor = db.rawQuery(top25Sql, new String[]{String.valueOf(monthStartSeconds), String.valueOf(monthEndSeconds)})) {
+      if (top25Cursor.moveToFirst()) {
+        stats.top25Count = top25Cursor.getInt(0);
+      }
+    }
+
+    // Calculate average BPM for laps run at 5min/km pace (between 4:50 and 5:10)
+    // Pace = time (ms) / distance (m) * 1000 = seconds per km
+    // Target: 290-310 seconds per km (4:50-5:10)
+    Log.i(TAG, "=== Calculating BPM @ 5min/km for current month ===");
+    Log.i(TAG, "Month start: " + monthStartSeconds + ", Month end: " + monthEndSeconds);
+    String bpm5MinKmSql = "SELECT AVG(l." + Constants.DB.LAP.AVG_HR + ")" +
+                          " FROM " + Constants.DB.LAP.TABLE + " l" +
+                          " WHERE l." + Constants.DB.LAP.ACTIVITY + " IN (" +
+                          "SELECT _id FROM " + Constants.DB.ACTIVITY.TABLE +
+                          " WHERE " + Constants.DB.ACTIVITY.SPORT + " = ? AND " +
+                          Constants.DB.ACTIVITY.DELETED + " = 0 AND " +
+                          Constants.DB.ACTIVITY.START_TIME + " >= ? AND " + Constants.DB.ACTIVITY.START_TIME + " <= ?)" +
+                          " AND l." + Constants.DB.LAP.DISTANCE + " > 0" +
+                          " AND l." + Constants.DB.LAP.TIME + " > 0" +
+                          " AND l." + Constants.DB.LAP.AVG_HR + " > 0" +
+                          " AND ((l." + Constants.DB.LAP.TIME + " / 1000.0 / l." + Constants.DB.LAP.DISTANCE + " * 1000.0) >= 290.0)" +
+                          " AND ((l." + Constants.DB.LAP.TIME + " / 1000.0 / l." + Constants.DB.LAP.DISTANCE + " * 1000.0) <= 310.0)";
+    
+    try (Cursor bpm5MinKmCursor = db.rawQuery(bpm5MinKmSql, new String[]{
+      String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING),
+      String.valueOf(monthStartSeconds),
+      String.valueOf(monthEndSeconds)})) {
+      Log.i(TAG, "Query executed, cursor row count: " + bpm5MinKmCursor.getCount());
+      if (bpm5MinKmCursor.moveToFirst() && !bpm5MinKmCursor.isNull(0)) {
+        double avgBpm = bpm5MinKmCursor.getDouble(0);
+        stats.avgBpm5MinKm = (int) Math.round(avgBpm);
+        Log.i(TAG, "*** SUCCESS: Current month BPM @ 5min/km: " + stats.avgBpm5MinKm + " (from " + avgBpm + ") ***");
+      } else {
+        Log.i(TAG, "*** No laps found at 5min/km pace for current month (cursor empty or null) ***");
+      }
+    } catch (Exception e) {
+      Log.e(TAG, "*** ERROR calculating BPM @ 5min/km for current month: " + e.getMessage(), e);
+    }
+
     return stats;
   }
 
@@ -179,7 +246,8 @@ public class MonthlyComparisonCalculator implements Constants {
 
     // Get all monthly stats except current month
     String sql = "SELECT AVG(" + Constants.DB.MONTHLY_STATS.TOTAL_DISTANCE + ") as avg_distance, " +
-                 "AVG(" + Constants.DB.MONTHLY_STATS.AVG_PACE + ") as avg_pace " +
+                 "AVG(" + Constants.DB.MONTHLY_STATS.AVG_PACE + ") as avg_pace, " +
+                 "AVG(" + Constants.DB.MONTHLY_STATS.AVG_RUN_LENGTH + ") as avg_run_length " +
                  "FROM " + Constants.DB.MONTHLY_STATS.TABLE +
                  " WHERE NOT (" + Constants.DB.MONTHLY_STATS.YEAR + " = ? AND " + 
                  Constants.DB.MONTHLY_STATS.MONTH + " = ?)";
@@ -188,6 +256,10 @@ public class MonthlyComparisonCalculator implements Constants {
       if (cursor.moveToFirst()) {
         stats.totalKm = cursor.getDouble(0) / 1000.0; // convert to km
         stats.avgPace = cursor.getDouble(1); // already in seconds per km
+        double avgRunLength = cursor.getDouble(2); // AVG_RUN_LENGTH is in meters
+        if (avgRunLength > 0) {
+          stats.avgDistancePerRun = avgRunLength;
+        }
       }
     }
 
@@ -241,6 +313,51 @@ public class MonthlyComparisonCalculator implements Constants {
       if (pbCursor.moveToFirst()) {
         stats.pbCount = pbCursor.getInt(0);
       }
+    }
+
+    // Count runs in top 25 for all distances (activities that appear in best_times with rank <= 25)
+    String top25Sql = "SELECT COUNT(DISTINCT bt." + Constants.DB.BEST_TIMES.ACTIVITY_ID + ")" +
+                      " FROM " + Constants.DB.BEST_TIMES.TABLE + " bt" +
+                      " WHERE bt." + Constants.DB.BEST_TIMES.RANK + " <= 25" +
+                      " AND bt." + Constants.DB.BEST_TIMES.ACTIVITY_ID + " IN (" +
+                      "SELECT _id FROM " + Constants.DB.ACTIVITY.TABLE +
+                      " WHERE (" + Constants.DB.ACTIVITY.START_TIME + " < ? OR " + Constants.DB.ACTIVITY.START_TIME + " > ?))";
+    
+    try (Cursor top25Cursor = db.rawQuery(top25Sql, new String[]{String.valueOf(monthStartSeconds), String.valueOf(monthEndSeconds)})) {
+      if (top25Cursor.moveToFirst()) {
+        stats.top25Count = top25Cursor.getInt(0);
+      }
+    }
+
+    // Calculate average BPM for laps run at 5min/km pace (between 4:50 and 5:10)
+    // Pace = time (ms) / distance (m) * 1000 = seconds per km
+    // Target: 290-310 seconds per km (4:50-5:10)
+    String bpm5MinKmSql = "SELECT AVG(l." + Constants.DB.LAP.AVG_HR + ")" +
+                          " FROM " + Constants.DB.LAP.TABLE + " l" +
+                          " WHERE l." + Constants.DB.LAP.ACTIVITY + " IN (" +
+                          "SELECT _id FROM " + Constants.DB.ACTIVITY.TABLE +
+                          " WHERE " + Constants.DB.ACTIVITY.SPORT + " = ? AND " +
+                          Constants.DB.ACTIVITY.DELETED + " = 0 AND " +
+                          "(" + Constants.DB.ACTIVITY.START_TIME + " < ? OR " + Constants.DB.ACTIVITY.START_TIME + " > ?))" +
+                          " AND l." + Constants.DB.LAP.DISTANCE + " > 0" +
+                          " AND l." + Constants.DB.LAP.TIME + " > 0" +
+                          " AND l." + Constants.DB.LAP.AVG_HR + " > 0" +
+                          " AND ((l." + Constants.DB.LAP.TIME + " / 1000.0 / l." + Constants.DB.LAP.DISTANCE + " * 1000.0) >= 290.0)" +
+                          " AND ((l." + Constants.DB.LAP.TIME + " / 1000.0 / l." + Constants.DB.LAP.DISTANCE + " * 1000.0) <= 310.0)";
+    
+    try (Cursor bpm5MinKmCursor = db.rawQuery(bpm5MinKmSql, new String[]{
+      String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING),
+      String.valueOf(monthStartSeconds),
+      String.valueOf(monthEndSeconds)})) {
+      if (bpm5MinKmCursor.moveToFirst() && !bpm5MinKmCursor.isNull(0)) {
+        double avgBpm = bpm5MinKmCursor.getDouble(0);
+        stats.avgBpm5MinKm = (int) Math.round(avgBpm);
+        Log.i(TAG, "*** SUCCESS: Other months BPM @ 5min/km: " + stats.avgBpm5MinKm + " (from " + avgBpm + ") ***");
+      } else {
+        Log.i(TAG, "*** No laps found at 5min/km pace for other months (cursor empty or null) ***");
+      }
+    } catch (Exception e) {
+      Log.e(TAG, "*** ERROR calculating BPM @ 5min/km for other months: " + e.getMessage(), e);
     }
 
     return stats;

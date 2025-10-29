@@ -20,13 +20,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/monthly_comparison_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/backgroundPrimary">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/colorPrimary"
+        android:background="@color/backgroundPrimary"
+        android:elevation="0dp"
+        app:titleTextColor="@color/colorText"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
@@ -52,8 +55,9 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="3"
-                android:background="@color/colorPrimaryDark"
-                android:padding="12dp">
+                android:background="@drawable/modern_card_background"
+                android:padding="16dp"
+                android:layout_marginBottom="8dp">
 
                 <TextView
                     android:layout_width="0dp"
@@ -62,7 +66,17 @@
                     android:text="Metric"
                     android:textColor="@color/colorText"
                     android:textStyle="bold"
-                    android:textSize="16sp"/>
+                    android:textSize="18sp"/>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/this_month"
+                    android:textColor="@color/colorAccent"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:textAlignment="center"/>
 
                 <TextView
                     android:layout_width="0dp"
@@ -71,17 +85,7 @@
                     android:text="@string/all_other_months"
                     android:textColor="@color/colorText"
                     android:textStyle="bold"
-                    android:textSize="16sp"
-                    android:textAlignment="center"/>
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/this_month"
-                    android:textColor="@color/colorText"
-                    android:textStyle="bold"
-                    android:textSize="16sp"
+                    android:textSize="18sp"
                     android:textAlignment="center"/>
 
             </LinearLayout>
@@ -92,24 +96,17 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="3"
-                android:background="?android:attr/selectableItemBackground"
-                android:padding="12dp">
+                android:background="@drawable/modern_card_background"
+                android:padding="16dp"
+                android:layout_marginBottom="8dp">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/avg_pace"
-                    android:textSize="14sp"/>
-
-                <TextView
-                    android:id="@+id/other_months_avg_pace"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="--"
-                    android:textSize="14sp"
-                    android:textAlignment="center"/>
+                    android:textColor="@color/colorText"
+                    android:textSize="16sp"/>
 
                 <TextView
                     android:id="@+id/this_month_avg_pace"
@@ -117,7 +114,19 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="--"
-                    android:textSize="14sp"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/other_months_avg_pace"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="16sp"
                     android:textAlignment="center"/>
 
             </LinearLayout>
@@ -128,24 +137,17 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="3"
-                android:background="?android:attr/selectableItemBackground"
-                android:padding="12dp">
+                android:background="@drawable/modern_card_background"
+                android:padding="16dp"
+                android:layout_marginBottom="8dp">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/total_distance"
-                    android:textSize="14sp"/>
-
-                <TextView
-                    android:id="@+id/other_months_total_km"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="--"
-                    android:textSize="14sp"
-                    android:textAlignment="center"/>
+                    android:textColor="@color/colorText"
+                    android:textSize="16sp"/>
 
                 <TextView
                     android:id="@+id/this_month_total_km"
@@ -153,7 +155,60 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="--"
-                    android:textSize="14sp"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/other_months_total_km"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="16sp"
+                    android:textAlignment="center"/>
+
+            </LinearLayout>
+
+            <!-- Avg Distance Per Run Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="3"
+                android:background="@drawable/modern_card_background"
+                android:padding="16dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Avg Distance/Run"
+                    android:textColor="@color/colorText"
+                    android:textSize="16sp"/>
+
+                <TextView
+                    android:id="@+id/this_month_avg_distance_per_run"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/other_months_avg_distance_per_run"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="16sp"
                     android:textAlignment="center"/>
 
             </LinearLayout>
@@ -164,24 +219,17 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="3"
-                android:background="?android:attr/selectableItemBackground"
-                android:padding="12dp">
+                android:background="@drawable/modern_card_background"
+                android:padding="16dp"
+                android:layout_marginBottom="8dp">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/average_bpm"
-                    android:textSize="14sp"/>
-
-                <TextView
-                    android:id="@+id/other_months_avg_bpm"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="--"
-                    android:textSize="14sp"
-                    android:textAlignment="center"/>
+                    android:textColor="@color/colorText"
+                    android:textSize="16sp"/>
 
                 <TextView
                     android:id="@+id/this_month_avg_bpm"
@@ -189,7 +237,19 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="--"
-                    android:textSize="14sp"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/other_months_avg_bpm"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="16sp"
                     android:textAlignment="center"/>
 
             </LinearLayout>
@@ -200,24 +260,17 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="3"
-                android:background="?android:attr/selectableItemBackground"
-                android:padding="12dp">
+                android:background="@drawable/modern_card_background"
+                android:padding="16dp"
+                android:layout_marginBottom="8dp">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/personal_bests"
-                    android:textSize="14sp"/>
-
-                <TextView
-                    android:id="@+id/other_months_pb_count"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="--"
-                    android:textSize="14sp"
-                    android:textAlignment="center"/>
+                    android:textColor="@color/colorText"
+                    android:textSize="16sp"/>
 
                 <TextView
                     android:id="@+id/this_month_pb_count"
@@ -225,7 +278,101 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="--"
-                    android:textSize="14sp"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/other_months_pb_count"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="16sp"
+                    android:textAlignment="center"/>
+
+            </LinearLayout>
+
+            <!-- Top 25 Count Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="3"
+                android:background="@drawable/modern_card_background"
+                android:padding="16dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Top 25 Runs"
+                    android:textColor="@color/colorText"
+                    android:textSize="16sp"/>
+
+                <TextView
+                    android:id="@+id/this_month_top25_count"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/other_months_top25_count"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="16sp"
+                    android:textAlignment="center"/>
+
+            </LinearLayout>
+
+            <!-- Avg BPM @ 5min/km Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="3"
+                android:background="@drawable/modern_card_background"
+                android:padding="16dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Avg BPM @ 5min/km"
+                    android:textColor="@color/colorText"
+                    android:textSize="16sp"/>
+
+                <TextView
+                    android:id="@+id/this_month_avg_bpm_5min_km"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/other_months_avg_bpm_5min_km"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="16sp"
                     android:textAlignment="center"/>
 
             </LinearLayout>

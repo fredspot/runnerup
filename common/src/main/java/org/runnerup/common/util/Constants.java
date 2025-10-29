@@ -232,10 +232,16 @@ public interface Constants {
       String CURRENT_TOTAL_KM = "current_total_km";     // meters
       String CURRENT_AVG_BPM = "current_avg_bpm";      // int
       String CURRENT_PB_COUNT = "current_pb_count";     // int
+      String CURRENT_AVG_DISTANCE_PER_RUN = "current_avg_distance_per_run"; // meters
+      String CURRENT_TOP25_COUNT = "current_top25_count"; // int
       String OTHER_AVG_PACE = "other_avg_pace";        // seconds per km
       String OTHER_TOTAL_KM = "other_total_km";         // meters
       String OTHER_AVG_BPM = "other_avg_bpm";          // int
       String OTHER_PB_COUNT = "other_pb_count";         // int
+      String OTHER_AVG_DISTANCE_PER_RUN = "other_avg_distance_per_run"; // meters
+      String OTHER_TOP25_COUNT = "other_top25_count"; // int
+      String CURRENT_AVG_BPM_5MIN_KM = "current_avg_bpm_5min_km"; // int
+      String OTHER_AVG_BPM_5MIN_KM = "other_avg_bpm_5min_km"; // int
       String LAST_COMPUTED = "last_computed";          // timestamp
     }
 
