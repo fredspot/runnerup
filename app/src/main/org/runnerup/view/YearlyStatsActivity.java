@@ -33,6 +33,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
 import org.runnerup.db.DBHelper;
@@ -67,9 +71,23 @@ public class YearlyStatsActivity extends AppCompatActivity implements Constants,
 
     // Set up list view
     ListView listView = findViewById(R.id.statistics_detail_list);
+    listView.setDividerHeight(16); // Spacing between cards
     adapter = new YearlyStatsListAdapter(this);
     listView.setAdapter(adapter);
     listView.setOnItemClickListener(this);
+
+    // Handle window insets for proper spacing
+    View rootView = findViewById(R.id.statistics_detail_layout);
+    ViewCompat.setOnApplyWindowInsetsListener(rootView, new OnApplyWindowInsetsListener() {
+      @NonNull
+      @Override
+      public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat windowInsets) {
+        Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+        ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+        mlp.topMargin = insets.top;
+        return WindowInsetsCompat.CONSUMED;
+      }
+    });
 
     // Load data
     loadYears();

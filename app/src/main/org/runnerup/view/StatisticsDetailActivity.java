@@ -32,6 +32,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
 import org.runnerup.db.DBHelper;
@@ -75,9 +79,23 @@ public class StatisticsDetailActivity extends AppCompatActivity implements Const
 
     // Set up list view
     ListView listView = findViewById(R.id.statistics_detail_list);
+    listView.setDividerHeight(16); // Spacing between cards
     adapter = new StatisticsListAdapter();
     listView.setAdapter(adapter);
     listView.setOnItemClickListener(this);
+
+    // Handle window insets for proper spacing
+    View rootView = findViewById(R.id.statistics_detail_layout);
+    ViewCompat.setOnApplyWindowInsetsListener(rootView, new OnApplyWindowInsetsListener() {
+      @NonNull
+      @Override
+      public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat windowInsets) {
+        Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+        ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+        mlp.topMargin = insets.top;
+        return WindowInsetsCompat.CONSUMED;
+      }
+    });
 
     // Load data
     loadMonthlyStats();
@@ -97,8 +115,17 @@ public class StatisticsDetailActivity extends AppCompatActivity implements Const
 
   @Override
   public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-    // For now, monthly stats don't have click actions
-    // Could be extended to show daily stats or activity list
+    // Navigate to History tab with month/year filter applied
+    MonthlyStatsEntity stats = adapter.getItem(position);
+    if (stats != null && stats.getMonth() != null) {
+      Intent intent = new Intent(this, MainLayout.class);
+      intent.putExtra("HISTORY_TAB", true);
+      intent.putExtra("FILTER_YEAR", targetYear);
+      intent.putExtra("FILTER_MONTH", stats.getMonth());
+      intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+      startActivity(intent);
+      finish();
+    }
   }
 
   private void loadMonthlyStats() {

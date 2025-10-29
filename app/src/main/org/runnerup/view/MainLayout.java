@@ -165,6 +165,9 @@ public class MainLayout extends AppCompatActivity {
             (tab, position) -> tab.setIcon(adapter.getIcon(position)))
         .attach();
 
+    // Handle intent extras for navigation to History tab with filters
+    handleHistoryNavigationIntent();
+
     if (upgradeState == UpgradeState.UPGRADE) {
       whatsNew();
     }
@@ -209,6 +212,13 @@ public class MainLayout extends AppCompatActivity {
 
     // Start auto-computation of statistics and best times
     new AutoComputeTask().execute();
+  }
+
+  @Override
+  protected void onNewIntent(Intent intent) {
+    super.onNewIntent(intent);
+    setIntent(intent);
+    handleHistoryNavigationIntent();
   }
 
   /**
@@ -279,6 +289,30 @@ public class MainLayout extends AppCompatActivity {
     }
 
     return null;
+  }
+
+  private void handleHistoryNavigationIntent() {
+    Intent intent = getIntent();
+    if (intent != null && intent.getBooleanExtra("HISTORY_TAB", false)) {
+      int filterYear = intent.getIntExtra("FILTER_YEAR", -1);
+      int filterMonth = intent.getIntExtra("FILTER_MONTH", -1);
+      
+      if (filterYear != -1 && filterMonth != -1) {
+        // Navigate to History tab (position 1)
+        pager.post(() -> {
+          pager.setCurrentItem(1, false);
+          
+          // Wait for fragment to be ready, then apply filter
+          pager.postDelayed(() -> {
+            Fragment fragment = getCurrentFragment();
+            if (fragment instanceof HistoryFragment) {
+              HistoryFragment historyFragment = (HistoryFragment) fragment;
+              historyFragment.applyFilter(filterYear, filterMonth);
+            }
+          }, 100);
+        });
+      }
+    }
   }
 
   private void handleBundled(AssetManager mgr, String srcBase, String dstBase) {

@@ -137,7 +137,13 @@ public class HistoryFragment extends Fragment
     String whereClause = "deleted == 0";
     if (selectedYear != -1 && selectedMonth != -1) {
       Calendar cal = Calendar.getInstance();
-      cal.set(selectedYear, selectedMonth, 1, 0, 0, 0);
+      // selectedMonth should be 0-11 (0=January, 11=December) for Calendar compatibility
+      // But handle both formats: if month is 1-12, convert to 0-11
+      int calendarMonth = selectedMonth;
+      if (selectedMonth >= 1 && selectedMonth <= 12) {
+        calendarMonth = selectedMonth - 1;
+      }
+      cal.set(selectedYear, calendarMonth, 1, 0, 0, 0);
       cal.set(Calendar.MILLISECOND, 0);
       long startTime = cal.getTimeInMillis() / 1000;
       
@@ -158,6 +164,23 @@ public class HistoryFragment extends Fragment
         DB.ACTIVITY.START_TIME + " desc");
   }
   
+  /**
+   * Apply filter for a specific year and month.
+   * This method is called externally (e.g., from MainLayout) to set filters programmatically.
+   */
+  public void applyFilter(int year, int month) {
+    selectedYear = year;
+    selectedMonth = month;
+    
+    // Update filter button text
+    if (filterButton != null) {
+      filterButton.setText("Clear");
+    }
+    
+    // Restart loader to apply filter
+    LoaderManager.getInstance(this).restartLoader(0, null, this);
+  }
+
   private void showFilterDialog() {
     View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.filter_dialog, null);
     NumberPicker yearPicker = dialogView.findViewById(R.id.year_picker);
