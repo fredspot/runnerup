@@ -17,6 +17,7 @@
 
 package org.runnerup.view;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -28,8 +29,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.NumberPicker;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -60,6 +63,9 @@ public class HistoryFragment extends Fragment
 
   CursorAdapter cursorAdapter = null;
   View fab = null;
+  Button filterButton = null;
+  int selectedYear = -1;
+  int selectedMonth = -1;
 
   public HistoryFragment() {
     super(R.layout.history);
@@ -71,6 +77,7 @@ public class HistoryFragment extends Fragment
 
     ListView listView = view.findViewById(R.id.history_list);
     fab = view.findViewById(R.id.history_add);
+    filterButton = view.findViewById(R.id.history_filter);
 
     Context context = requireContext();
     fab.setOnClickListener(
@@ -79,10 +86,12 @@ public class HistoryFragment extends Fragment
           // TODO: Use the Activity Result API
           startActivityForResult(i, 0);
         });
+    
+    filterButton.setOnClickListener(v -> showFilterDialog());
 
     mDB = DBHelper.getReadableDatabase(context);
     formatter = new Formatter(context);
-    listView.setDividerHeight(2);
+    listView.setDividerHeight(16); // Spacing between cards
     listView.setOnItemClickListener(this);
     cursorAdapter = new HistoryListAdapter(context, null);
     listView.setAdapter(cursorAdapter);
@@ -113,14 +122,84 @@ public class HistoryFragment extends Fragment
           "_id", DB.ACTIVITY.START_TIME, DB.ACTIVITY.DISTANCE, DB.ACTIVITY.TIME, DB.ACTIVITY.SPORT
         };
 
+    // Build where clause with filter
+    String whereClause = "deleted == 0";
+    if (selectedYear != -1 && selectedMonth != -1) {
+      Calendar cal = Calendar.getInstance();
+      cal.set(selectedYear, selectedMonth, 1, 0, 0, 0);
+      cal.set(Calendar.MILLISECOND, 0);
+      long startTime = cal.getTimeInMillis() / 1000;
+      
+      cal.add(Calendar.MONTH, 1);
+      long endTime = cal.getTimeInMillis() / 1000;
+      
+      whereClause += " AND " + DB.ACTIVITY.START_TIME + " >= " + startTime + 
+                     " AND " + DB.ACTIVITY.START_TIME + " < " + endTime;
+    }
+
     return new SimpleCursorLoader(
         requireContext(),
         mDB,
         DB.ACTIVITY.TABLE,
         from,
-        "deleted == 0",
+        whereClause,
         null,
         DB.ACTIVITY.START_TIME + " desc");
+  }
+  
+  private void showFilterDialog() {
+    View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.filter_dialog, null);
+    NumberPicker yearPicker = dialogView.findViewById(R.id.year_picker);
+    NumberPicker monthPicker = dialogView.findViewById(R.id.month_picker);
+    
+    // Set up year picker (last 10 years)
+    Calendar cal = Calendar.getInstance();
+    int currentYear = cal.get(Calendar.YEAR);
+    String[] years = new String[11];
+    for (int i = 0; i <= 10; i++) {
+      years[i] = String.valueOf(currentYear - i);
+    }
+    yearPicker.setMinValue(0);
+    yearPicker.setMaxValue(10);
+    yearPicker.setDisplayedValues(years);
+    
+    // Set up month picker
+    String[] months = new String[]{"Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    monthPicker.setMinValue(0);
+    monthPicker.setMaxValue(11);
+    monthPicker.setDisplayedValues(months);
+    
+    // Set current values if filter is active
+    if (selectedYear != -1 && selectedMonth != -1) {
+      for (int i = 0; i < years.length; i++) {
+        if (Integer.parseInt(years[i]) == selectedYear) {
+          yearPicker.setValue(i);
+          break;
+        }
+      }
+      monthPicker.setValue(selectedMonth);
+    }
+    
+    AlertDialog dialog = new AlertDialog.Builder(requireContext())
+        .setView(dialogView)
+        .setTitle("Filter by Month")
+        .setPositiveButton("Apply", (d, which) -> {
+          selectedYear = Integer.parseInt(years[yearPicker.getValue()]);
+          selectedMonth = monthPicker.getValue();
+          LoaderManager.getInstance(this).restartLoader(0, null, this);
+          filterButton.setText("Clear");
+        })
+        .setNeutralButton("Clear", (d, which) -> {
+          selectedYear = -1;
+          selectedMonth = -1;
+          LoaderManager.getInstance(this).restartLoader(0, null, this);
+          filterButton.setText("Filter");
+        })
+        .setNegativeButton("Cancel", null)
+        .create();
+    
+    dialog.show();
   }
 
   @Override
@@ -185,6 +264,7 @@ public class HistoryFragment extends Fragment
       } else {
         sectionTitle.setVisibility(View.VISIBLE);
         sectionTitle.setText(formatter.formatMonth(curDate));
+        // No need to set margins anymore, the layout handles it
       }
 
       TextView dateText = view.findViewById(R.id.history_list_date);

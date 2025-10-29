@@ -23,19 +23,44 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/backgroundPrimary"
     tools:context=".view.HistoryFragment">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/history_actionbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/colorPrimary"
-        android:elevation="4dp"
+        android:background="@color/backgroundPrimary"
+        android:elevation="0dp"
         app:title="@string/History"
+        app:titleTextColor="@color/colorText"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:ignore="UnusedAttribute"/>
+
+    <Button
+        android:id="@+id/history_filter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginRight="8dp"
+        android:layout_marginTop="16dp"
+        android:text="Filter"
+        android:background="@drawable/filter_button"
+        android:textColor="#FFFFFF"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:textSize="12sp"
+        app:layout_constraintTop_toTopOf="@id/history_actionbar"
+        app:layout_constraintEnd_toEndOf="@id/history_actionbar"
+        app:layout_constraintBottom_toBottomOf="@id/history_actionbar"/>
 
     <ListView
         android:id="@+id/history_list"
@@ -43,6 +68,12 @@
         android:layout_height="0dp"
         android:clipToPadding="false"
         android:paddingBottom="@dimen/margin_for_fab"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:divider="@color/backgroundPrimary"
+        android:dividerHeight="32dp"
         android:scrollbarStyle="outsideOverlay"
         app:layout_constraintTop_toBottomOf="@id/history_actionbar"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -58,7 +89,7 @@
         android:layout_margin="16dp"
         android:contentDescription="@string/Add_manual_entry"
         android:tooltipText="@string/Add_manual_entry"
-        app:backgroundTint="@color/colorPrimaryFab"
+        app:backgroundTint="@color/colorAccent"
         app:fabSize="normal"
         app:srcCompat="@drawable/ic_add_white_24dp"
         tools:ignore="UnusedAttribute"/>

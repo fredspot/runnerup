@@ -91,7 +91,7 @@
     <style name="ListCategoryHeading">
         <item name="fontFamily" tools:ignore="NewApi">@string/fontFamily_medium</item>
         <item name="android:textColor">@color/colorAccent</item>
-        <item name="android:textSize">14sp</item>
+        <item name="android:textSize">18sp</item>
     </style>
 
     <style name="StatusText">
