@@ -21,6 +21,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:descendantFocusability="blocksDescendants"
     android:orientation="vertical"
+    android:background="@drawable/modern_card_background"
     android:padding="16dp">
 
     <TextView
@@ -30,6 +31,7 @@
         android:layout_marginBottom="24dp"
         android:layout_marginTop="8dp"
         android:textAppearance="@style/ListCategoryHeading"
+        android:textColor="@color/colorText"
         android:visibility="visible"/>
 
     <LinearLayout
@@ -68,6 +70,7 @@
             android:layout_marginLeft="16dp"
             android:layout_marginStart="16dp"
             android:layout_weight="1"
+            android:textColor="@color/colorText"
             android:minWidth="48dp"
             android:minHeight="48dp" />
 

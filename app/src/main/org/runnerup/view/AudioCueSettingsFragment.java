@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.view.LayoutInflater;
@@ -18,9 +19,11 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.ListView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 import androidx.preference.Preference;
 import androidx.preference.Preference.OnPreferenceClickListener;
 import androidx.preference.PreferenceFragmentCompat;
@@ -136,11 +139,30 @@ public class AudioCueSettingsFragment extends PreferenceFragmentCompat {
   @Override
   public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
+    
+    // Set dark background
+    view.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.backgroundPrimary));
+    
+    // Find the ListView and style it for dark theme
+    View listView = view.findViewById(android.R.id.list);
+    if (listView != null && listView instanceof ListView) {
+      ListView lv = (ListView) listView;
+      lv.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.backgroundPrimary));
+      lv.setCacheColorHint(Color.TRANSPARENT);
+      lv.setDivider(ContextCompat.getDrawable(requireContext(), android.R.color.transparent));
+      lv.setDividerHeight(16);
+    }
 
     {
       TitleSpinner spinner = view.findViewById(R.id.settings_spinner);
       spinner.setVisibility(View.VISIBLE);
       spinner.setAdapter(adapter);
+      
+      // Ensure TitleSpinner uses transparent background to match page background
+      View spinnerLayout = spinner.findViewById(R.id.title_spinner_layout);
+      if (spinnerLayout != null) {
+        spinnerLayout.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.backgroundPrimary));
+      }
 
       if (settingsName == null) {
         spinner.setValue(0);

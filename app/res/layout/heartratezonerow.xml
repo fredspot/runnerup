@@ -18,13 +18,20 @@
 <TableRow xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/heartratezonerow_view"
-    android:layout_width="fill_parent"
-    android:layout_height="wrap_content">
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp">
 
     <TextView
         android:id="@+id/zonetext"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:paddingEnd="16dp"
+        android:paddingRight="16dp"
+        android:textColor="@color/colorText"
+        android:textSize="16sp" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -33,12 +40,19 @@
 
     <EditText
         android:id="@+id/zonelo"
-        android:layout_width="fill_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:minHeight="48dp"
         android:minWidth="48dp"
         android:inputType="number"
+        android:textColor="@color/colorText"
+        android:textColorHint="@color/colorTextSecondary"
+        android:backgroundTint="@color/colorAccent"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
         tools:ignore="labelFor,AutoFill" />
 
     <TextView
@@ -48,12 +62,17 @@
 
     <EditText
         android:id="@+id/zonehi"
-        android:layout_width="fill_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:minHeight="48dp"
         android:minWidth="48dp"
-		android:inputType="number"
+        android:inputType="number"
+        android:textColor="@color/colorTextSecondary"
+        android:textColorHint="@color/colorTextSecondary"
+        android:backgroundTint="@color/colorTextSecondary"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         tools:ignore="labelFor,AutoFill" />
 
     <TextView

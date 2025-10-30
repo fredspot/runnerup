@@ -18,6 +18,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/backgroundPrimary"
     android:orientation="vertical" >
 
 	<org.runnerup.widget.TitleSpinner
@@ -27,13 +28,19 @@
         android:layout_alignParentStart="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp"
+        android:layout_marginBottom="16dp"
         android:visibility="gone" 
 		android:text="@string/Audio_cue_settings"/>
 
 	<FrameLayout
 		android:id="@+id/settings_container_view"
 		android:layout_width="match_parent"
-		android:layout_height="fill_parent"
+		android:layout_height="match_parent"
 		android:layout_alignParentStart="true"
 		android:layout_alignParentLeft="true"
 		android:layout_below="@id/settings_spinner" />

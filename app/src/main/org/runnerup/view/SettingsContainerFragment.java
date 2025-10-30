@@ -23,6 +23,7 @@ import android.view.View;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
@@ -52,6 +53,9 @@ public class SettingsContainerFragment extends Fragment
   @Override
   public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
+    
+    // Set dark background
+    view.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.backgroundPrimary));
 
     // Ensure that this fragment is added only once
     if (savedInstanceState == null) {

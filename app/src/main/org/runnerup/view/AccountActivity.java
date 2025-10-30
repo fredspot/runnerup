@@ -76,6 +76,13 @@ public class AccountActivity extends AppCompatActivity implements Constants {
     setContentView(R.layout.account);
 
     WidgetUtil.addLegacyOverflowButton(getWindow());
+    
+    // Set up action bar with dark theme
+    if (getSupportActionBar() != null) {
+      getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+      getSupportActionBar().setBackgroundDrawable(
+          getResources().getDrawable(R.drawable.modern_card_background, null));
+    }
 
     Intent intent = getIntent();
     mSynchronizerName = intent.getStringExtra("synchronizer");
@@ -239,8 +246,10 @@ public class AccountActivity extends AppCompatActivity implements Constants {
     TableRow row = new TableRow(this);
     row.setMinimumHeight(48);
     row.setMinimumWidth(48);
+    row.setPadding(0, 12, 0, 12);
     TextView title = new TextView(this);
     title.setText(string);
+    title.setTextColor(getResources().getColor(R.color.colorText, null));
     row.addView(title);
     if (btn != null) row.addView(btn);
     table.addView(row);

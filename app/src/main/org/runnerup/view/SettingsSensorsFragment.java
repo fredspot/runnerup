@@ -3,7 +3,12 @@ package org.runnerup.view;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.ListView;
+import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.preference.CheckBoxPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
@@ -79,6 +84,23 @@ public class SettingsSensorsFragment extends PreferenceFragmentCompat {
     autoPauseAfterSeconds.setEnabled(autoPause);
     Preference autoPauseMinPace = findPreference(getString(R.string.pref_autopause_minpace));
     autoPauseMinPace.setEnabled(autoPause);
+  }
+
+  @Override
+  public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
+    super.onViewCreated(view, savedInstanceState);
+    // Set dark background for preferences list
+    view.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.backgroundPrimary));
+    
+    // Find the ListView and style it for dark theme
+    View listView = view.findViewById(android.R.id.list);
+    if (listView != null && listView instanceof ListView) {
+      ListView lv = (ListView) listView;
+      lv.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.backgroundPrimary));
+      lv.setCacheColorHint(Color.TRANSPARENT);
+      lv.setDivider(ContextCompat.getDrawable(requireContext(), android.R.color.transparent));
+      lv.setDividerHeight(16);
+    }
   }
 
   public static boolean hasHR(Context ctx) {

@@ -3,6 +3,7 @@
     android:id="@+id/hr_settings_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/backgroundPrimary"
     tools:context=".view.HRSettingsActivity">
 
     <LinearLayout
@@ -37,7 +38,7 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/linear_layout0"
-        android:background="@drawable/countdown_background"
+        android:background="@drawable/modern_card_background"
         android:orientation="vertical" >
 
         <LinearLayout
@@ -73,7 +74,7 @@
         android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="fill_parent"
-        android:layout_above="@id/scan_button"
+        android:layout_above="@id/buttons_container"
         android:layout_below="@id/total"
         android:layout_margin="8dp"
         android:weightSum="2" >
@@ -92,7 +93,8 @@
             android:layout_weight="0"
             android:layout_margin="8dp"
             android:textSize="20sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textColor="@color/colorText" />
 
         <TextView
             android:id="@+id/hr_log"
@@ -100,25 +102,42 @@
             android:layout_width="match_parent"
             android:layout_height="fill_parent"
             android:layout_weight="1"
-            android:scrollbars = "vertical" />
+            android:scrollbars="vertical"
+            android:textColor="@color/colorTextSecondary"
+            android:background="@color/backgroundCard" />
     </LinearLayout>
 
-    <Button
-        android:id="@+id/scan_button"
-        style="@style/ButtonText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_above="@id/connect_button"
-        android:background="@drawable/btn_blue"
-        android:text="@string/Scan" />
-
-    <Button
-        android:id="@+id/connect_button"
-        style="@style/ButtonText"
+    <LinearLayout
+        android:id="@+id/buttons_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:background="@drawable/btn_green"
-        android:text="@string/Connect" />
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:paddingBottom="16dp">
+
+        <Button
+            android:id="@+id/scan_button"
+            style="@style/ButtonText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:layout_marginRight="8dp"
+            android:background="@drawable/button_scan_grey"
+            android:text="@string/Scan" />
+
+        <Button
+            android:id="@+id/connect_button"
+            style="@style/ButtonText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_marginLeft="8dp"
+            android:background="@drawable/button_connect_blue"
+            android:text="@string/Connect" />
+
+    </LinearLayout>
 
 </RelativeLayout>

@@ -15,59 +15,73 @@
   ~  You should have received a copy of the GNU General Public License
   ~  along with this program.  If not, see <http://www.gnu.org/licenses/>.
   -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/heartratezone_view"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:layout_margin="@dimen/activity_margin"
-    android:orientation="vertical">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/backgroundPrimary"
+    android:fillViewport="true">
 
-    <org.runnerup.widget.TitleSpinner
-        android:id="@+id/hrz_age"
+    <LinearLayout
+        android:id="@+id/heartratezone_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minWidth="48dp"
-        android:minHeight="48dp"
-        android:text="@string/Age"
-        app:type="numberpicker"
-        app:digits="3"
-        app:min_val="0"
-        app:max_val="300"
-        android:key="@string/pref_hrz_age" >
-    </org.runnerup.widget.TitleSpinner>
+        android:background="@color/backgroundPrimary"
+        android:orientation="vertical"
+        android:padding="16dp">
 
-    <org.runnerup.widget.TitleSpinner
-        android:id="@+id/hrz_sex"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minWidth="48dp"
-        android:minHeight="48dp"
-        android:entries="@array/sexes"
-        android:prompt="@string/Sex"
-        android:text="@string/Sex"
-        app:type="spinner"
-        android:key="@string/pref_hrz_sex" >
-    </org.runnerup.widget.TitleSpinner>
-    
-    <org.runnerup.widget.TitleSpinner
-        android:id="@+id/hrz_mhr"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minWidth="48dp"
-        android:minHeight="48dp"
-        android:text="@string/Maximum_heart_rate_MHR"
-        app:type="numberpicker"
-        app:digits="3"
-        app:min_val="0"
-        app:max_val="300"
-        android:key="@string/pref_hrz_mhr" >
-    </org.runnerup.widget.TitleSpinner>
-    
-    <TableLayout
-        android:id="@+id/zones_table"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content" >
-    </TableLayout>
+        <org.runnerup.widget.TitleSpinner
+            android:id="@+id/hrz_age"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:text="@string/Age"
+            app:type="numberpicker"
+            app:digits="3"
+            app:min_val="0"
+            app:max_val="300"
+            android:key="@string/pref_hrz_age" >
+        </org.runnerup.widget.TitleSpinner>
 
-</LinearLayout>
+        <org.runnerup.widget.TitleSpinner
+            android:id="@+id/hrz_sex"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:entries="@array/sexes"
+            android:prompt="@string/Sex"
+            android:text="@string/Sex"
+            app:type="spinner"
+            android:key="@string/pref_hrz_sex" >
+        </org.runnerup.widget.TitleSpinner>
+        
+        <org.runnerup.widget.TitleSpinner
+            android:id="@+id/hrz_mhr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:text="@string/Maximum_heart_rate_MHR"
+            app:type="numberpicker"
+            app:digits="3"
+            app:min_val="0"
+            app:max_val="300"
+            android:key="@string/pref_hrz_mhr" >
+        </org.runnerup.widget.TitleSpinner>
+        
+        <TableLayout
+            android:id="@+id/zones_table"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/modern_card_background"
+            android:padding="16dp">
+        </TableLayout>
+
+    </LinearLayout>
+
+</ScrollView>

@@ -168,6 +168,13 @@ public class HRZonesActivity extends AppCompatActivity implements Constants {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.heartratezones);
     WidgetUtil.addLegacyOverflowButton(getWindow());
+    
+    // Ensure back button returns to sensors settings
+    if (getSupportActionBar() != null) {
+      getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+      getSupportActionBar().setBackgroundDrawable(
+          androidx.core.content.ContextCompat.getDrawable(this, org.runnerup.R.color.backgroundPrimary));
+    }
 
     hrZones = new HRZones(this);
     hrZoneCalculator = new HRZoneCalculator(this);
@@ -220,10 +227,16 @@ public class HRZonesActivity extends AppCompatActivity implements Constants {
     if (id == R.id.menu_hrzonessettings_clear) {
       clearHRSettings();
     } else if (id == android.R.id.home) {
-      return super.onOptionsItemSelected(item);
+      finish(); // Return to previous screen (sensors settings)
+      return true;
     }
 
     return true;
+  }
+  
+  @Override
+  public void onBackPressed() {
+    super.onBackPressed(); // Standard back behavior will return to sensors settings
   }
 
   @Override

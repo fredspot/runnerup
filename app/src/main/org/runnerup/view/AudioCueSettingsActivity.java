@@ -19,9 +19,11 @@ package org.runnerup.view;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.OnApplyWindowInsetsListener;
 import androidx.core.view.ViewCompat;
@@ -36,6 +38,14 @@ public class AudioCueSettingsActivity extends AppCompatActivity {
     super.onCreate(savedInstanceState);
     WidgetUtil.addLegacyOverflowButton(getWindow());
     setContentView(R.layout.settings_activity);
+    
+    // Set up action bar with dark theme
+    if (getSupportActionBar() != null) {
+      getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+      getSupportActionBar().setTitle("Audio Cues");
+      getSupportActionBar().setBackgroundDrawable(
+          ContextCompat.getDrawable(this, R.drawable.modern_card_background));
+    }
 
     Intent intent = getIntent();
     String settingsName = intent.getStringExtra("name");
@@ -67,5 +77,19 @@ public class AudioCueSettingsActivity extends AppCompatActivity {
             return WindowInsetsCompat.CONSUMED;
           }
         });
+  }
+  
+  @Override
+  public boolean onOptionsItemSelected(MenuItem item) {
+    if (item.getItemId() == android.R.id.home) {
+      finish();
+      return true;
+    }
+    return super.onOptionsItemSelected(item);
+  }
+  
+  @Override
+  public void onBackPressed() {
+    super.onBackPressed();
   }
 }

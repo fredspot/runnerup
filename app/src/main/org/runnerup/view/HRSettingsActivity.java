@@ -117,6 +117,13 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.hr_settings);
     WidgetUtil.addLegacyOverflowButton(getWindow());
+    
+    // Ensure back button returns to sensors settings
+    if (getSupportActionBar() != null) {
+      getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+      getSupportActionBar().setBackgroundDrawable(
+          ContextCompat.getDrawable(this, R.color.backgroundPrimary));
+    }
 
     providers = HRManager.getHRProviderList(this);
     deviceAdapter = new DeviceAdapter(this);
@@ -233,9 +240,17 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
       editor.apply();
       providers = HRManager.getHRProviderList(this);
       return true;
+    } else if (id == android.R.id.home) {
+      finish(); // Return to previous screen (sensors settings)
+      return true;
     }
 
     return super.onOptionsItemSelected(item);
+  }
+  
+  @Override
+  public void onBackPressed() {
+    super.onBackPressed(); // Standard back behavior will return to sensors settings
   }
 
   @Override

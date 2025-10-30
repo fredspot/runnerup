@@ -83,6 +83,7 @@ public class AccountListActivity extends AppCompatActivity
     showDisabledBtn.setTextAppearance(
         this, androidx.appcompat.R.style.TextAppearance_AppCompat_Button);
     showDisabledBtn.setText(org.runnerup.common.R.string.Show_disabled_accounts);
+    showDisabledBtn.setTextColor(getResources().getColor(R.color.colorText, null));
     showDisabledBtn.setBackgroundResource(0);
     showDisabledBtn.setOnClickListener(
         view -> {
@@ -102,8 +103,18 @@ public class AccountListActivity extends AppCompatActivity
     getSupportLoaderManager().initLoader(0, null, this);
 
     listView.setOnItemClickListener(configureItemClick);
+    
+    // Style for dark theme
+    listView.setBackgroundColor(getResources().getColor(R.color.backgroundPrimary, null));
+    listView.setDivider(getResources().getDrawable(android.R.color.transparent, null));
+    listView.setDividerHeight(16);
 
     getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+    if (getSupportActionBar() != null) {
+      getSupportActionBar().setTitle("Accounts");
+      getSupportActionBar().setBackgroundDrawable(
+          new android.graphics.drawable.ColorDrawable(getResources().getColor(R.color.backgroundPrimary, null)));
+    }
     ViewUtil.Insets(findViewById(R.id.account_list_view), true);
   }
 
