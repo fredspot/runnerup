@@ -50,6 +50,7 @@ public class StatisticsFragment extends Fragment
     R.drawable.ic_heartrate_white_24dp, // Heart icon
     R.drawable.ic_tab_besttimes_24dp, // Line chart icon (placeholder)
     R.drawable.ic_bell_curve_24dp, // Bell curve icon
+    R.drawable.ic_shoes_24dp, // Shoes icon
   };
 
   private static final int[] CATEGORY_LABELS = {
@@ -58,6 +59,7 @@ public class StatisticsFragment extends Fragment
     R.string.statistics_hr_zones,
     R.string.statistics_yearly_progress,
     R.string.statistics_distribution,
+    R.string.statistics_pace,
   };
 
   public StatisticsFragment() {
@@ -107,6 +109,10 @@ public class StatisticsFragment extends Fragment
         break;
       case 4: // Distribution
         intent = new Intent(requireContext(), DistributionActivity.class);
+        startActivity(intent);
+        break;
+      case 5: // Pace
+        intent = new Intent(requireContext(), PaceActivity.class);
         startActivity(intent);
         break;
       default:

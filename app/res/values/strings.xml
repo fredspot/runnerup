@@ -64,4 +64,8 @@
   
   <!-- Distribution -->
   <string name="statistics_distribution">Distribution</string>
+  <string name="statistics_pace">Pace</string>
+  <string name="pace_metric">Metric</string>
+  <string name="pace_metric_laps">Laps</string>
+  <string name="pace_metric_avg_hr">Average heart rate</string>
 </resources>
