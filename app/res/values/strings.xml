@@ -61,4 +61,7 @@
   
   <!-- Yearly Progress -->
   <string name="yearly_progress_title">Yearly Progress</string>
+  
+  <!-- Distribution -->
+  <string name="statistics_distribution">Distribution</string>
 </resources>

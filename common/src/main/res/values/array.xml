@@ -75,4 +75,26 @@
     <item>radial_distance</item>
     <item>ramer_douglas_peucker</item>
   </string-array>
+  <string-array name="distances_array">
+    <item>1km</item>
+    <item>5km</item>
+    <item>10km</item>
+    <item>15km</item>
+    <item>20km</item>
+    <item>Half Marathon</item>
+    <item>30km</item>
+    <item>40km</item>
+    <item>Marathon</item>
+  </string-array>
+  <integer-array name="distances_values">
+    <item>1000</item>
+    <item>5000</item>
+    <item>10000</item>
+    <item>15000</item>
+    <item>20000</item>
+    <item>21097</item>
+    <item>30000</item>
+    <item>40000</item>
+    <item>42195</item>
+  </integer-array>
 </resources>
