@@ -161,6 +161,16 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     Intent intent = getIntent();
     mID = intent.getLongExtra("ID", -1);
     String intentMode = intent.getStringExtra("mode");
+    
+    // Store the source tab index if provided (for navigation back)
+    if (intentMode != null && intentMode.contentEquals("details")) {
+      int sourceTab = intent.getIntExtra("source_tab", -1);
+      if (sourceTab >= 0) {
+        android.content.SharedPreferences prefs = 
+            getSharedPreferences("nav_prefs", MODE_PRIVATE);
+        prefs.edit().putInt("navigate_to_tab", sourceTab).apply();
+      }
+    }
 
     mDB = DBHelper.getReadableDatabase(this);
     syncManager = new SyncManager(this);
@@ -952,11 +962,7 @@ deleteButtonClick.onClick(null);
   }
 
   private void navigateToHistory() {
-    // Set a flag in SharedPreferences so MainLayout knows to navigate to History tab
-    android.content.SharedPreferences prefs = 
-        getSharedPreferences("nav_prefs", MODE_PRIVATE);
-    prefs.edit().putBoolean("navigate_to_history", true).apply();
-    
+    // The source tab is already stored in SharedPreferences in onCreate
     // Just finish - let Android handle the back animation naturally
     finish();
   }

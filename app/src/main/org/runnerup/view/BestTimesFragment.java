@@ -228,6 +228,7 @@ public class BestTimesFragment extends Fragment
           Intent intent = new Intent(requireContext(), DetailActivity.class);
           intent.putExtra("ID", bestTime.getActivityId());
           intent.putExtra("mode", "details");
+          intent.putExtra("source_tab", 2); // Best Times tab is at position 2
           startActivity(intent);
         });
         cardLayout.setClickable(true);

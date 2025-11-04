@@ -224,16 +224,17 @@ public class MainLayout extends AppCompatActivity {
   @Override
   protected void onResume() {
     super.onResume();
-    // Check if we should navigate to History tab (set by DetailActivity when finishing)
+    // Check if we should navigate to a specific tab (set by DetailActivity when finishing)
     android.content.SharedPreferences prefs = 
         getSharedPreferences("nav_prefs", MODE_PRIVATE);
-    if (prefs.getBoolean("navigate_to_history", false)) {
-      prefs.edit().remove("navigate_to_history").apply();
-      // Navigate to History tab (position 1) after a short delay to ensure UI is ready
+    int targetTab = prefs.getInt("navigate_to_tab", -1);
+    if (targetTab >= 0 && targetTab < 5) { // Valid tab indices are 0-4
+      prefs.edit().remove("navigate_to_tab").apply();
+      // Navigate to the target tab after a short delay to ensure UI is ready
       if (pager != null && pager.getAdapter() != null) {
         pager.post(() -> {
-          if (pager.getCurrentItem() != 1) {
-            pager.setCurrentItem(1, false);
+          if (pager.getCurrentItem() != targetTab) {
+            pager.setCurrentItem(targetTab, false);
           }
         });
       }

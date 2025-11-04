@@ -251,6 +251,7 @@ public class HistoryFragment extends Fragment
     Intent intent = new Intent(requireContext(), DetailActivity.class);
     intent.putExtra("ID", id);
     intent.putExtra("mode", "details");
+    intent.putExtra("source_tab", 1); // History tab is at position 1
     startActivityForResult(intent, 0);
   }
 
