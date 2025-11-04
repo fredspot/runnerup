@@ -68,4 +68,8 @@
   <string name="pace_metric">Metric</string>
   <string name="pace_metric_laps">Laps</string>
   <string name="pace_metric_avg_hr">Average heart rate</string>
+  <string name="injury">Injury</string>
+  <string name="injury_before">Before</string>
+  <string name="injury_during">During</string>
+  <string name="injury_after">After</string>
 </resources>

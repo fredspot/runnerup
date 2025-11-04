@@ -49,7 +49,7 @@ import org.runnerup.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 37;
+  private static final int DBVERSION = 38;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -291,6 +291,30 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.YEARLY_CUMULATIVE.LAST_COMPUTED + " integer not null ")
           + ");";
 
+  private static final String CREATE_TABLE_TENDON =
+      "create table "
+          + DB.TENDON.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.TENDON.ZONE + " integer not null, ")
+          + (DB.TENDON.NAME + " text not null, ")
+          + (DB.TENDON.DESCRIPTION + " text, ")
+          + (DB.TENDON.ACTIVE + " integer not null default 1")
+          + ")";
+
+  private static final String CREATE_TABLE_ACTIVITY_INJURY =
+      "create table "
+          + DB.ACTIVITY_INJURY.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.ACTIVITY_INJURY.ACTIVITY_ID + " integer not null, ")
+          + (DB.ACTIVITY_INJURY.PHASE + " integer not null, ")
+          + (DB.ACTIVITY_INJURY.ZONE + " integer not null, ")
+          + (DB.ACTIVITY_INJURY.TENDON_ID + " integer, ")
+          + (DB.ACTIVITY_INJURY.PAIN + " integer not null, ")
+          + (DB.ACTIVITY_INJURY.CREATED_AT + " integer not null")
+          + ")";
+
   private static final String CREATE_INDEX_FEED =
       "create index "
           + "if not exists FEED_START_TIME "
@@ -356,6 +380,8 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     arg0.execSQL(CREATE_TABLE_MONTHLY_COMPARISON);
     arg0.execSQL(CREATE_TABLE_HR_ZONE_STATS);
     arg0.execSQL(CREATE_TABLE_YEARLY_CUMULATIVE);
+    arg0.execSQL(CREATE_TABLE_TENDON);
+    arg0.execSQL(CREATE_TABLE_ACTIVITY_INJURY);
 
     onCreateUpgrade(arg0, 0, DBVERSION);
   }
@@ -505,6 +531,10 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
       arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
                    " ADD COLUMN " + DB.MONTHLY_COMPARISON.OTHER_AVG_BPM_5MIN_KM + " integer");
     }
+    if (oldVersion < 38) {
+      arg0.execSQL(CREATE_TABLE_TENDON);
+      arg0.execSQL(CREATE_TABLE_ACTIVITY_INJURY);
+    }
     //    migrateFileSyncronizerInfo(arg0);
     //    recreateAccount(arg0);
     // }
@@ -560,6 +590,50 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     //    tmp.put("_id", 0);
     //    arg0.insert(DB.DBINFO.TABLE, null, tmp);
     // }
+    // Seed tendon master data if empty
+    seedTendons(arg0);
+  }
+
+  private void seedTendons(SQLiteDatabase db) {
+    Cursor c = db.query(DB.TENDON.TABLE, new String[]{"_id"}, null, null, null, null, "_id", "1");
+    boolean hasAny = c.moveToFirst();
+    c.close();
+    if (hasAny) return;
+
+    insertTendon(db, DB.TENDON.ZONE_KNEE, "Quadriceps tendon", "Above the kneecap; overuse or sudden load → tendinopathy");
+    insertTendon(db, DB.TENDON.ZONE_KNEE, "Patellar tendon", "Below the kneecap; common in runners/jumpers (jumper’s knee)");
+    insertTendon(db, DB.TENDON.ZONE_KNEE, "Hamstring tendons", "Semitendinosus/biceps femoris; sprinting or hills strain");
+    insertTendon(db, DB.TENDON.ZONE_KNEE, "Pes anserinus tendons", "Inner knee; friction or overuse irritation");
+    insertTendon(db, DB.TENDON.ZONE_KNEE, "Iliotibial band (IT band)", "Outer knee; friction syndrome from repetitive knee flexion");
+
+    insertTendon(db, DB.TENDON.ZONE_CALVES, "Achilles tendon", "Most common running tendon injury; poor warm-up or tight calves");
+    insertTendon(db, DB.TENDON.ZONE_CALVES, "Plantaris tendon", "Can strain or rupture; sometimes mistaken for Achilles injury");
+    insertTendon(db, DB.TENDON.ZONE_CALVES, "Gastrocnemius tendon", "Junction with Achilles can get microtears");
+    insertTendon(db, DB.TENDON.ZONE_CALVES, "Soleus tendon", "Deeper; often injured from long-distance running");
+
+    insertTendon(db, DB.TENDON.ZONE_ANKLE_FOOT, "Tibialis posterior tendon", "Supports arch; overuse → posterior tibial tendinopathy");
+    insertTendon(db, DB.TENDON.ZONE_ANKLE_FOOT, "Peroneus longus tendon", "Outer ankle; lateral instability or overuse");
+    insertTendon(db, DB.TENDON.ZONE_ANKLE_FOOT, "Peroneus brevis tendon", "Outer ankle; strain during inversion sprains");
+    insertTendon(db, DB.TENDON.ZONE_ANKLE_FOOT, "Tibialis anterior tendon", "Front of shin; pain from overuse or uphill running");
+    insertTendon(db, DB.TENDON.ZONE_ANKLE_FOOT, "Flexor hallucis longus tendon", "Push-off power for big toe; common in sprinters and dancers");
+    insertTendon(db, DB.TENDON.ZONE_ANKLE_FOOT, "Flexor digitorum longus tendon", "Stabilizes foot arch; can get inflamed");
+    insertTendon(db, DB.TENDON.ZONE_ANKLE_FOOT, "Extensor hallucis longus tendon", "Top of foot; can get irritated by tight shoes");
+    insertTendon(db, DB.TENDON.ZONE_ANKLE_FOOT, "Extensor digitorum longus tendons", "Dorsal side; irritation from poor shoe fit or overuse");
+
+    insertTendon(db, DB.TENDON.ZONE_HIP, "Iliopsoas tendon", "Front of hip; overuse → hip flexor tendinitis");
+    insertTendon(db, DB.TENDON.ZONE_HIP, "Tensor fasciae latae tendon", "Lateral thigh; contributes to IT band issues");
+    insertTendon(db, DB.TENDON.ZONE_HIP, "Gluteus medius tendon", "Lateral hip; often causes outer hip pain");
+    insertTendon(db, DB.TENDON.ZONE_HIP, "Adductor longus tendon", "Inner thigh/groin; overuse from directional changes");
+    insertTendon(db, DB.TENDON.ZONE_HIP, "Hamstring origin tendon", "At the ischial tuberosity; deep gluteal pain");
+  }
+
+  private void insertTendon(SQLiteDatabase db, int zone, String name, String description) {
+    ContentValues v = new ContentValues();
+    v.put(DB.TENDON.ZONE, zone);
+    v.put(DB.TENDON.NAME, name);
+    v.put(DB.TENDON.DESCRIPTION, description);
+    v.put(DB.TENDON.ACTIVE, 1);
+    db.insert(DB.TENDON.TABLE, null, v);
   }
 
   private static void echoDo(SQLiteDatabase arg0, String str) {

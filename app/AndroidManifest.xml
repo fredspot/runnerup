@@ -185,6 +185,16 @@
         </activity>
 
         <activity
+            android:name=".view.InjuryEditorActivity"
+            android:label="@string/injury"
+            android:parentActivityName=".view.DetailActivity"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".view.DetailActivity"/>
+        </activity>
+
+        <activity
             android:name=".view.PaceActivity"
             android:label="@string/statistics_pace"
             android:parentActivityName=".view.MainLayout"

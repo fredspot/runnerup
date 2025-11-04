@@ -253,6 +253,33 @@ public interface Constants {
       String LAST_COMPUTED = "last_computed";          // timestamp
     }
 
+    interface TENDON {
+      String TABLE = "tendon";
+      String ZONE = "zone";             // int: see ZONE_*
+      String NAME = "name";              // tendon name
+      String DESCRIPTION = "description"; // tendon description
+      String ACTIVE = "active";          // 1 active, 0 inactive
+
+      int ZONE_KNEE = 0;
+      int ZONE_CALVES = 1;
+      int ZONE_ANKLE_FOOT = 2;
+      int ZONE_HIP = 3;
+    }
+
+    interface ACTIVITY_INJURY {
+      String TABLE = "activity_injury";
+      String ACTIVITY_ID = "activity_id"; // FK to activity
+      String PHASE = "phase";             // 0 before, 1 during, 2 after
+      String ZONE = "zone";               // int: see TENDON zones
+      String TENDON_ID = "tendon_id";     // FK to tendon (nullable)
+      String PAIN = "pain";               // int 0..10
+      String CREATED_AT = "created_at";   // seconds epoch
+
+      int PHASE_BEFORE = 0;
+      int PHASE_DURING = 1;
+      int PHASE_AFTER = 2;
+    }
+
     interface YEARLY_CUMULATIVE {
       String TABLE = "yearly_cumulative";
       String DATE = "date";                           // YYYY-MM-DD

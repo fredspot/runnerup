@@ -119,6 +119,13 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   private TitleSpinner sport = null;
   private TitleSpinner manualDistance = null;
   private EditText notes = null;
+  private View injuryButton = null;
+  private View injuryCardBefore = null;
+  private View injuryCardDuring = null;
+  private View injuryCardAfter = null;
+  private LinearLayout injuryIconsBefore = null;
+  private LinearLayout injuryIconsDuring = null;
+  private LinearLayout injuryIconsAfter = null;
   private View rootView;
   private View mapTab;
   private View graphTab;
@@ -211,6 +218,13 @@ public class DetailActivity extends AppCompatActivity implements Constants {
         }
       });
     notes = findViewById(R.id.notes_text);
+    injuryButton = findViewById(R.id.injury_button);
+    injuryCardBefore = findViewById(R.id.injury_card_before);
+    injuryCardDuring = findViewById(R.id.injury_card_during);
+    injuryCardAfter = findViewById(R.id.injury_card_after);
+    injuryIconsBefore = findViewById(R.id.injury_icons_before);
+    injuryIconsDuring = findViewById(R.id.injury_icons_during);
+    injuryIconsAfter = findViewById(R.id.injury_icons_after);
 
     if (USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0) {
       Object mapView = findViewById(R.id.mapview);
@@ -220,6 +234,20 @@ public class DetailActivity extends AppCompatActivity implements Constants {
 
     saveButton.setOnClickListener(saveButtonClick);
     uploadButton.setOnClickListener(uploadButtonClick);
+    if (injuryButton != null) {
+      injuryButton.setOnClickListener(v -> openInjuryEditor());
+    }
+    
+    // Set click listeners on injury cards to open editor with specific phase
+    if (injuryCardBefore != null) {
+      injuryCardBefore.setOnClickListener(v -> openInjuryEditor(DB.ACTIVITY_INJURY.PHASE_BEFORE));
+    }
+    if (injuryCardDuring != null) {
+      injuryCardDuring.setOnClickListener(v -> openInjuryEditor(DB.ACTIVITY_INJURY.PHASE_DURING));
+    }
+    if (injuryCardAfter != null) {
+      injuryCardAfter.setOnClickListener(v -> openInjuryEditor(DB.ACTIVITY_INJURY.PHASE_AFTER));
+    }
 
     uploadButton.setVisibility(View.GONE);
 
@@ -292,7 +320,8 @@ public class DetailActivity extends AppCompatActivity implements Constants {
                 if (mode == MODE_SAVE) {
                   resumeButtonClick.onClick(resumeButton);
                 } else {
-                  finish();
+                  // When in details mode, navigate back to History tab
+                  navigateToHistory();
                 }
               }
             });
@@ -340,6 +369,9 @@ public class DetailActivity extends AppCompatActivity implements Constants {
       discardButton.setVisibility(View.GONE);
       setEdit(false);
     }
+    
+    // Initial render of injury icons
+    renderInjuryIcons();
   }
   
   private void autoSaveActivity() {
@@ -431,6 +463,11 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   public boolean onOptionsItemSelected(MenuItem item) {
     int id = item.getItemId();
     if (id == android.R.id.home) {
+      if (mode == MODE_DETAILS) {
+        // When in details mode, navigate back to History tab
+        navigateToHistory();
+        return true;
+      }
       return super.onOptionsItemSelected(item);
     } else if (id == R.id.menu_save_activity) {
       saveActivity();
@@ -490,6 +527,7 @@ deleteButtonClick.onClick(null);
     if (mapWrapper != null) {
       mapWrapper.onResume();
     }
+    renderInjuryIcons();
   }
 
   @Override
@@ -913,6 +951,16 @@ deleteButtonClick.onClick(null);
     }
   }
 
+  private void navigateToHistory() {
+    // Set a flag in SharedPreferences so MainLayout knows to navigate to History tab
+    android.content.SharedPreferences prefs = 
+        getSharedPreferences("nav_prefs", MODE_PRIVATE);
+    prefs.edit().putBoolean("navigate_to_history", true).apply();
+    
+    // Just finish - let Android handle the back animation naturally
+    finish();
+  }
+
   private void saveActivity() {
     int sportValue = sport.getValueInt();
     ContentValues tmp = headerData;
@@ -1149,5 +1197,75 @@ deleteButtonClick.onClick(null);
       // Only show save icon in MODE_SAVE when there are unsaved changes
       saveMenuItem.setVisible(mode == MODE_SAVE && hasUnsavedChanges);
     }
+  }
+
+  private void openInjuryEditor() {
+    openInjuryEditor(DB.ACTIVITY_INJURY.PHASE_BEFORE);
+  }
+
+  private void openInjuryEditor(int phase) {
+    Intent i = new Intent(this, InjuryEditorActivity.class);
+    i.putExtra(InjuryEditorActivity.EXTRA_ACTIVITY_ID, mID);
+    i.putExtra(InjuryEditorActivity.EXTRA_PHASE, phase);
+    startActivity(i);
+  }
+
+  private void renderInjuryIcons() {
+    if (injuryIconsBefore == null) return;
+    injuryIconsBefore.removeAllViews();
+    injuryIconsDuring.removeAllViews();
+    injuryIconsAfter.removeAllViews();
+
+    // Query max pain per zone per phase
+    String sql = "SELECT " + DB.ACTIVITY_INJURY.PHASE + ", " + DB.ACTIVITY_INJURY.ZONE + ", MAX(" + DB.ACTIVITY_INJURY.PAIN + ")" +
+        " FROM " + DB.ACTIVITY_INJURY.TABLE +
+        " WHERE " + DB.ACTIVITY_INJURY.ACTIVITY_ID + " = ?" +
+        " GROUP BY " + DB.ACTIVITY_INJURY.PHASE + ", " + DB.ACTIVITY_INJURY.ZONE;
+    int[][] maxByPhaseZone = new int[3][4];
+    for (int p=0;p<3;p++) for (int z=0;z<4;z++) maxByPhaseZone[p][z] = -1;
+    try (Cursor c = mDB.rawQuery(sql, new String[]{ String.valueOf(mID) })) {
+      while (c.moveToNext()) {
+        int phase = c.getInt(0);
+        int zone = c.getInt(1);
+        int maxPain = c.getInt(2);
+        if (phase>=0 && phase<3 && zone>=0 && zone<4) maxByPhaseZone[phase][zone] = maxPain;
+      }
+    }
+
+    addZoneIconRow(injuryIconsBefore, maxByPhaseZone[DB.ACTIVITY_INJURY.PHASE_BEFORE]);
+    addZoneIconRow(injuryIconsDuring, maxByPhaseZone[DB.ACTIVITY_INJURY.PHASE_DURING]);
+    addZoneIconRow(injuryIconsAfter, maxByPhaseZone[DB.ACTIVITY_INJURY.PHASE_AFTER]);
+  }
+
+  private void addZoneIconRow(LinearLayout container, int[] zonePains) {
+    int[] icons = new int[] { R.drawable.ic_zone_knee_24dp, R.drawable.ic_zone_calves_24dp, R.drawable.ic_zone_ankle_foot_24dp, R.drawable.ic_zone_hip_24dp };
+    for (int z=0; z<4; z++) {
+      int pain = zonePains[z];
+      if (pain < 0) continue; // no icon if nothing selected
+      android.widget.ImageView iv = new android.widget.ImageView(this);
+      iv.setImageResource(icons[z]);
+      int color = injuryColorForPain(pain);
+      iv.setColorFilter(color);
+      LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+      lp.setMarginEnd(16);
+      iv.setLayoutParams(lp);
+      container.addView(iv);
+    }
+  }
+
+  private int injuryColorForPain(int pain) {
+    if (pain <= 0) return 0xFFFFFFFF; // white
+    if (pain >= 10) return 0xFF8B0000; // dark red
+    // smooth interpolate from light yellow (1) to dark red (10)
+    // start: #FFF9C4 (light yellow), end: #8B0000
+    int start = 0xFFFFF9C4;
+    int end = 0xFF8B0000;
+    float t = pain / 10f;
+    int sr=(start>>16)&0xFF, sg=(start>>8)&0xFF, sb=start&0xFF;
+    int er=(end>>16)&0xFF, eg=(end>>8)&0xFF, eb=end&0xFF;
+    int r = (int)(sr + (er - sr) * t);
+    int g = (int)(sg + (eg - sg) * t);
+    int b = (int)(sb + (eb - sb) * t);
+    return 0xFF000000 | (r<<16) | (g<<8) | b;
   }
 }

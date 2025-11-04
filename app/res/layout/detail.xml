@@ -144,6 +144,109 @@
 			android:text="@string/Distance"
 			runnerup:type="distancepicker" />
 
+                            <LinearLayout
+                                android:id="@+id/injury_row"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:layout_marginTop="8dp">
+
+                                <Button
+                                    android:id="@+id/injury_button"
+                                    style="@style/ButtonText"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="@drawable/btn_outline_white"
+                                    android:textAllCaps="false"
+                                    android:textColor="@android:color/white"
+                                    android:text="@string/injury"
+                                    android:visibility="gone"/>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="horizontal"
+                                    android:gravity="end"
+                                    android:layout_marginStart="12dp">
+
+                                    <LinearLayout
+                                        android:id="@+id/injury_card_before"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:orientation="vertical"
+                                        android:background="@drawable/modern_card_background"
+                                        android:padding="8dp"
+                                        android:layout_marginEnd="8dp"
+                                        android:clickable="true"
+                                        android:focusable="true">
+                                        <TextView
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/injury_before"
+                                            android:textColor="@color/colorTextSecondary"
+                                            android:textSize="12sp"/>
+                                        <LinearLayout
+                                            android:id="@+id/injury_icons_before"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:orientation="horizontal"
+                                            android:gravity="start"/>
+                                    </LinearLayout>
+
+                                    <LinearLayout
+                                        android:id="@+id/injury_card_during"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:orientation="vertical"
+                                        android:background="@drawable/modern_card_background"
+                                        android:padding="8dp"
+                                        android:layout_marginEnd="8dp"
+                                        android:clickable="true"
+                                        android:focusable="true">
+                                        <TextView
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/injury_during"
+                                            android:textColor="@color/colorTextSecondary"
+                                            android:textSize="12sp"/>
+                                        <LinearLayout
+                                            android:id="@+id/injury_icons_during"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:orientation="horizontal"
+                                            android:gravity="start"/>
+                                    </LinearLayout>
+
+                                    <LinearLayout
+                                        android:id="@+id/injury_card_after"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:orientation="vertical"
+                                        android:background="@drawable/modern_card_background"
+                                        android:padding="8dp"
+                                        android:clickable="true"
+                                        android:focusable="true">
+                                        <TextView
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/injury_after"
+                                            android:textColor="@color/colorTextSecondary"
+                                            android:textSize="12sp"/>
+                                        <LinearLayout
+                                            android:id="@+id/injury_icons_after"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:orientation="horizontal"
+                                            android:gravity="start"/>
+                                    </LinearLayout>
+                                </LinearLayout>
+                            </LinearLayout>
+
                     <EditText
                         android:id="@+id/notes_text"
                         android:layout_width="match_parent"

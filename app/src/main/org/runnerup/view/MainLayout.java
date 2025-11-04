@@ -214,11 +214,30 @@ public class MainLayout extends AppCompatActivity {
     new AutoComputeTask().execute();
   }
 
-  @Override
+    @Override
   protected void onNewIntent(Intent intent) {
     super.onNewIntent(intent);
     setIntent(intent);
     handleHistoryNavigationIntent();
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    // Check if we should navigate to History tab (set by DetailActivity when finishing)
+    android.content.SharedPreferences prefs = 
+        getSharedPreferences("nav_prefs", MODE_PRIVATE);
+    if (prefs.getBoolean("navigate_to_history", false)) {
+      prefs.edit().remove("navigate_to_history").apply();
+      // Navigate to History tab (position 1) after a short delay to ensure UI is ready
+      if (pager != null && pager.getAdapter() != null) {
+        pager.post(() -> {
+          if (pager.getCurrentItem() != 1) {
+            pager.setCurrentItem(1, false);
+          }
+        });
+      }
+    }
   }
 
   /**
@@ -293,24 +312,36 @@ public class MainLayout extends AppCompatActivity {
 
   private void handleHistoryNavigationIntent() {
     Intent intent = getIntent();
-    if (intent != null && intent.getBooleanExtra("HISTORY_TAB", false)) {
-      int filterYear = intent.getIntExtra("FILTER_YEAR", -1);
-      int filterMonth = intent.getIntExtra("FILTER_MONTH", -1);
-      
-      if (filterYear != -1 && filterMonth != -1) {
-        // Navigate to History tab (position 1)
-        pager.post(() -> {
-          pager.setCurrentItem(1, false);
-          
-          // Wait for fragment to be ready, then apply filter
-          pager.postDelayed(() -> {
-            Fragment fragment = getCurrentFragment();
-            if (fragment instanceof HistoryFragment) {
-              HistoryFragment historyFragment = (HistoryFragment) fragment;
-              historyFragment.applyFilter(filterYear, filterMonth);
-            }
-          }, 100);
-        });
+    if (intent != null && pager != null) {
+      // Check for navigate_to_tab extra (from DetailActivity)
+      if (intent.hasExtra("navigate_to_tab")) {
+        int tabIndex = intent.getIntExtra("navigate_to_tab", -1);
+        if (tabIndex >= 0 && pager.getAdapter() != null && tabIndex < pager.getAdapter().getItemCount()) {
+          pager.post(() -> {
+            pager.setCurrentItem(tabIndex, false);
+          });
+        }
+      }
+      // Check for HISTORY_TAB with filters
+      else if (intent.getBooleanExtra("HISTORY_TAB", false)) {
+        int filterYear = intent.getIntExtra("FILTER_YEAR", -1);
+        int filterMonth = intent.getIntExtra("FILTER_MONTH", -1);
+        
+        if (filterYear != -1 && filterMonth != -1) {
+          // Navigate to History tab (position 1)
+          pager.post(() -> {
+            pager.setCurrentItem(1, false);
+            
+            // Wait for fragment to be ready, then apply filter
+            pager.postDelayed(() -> {
+              Fragment fragment = getCurrentFragment();
+              if (fragment instanceof HistoryFragment) {
+                HistoryFragment historyFragment = (HistoryFragment) fragment;
+                historyFragment.applyFilter(filterYear, filterMonth);
+              }
+            }, 100);
+          });
+        }
       }
     }
   }
