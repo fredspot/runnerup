@@ -48,6 +48,37 @@
             android:title="@string/Prune"
             app:iconSpaceReserved="false" />
     </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="backup_category"
+        android:title="Google Drive Backup"
+        app:iconSpaceReserved="false">
+
+        <Preference
+            android:key="pref_drive_backup_status"
+            android:summary="Not configured"
+            android:title="Backup Status"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_drive_backup_signin"
+            android:summary="Sign in with Google account"
+            android:title="Sign in to Google Drive"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_drive_backup_now"
+            android:summary="Backup database to Google Drive"
+            android:title="Backup Now"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreference
+            android:key="pref_drive_auto_backup"
+            android:defaultValue="false"
+            android:summary="Automatically backup database to Google Drive"
+            android:title="Automatic Backup"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
     <!--CheckBoxPreference
         android:defaultValue="false"
         android:persistent="true"

@@ -328,7 +328,26 @@ public class DetailActivity extends AppCompatActivity implements Constants {
                   return;
                 }
                 if (mode == MODE_SAVE) {
-                  resumeButtonClick.onClick(resumeButton);
+                  // When finishing a run, save it and navigate back to Run page (tab 0)
+                  // Save the activity first (don't discard it)
+                  saveActivity();
+                  
+                  // Prepare return intent with manual distance if applicable
+                  Intent returnIntent = new Intent();
+                  int sportValue = sport.getValueInt();
+                  if (Sport.hasManualDistance(sportValue)) {
+                    returnIntent.putExtra(
+                        "MANUAL_DISTANCE", headerData.getAsDouble(DB.ACTIVITY.DISTANCE));
+                  }
+                  
+                  // Set navigation target to Run page (tab 0)
+                  android.content.SharedPreferences prefs = 
+                      getSharedPreferences("nav_prefs", MODE_PRIVATE);
+                  prefs.edit().putInt("navigate_to_tab", 0).apply(); // Run tab is at position 0
+                  
+                  // Return RESULT_OK to save the run (not RESULT_CANCELED which discards it)
+                  setResult(RESULT_OK, returnIntent);
+                  finish();
                 } else {
                   // When in details mode, navigate back to History tab
                   navigateToHistory();

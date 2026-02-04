@@ -347,7 +347,7 @@ public class SpinnerPresenter {
           final LinearLayout layout = createLayout(context);
           layout.addView(picker);
 
-          new AlertDialog.Builder(context)
+          AlertDialog alertDialog = new AlertDialog.Builder(context, R.style.AlertDialogTheme)
               .setTitle(mLabel)
               .setView(layout)
               .setPositiveButton(
@@ -371,7 +371,8 @@ public class SpinnerPresenter {
                     layout.removeView(picker);
                     onClose(false);
                   })
-              .show();
+              .create();
+          alertDialog.show();
         });
   }
 
@@ -391,7 +392,7 @@ public class SpinnerPresenter {
           final LinearLayout layout = createLayout(context);
           layout.addView(distancePicker);
 
-          new AlertDialog.Builder(context)
+          AlertDialog alertDialog = new AlertDialog.Builder(context, R.style.AlertDialogTheme)
               .setTitle(mLabel)
               .setView(layout)
               .setPositiveButton(
@@ -415,7 +416,8 @@ public class SpinnerPresenter {
                     layout.removeView(distancePicker);
                     onClose(false);
                   })
-              .show();
+              .create();
+          alertDialog.show();
         });
   }
 

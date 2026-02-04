@@ -28,6 +28,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.util.Calendar;
@@ -44,7 +45,6 @@ import org.runnerup.workout.Sport;
 
 public class ManualActivity extends AppCompatActivity {
 
-  TitleSpinner manualSport = null;
   TitleSpinner manualDate = null;
   TitleSpinner manualTime = null;
   TitleSpinner manualDistance = null;
@@ -66,7 +66,13 @@ public class ManualActivity extends AppCompatActivity {
 
     setContentView(R.layout.manual);
 
-    manualSport = findViewById(R.id.manual_sport);
+    // Set up Toolbar
+    Toolbar toolbar = findViewById(R.id.manual_toolbar);
+    setSupportActionBar(toolbar);
+    if (getSupportActionBar() != null) {
+      getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+    }
+
     manualDate = findViewById(R.id.manual_date);
     manualTime = findViewById(R.id.manual_time);
     manualDistance = findViewById(R.id.manual_distance);
@@ -78,8 +84,6 @@ public class ManualActivity extends AppCompatActivity {
     manualNotes = findViewById(R.id.manual_notes);
 
     ViewUtil.Insets(findViewById(R.id.tab_manual), true);
-
-    manualSport.setArrayEntries(Sport.getStringArray(getResources()));
   }
 
   @Override
@@ -93,6 +97,10 @@ public class ManualActivity extends AppCompatActivity {
   public boolean onOptionsItemSelected(MenuItem item) {
     if (item.getItemId() == R.id.menu_save) {
       saveEntry();
+      return true;
+    } else if (item.getItemId() == android.R.id.home) {
+      // Handle back button
+      finish();
       return true;
     }
     return super.onOptionsItemSelected(item);
@@ -165,7 +173,8 @@ public class ManualActivity extends AppCompatActivity {
 
   final void saveEntry() {
     ContentValues save = new ContentValues();
-    int sport = manualSport.getValueInt();
+    // Always use RUNNING sport
+    int sport = DB.ACTIVITY.SPORT_RUNNING;
     CharSequence date = manualDate.getValue();
     CharSequence time = manualTime.getValue();
     CharSequence distance = manualDistance.getValue();
@@ -178,8 +187,7 @@ public class ManualActivity extends AppCompatActivity {
     }
     double dist = 0;
     if (distance.length() > 0) {
-      dist = Double.parseDouble(distance.toString()); // convert to
-      // meters
+      dist = Double.parseDouble(distance.toString()); // convert to meters
       save.put(DB.ACTIVITY.DISTANCE, dist);
     }
     long secs = 0;
@@ -214,13 +222,38 @@ public class ManualActivity extends AppCompatActivity {
     save.put(DB.ACTIVITY.SPORT, sport);
     long id = mDB.insert(DB.ACTIVITY.TABLE, null, save);
 
-    ContentValues lap = new ContentValues();
-    lap.put(DB.LAP.ACTIVITY, id);
-    lap.put(DB.LAP.LAP, 0);
-    lap.put(DB.LAP.INTENSITY, DB.INTENSITY.ACTIVE);
-    lap.put(DB.LAP.TIME, secs);
-    lap.put(DB.LAP.DISTANCE, dist);
-    mDB.insert(DB.LAP.TABLE, null, lap);
+    // Split activity into 1km laps
+    if (dist > 0 && secs > 0) {
+      double lapDistance = 1000.0; // 1km in meters
+      int lapCount = (int) Math.ceil(dist / lapDistance);
+      double timePerLap = (double) secs / lapCount;
+      
+      for (int lapIndex = 0; lapIndex < lapCount; lapIndex++) {
+        ContentValues lap = new ContentValues();
+        lap.put(DB.LAP.ACTIVITY, id);
+        lap.put(DB.LAP.LAP, lapIndex);
+        lap.put(DB.LAP.INTENSITY, DB.INTENSITY.ACTIVE);
+        
+        // Calculate distance for this lap (last lap gets remainder)
+        double lapDist = (lapIndex < lapCount - 1) ? lapDistance : (dist - (lapIndex * lapDistance));
+        lap.put(DB.LAP.DISTANCE, lapDist);
+        
+        // Calculate time for this lap (last lap gets remainder)
+        long lapTime = (lapIndex < lapCount - 1) ? (long) timePerLap : (secs - (long)(timePerLap * lapIndex));
+        lap.put(DB.LAP.TIME, lapTime);
+        
+        mDB.insert(DB.LAP.TABLE, null, lap);
+      }
+    } else {
+      // Fallback: create single lap if no distance or time
+      ContentValues lap = new ContentValues();
+      lap.put(DB.LAP.ACTIVITY, id);
+      lap.put(DB.LAP.LAP, 0);
+      lap.put(DB.LAP.INTENSITY, DB.INTENSITY.ACTIVE);
+      lap.put(DB.LAP.TIME, secs);
+      lap.put(DB.LAP.DISTANCE, dist);
+      mDB.insert(DB.LAP.TABLE, null, lap);
+    }
 
     finish();
   }
