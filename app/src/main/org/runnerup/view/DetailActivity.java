@@ -1268,6 +1268,7 @@ deleteButtonClick.onClick(null);
       int pain = zonePains[z];
       if (pain < 0) continue; // no icon if nothing selected
       android.widget.ImageView iv = new android.widget.ImageView(this);
+      iv.setBackgroundColor(android.graphics.Color.TRANSPARENT);
       iv.setImageResource(icons[z]);
       int color = injuryColorForPain(pain);
       iv.setColorFilter(color);
