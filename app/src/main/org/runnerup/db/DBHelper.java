@@ -49,7 +49,7 @@ import org.runnerup.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 38;
+  private static final int DBVERSION = 40;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -259,13 +259,27 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.MONTHLY_COMPARISON.OTHER_AVG_PACE + " real, ")
           + (DB.MONTHLY_COMPARISON.OTHER_TOTAL_KM + " real, ")
           + (DB.MONTHLY_COMPARISON.OTHER_AVG_BPM + " integer, ")
-          + (DB.MONTHLY_COMPARISON.OTHER_PB_COUNT + " integer, ")
+          + (DB.MONTHLY_COMPARISON.OTHER_PB_COUNT + " real, ")
           + (DB.MONTHLY_COMPARISON.CURRENT_AVG_DISTANCE_PER_RUN + " real, ")
           + (DB.MONTHLY_COMPARISON.CURRENT_TOP25_COUNT + " integer, ")
           + (DB.MONTHLY_COMPARISON.OTHER_AVG_DISTANCE_PER_RUN + " real, ")
-          + (DB.MONTHLY_COMPARISON.OTHER_TOP25_COUNT + " integer, ")
+          + (DB.MONTHLY_COMPARISON.OTHER_TOP25_COUNT + " real, ")
           + (DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM_5MIN_KM + " integer, ")
           + (DB.MONTHLY_COMPARISON.OTHER_AVG_BPM_5MIN_KM + " integer, ")
+          + (DB.MONTHLY_COMPARISON.BEST_AVG_PACE + " real, ")
+          + (DB.MONTHLY_COMPARISON.BEST_AVG_PACE_MONTH + " text, ")
+          + (DB.MONTHLY_COMPARISON.BEST_TOTAL_KM + " real, ")
+          + (DB.MONTHLY_COMPARISON.BEST_TOTAL_KM_MONTH + " text, ")
+          + (DB.MONTHLY_COMPARISON.BEST_AVG_DISTANCE_PER_RUN + " real, ")
+          + (DB.MONTHLY_COMPARISON.BEST_AVG_DISTANCE_PER_RUN_MONTH + " text, ")
+          + (DB.MONTHLY_COMPARISON.BEST_AVG_BPM + " integer, ")
+          + (DB.MONTHLY_COMPARISON.BEST_AVG_BPM_MONTH + " text, ")
+          + (DB.MONTHLY_COMPARISON.BEST_PB_COUNT + " integer, ")
+          + (DB.MONTHLY_COMPARISON.BEST_PB_COUNT_MONTH + " text, ")
+          + (DB.MONTHLY_COMPARISON.BEST_TOP25_COUNT + " integer, ")
+          + (DB.MONTHLY_COMPARISON.BEST_TOP25_COUNT_MONTH + " text, ")
+          + (DB.MONTHLY_COMPARISON.BEST_AVG_BPM_5MIN_KM + " integer, ")
+          + (DB.MONTHLY_COMPARISON.BEST_AVG_BPM_5MIN_KM_MONTH + " text, ")
           + (DB.MONTHLY_COMPARISON.LAST_COMPUTED + " integer not null ")
           + ");";
 
@@ -534,6 +548,42 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     if (oldVersion < 38) {
       arg0.execSQL(CREATE_TABLE_TENDON);
       arg0.execSQL(CREATE_TABLE_ACTIVITY_INJURY);
+    }
+    if (oldVersion < 40) {
+      // DBVERSION 40: Change OTHER_PB_COUNT and OTHER_TOP25_COUNT to real for decimal precision
+      // SQLite is type-flexible, so existing integer values will work as real
+      // No ALTER COLUMN needed - values will be stored as real going forward
+    }
+    if (oldVersion < 39) {
+      // Add best month columns to monthly_comparison table
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_AVG_PACE + " real");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_AVG_PACE_MONTH + " text");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_TOTAL_KM + " real");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_TOTAL_KM_MONTH + " text");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_AVG_DISTANCE_PER_RUN + " real");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_AVG_DISTANCE_PER_RUN_MONTH + " text");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_AVG_BPM + " integer");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_AVG_BPM_MONTH + " text");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_PB_COUNT + " integer");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_PB_COUNT_MONTH + " text");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_TOP25_COUNT + " integer");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_TOP25_COUNT_MONTH + " text");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_AVG_BPM_5MIN_KM + " integer");
+      arg0.execSQL("ALTER TABLE " + DB.MONTHLY_COMPARISON.TABLE + 
+                   " ADD COLUMN " + DB.MONTHLY_COMPARISON.BEST_AVG_BPM_5MIN_KM_MONTH + " text");
     }
     //    migrateFileSyncronizerInfo(arg0);
     //    recreateAccount(arg0);

@@ -63,7 +63,43 @@ public class ActivityCleaner implements Constants {
   }
 
   /** recompute a lap aggregate based on locations */
-  private void recomputeLap(SQLiteDatabase db, long activityId, long lap) {
+  void recomputeLap(SQLiteDatabase db, long activityId, long lap) {
+    // Reset lap-specific state (each lap should be processed independently)
+    // Save current state to restore after processing this lap
+    Location savedLastLocation = _lastLocation;
+    boolean savedIsActive = _isActive;
+    _lastLocation = null;
+    _isActive = false;
+    
+    // Check if this is the last lap (might be incomplete and should use GPS distance)
+    long maxLap = db.compileStatement("SELECT MAX(" + DB.LAP.LAP + ") FROM " + DB.LAP.TABLE + 
+        " WHERE " + DB.LAP.ACTIVITY + " = " + activityId).simpleQueryForLong();
+    boolean isLastLap = (lap == maxLap);
+    
+    // First, check if the lap already has a distance set (from autolap during run)
+    // If so, preserve it to maintain accurate autolap distances
+    // Skip recomputation entirely if distance is already set and reasonable (800-1200m range)
+    // EXCEPT for the last lap, which might be incomplete and should always use GPS distance
+    double originalDistance = 0;
+    String[] lapCols = new String[] {DB.LAP.DISTANCE};
+    Cursor lapCursor = db.query(
+        DB.LAP.TABLE,
+        lapCols,
+        DB.LAP.ACTIVITY + " = " + activityId + " and " + DB.LAP.LAP + " = " + lap,
+        null, null, null, null);
+    if (lapCursor.moveToFirst() && !lapCursor.isNull(0)) {
+      originalDistance = lapCursor.getDouble(0);
+      
+      // If distance is already set and in reasonable autolap range (800-1200m), 
+      // skip recomputation UNLESS it's the last lap (which might be incomplete)
+      if (originalDistance >= 800 && originalDistance <= 1200 && !isLastLap) {
+        lapCursor.close();
+        return; // Skip recomputation - preserve the original autolap distance
+      }
+      // For last lap, we'll recompute to get actual GPS distance even if it was set to ~1000m
+    }
+    lapCursor.close();
+
     long sum_time = 0;
     long sum_hr = 0;
     double sum_distance = 0;
@@ -111,13 +147,17 @@ public class ActivityCleaner implements Constants {
           case DB.LOCATION.TYPE_PAUSE:
           case DB.LOCATION.TYPE_GPS:
             if (_lastLocation == null) {
+              // First location in this lap - initialize it and mark as active
+              // (laps can start with GPS points if they're continuation of previous lap)
               _lastLocation = l;
+              _isActive = true;
               break;
             }
 
             if (_isActive) {
               double diffDist = l.distanceTo(_lastLocation);
               sum_distance += diffDist;
+              // Always accumulate GPS distance for total (will be recalculated from laps if needed)
               _totalDistance += diffDist;
 
               long diffTime = l.getTime() - _lastLocation.getTime();
@@ -143,7 +183,18 @@ public class ActivityCleaner implements Constants {
     c.close();
 
     ContentValues tmp = new ContentValues();
-    tmp.put(DB.LAP.DISTANCE, sum_distance);
+    // For the last lap, always use GPS-calculated distance (it might be incomplete)
+    // For other laps, preserve original distance if it was set (from autolap), otherwise use GPS-calculated
+    if (isLastLap) {
+      tmp.put(DB.LAP.DISTANCE, sum_distance);
+      Log.i("ActivityCleaner", "Last lap " + lap + ": using GPS distance " + sum_distance + "m instead of preserved " + originalDistance + "m");
+    } else if (originalDistance > 0 && originalDistance >= 800 && originalDistance <= 1200) {
+      // Preserve autolap distance for non-last laps
+      tmp.put(DB.LAP.DISTANCE, originalDistance);
+    } else {
+      // Use GPS-calculated distance
+      tmp.put(DB.LAP.DISTANCE, sum_distance);
+    }
     tmp.put(DB.LAP.TIME, Math.round(sum_time / 1000.0d));
     if (sum_hr > 0) {
       long hr = Math.round(sum_hr / (double) count);
@@ -155,23 +206,129 @@ public class ActivityCleaner implements Constants {
         tmp,
         DB.LAP.ACTIVITY + " = " + activityId + " and " + DB.LAP.LAP + " = " + lap,
         null);
+    
+    // Restore state for next lap (though we reset it at the start of each lap anyway)
+    _lastLocation = savedLastLocation;
+    _isActive = savedIsActive;
   }
 
   /** recompute an activity summary based on laps */
-  private void recomputeSummary(SQLiteDatabase db, long activityId) {
+  void recomputeSummary(SQLiteDatabase db, long activityId) {
+    // Recalculate total distance and time from all lap distances/times to ensure accuracy
+    // (since we preserve original autolap distances, the sum of laps is more accurate)
+    double totalDistanceFromLaps = 0;
+    long totalTimeFromLaps = 0;
+    String[] lapCols = new String[] {DB.LAP.DISTANCE, DB.LAP.TIME};
+    Cursor lapCursor = db.query(
+        DB.LAP.TABLE,
+        lapCols,
+        DB.LAP.ACTIVITY + " = " + activityId,
+        null, null, null, null);
+    int lapCount = 0;
+    if (lapCursor.moveToFirst()) {
+      do {
+        lapCount++;
+        if (!lapCursor.isNull(0)) {
+          double lapDist = lapCursor.getDouble(0);
+          totalDistanceFromLaps += lapDist;
+          Log.d("ActivityCleaner", "Lap " + lapCount + ": distance = " + lapDist + "m");
+        }
+        if (!lapCursor.isNull(1)) {
+          long lapTime = lapCursor.getLong(1);
+          totalTimeFromLaps += lapTime;
+          Log.d("ActivityCleaner", "Lap " + lapCount + ": time = " + lapTime + "s");
+        } else {
+          Log.w("ActivityCleaner", "Lap " + lapCount + ": time is NULL");
+        }
+      } while (lapCursor.moveToNext());
+    }
+    lapCursor.close();
+
+    Log.i("ActivityCleaner", "Activity " + activityId + ": totalDistanceFromLaps = " + totalDistanceFromLaps + "m, totalTimeFromLaps = " + totalTimeFromLaps + "s, _totalTime = " + _totalTime + "ms");
+
     ContentValues tmp = new ContentValues();
     if (_totalSumHr > 0) {
       long hr = Math.round(_totalSumHr / (double) _totalCount);
       tmp.put(DB.ACTIVITY.AVG_HR, hr);
       tmp.put(DB.ACTIVITY.MAX_HR, _totalMaxHr);
     }
-    tmp.put(DB.ACTIVITY.DISTANCE, _totalDistance);
-    tmp.put(
-        DB.ACTIVITY.TIME,
-        Math.round(_totalTime / 1000.0d)); // also used as a flag for conditionalRecompute
+    // Use sum of lap distances (which preserves original autolap distances)
+    tmp.put(DB.ACTIVITY.DISTANCE, totalDistanceFromLaps > 0 ? totalDistanceFromLaps : _totalDistance);
+    // Use sum of lap times (which includes all laps, even those skipped during recomputation)
+    long finalTime = totalTimeFromLaps > 0 ? totalTimeFromLaps : Math.round(_totalTime / 1000.0d);
+    tmp.put(DB.ACTIVITY.TIME, finalTime); // also used as a flag for conditionalRecompute
+    Log.i("ActivityCleaner", "Activity " + activityId + ": Setting TIME = " + finalTime + "s");
 
     db.update(DB.ACTIVITY.TABLE, tmp, "_id = " + activityId, null);
   }
+
+  /**
+   * Fix corrupted lap distances by rounding laps in 800-1200m range to 1000m.
+   * This fixes laps that were incorrectly recalculated from GPS points.
+   */
+  public static void fixCorruptedLapDistances(SQLiteDatabase db) {
+    try {
+      String[] cols = new String[] {DB.PRIMARY_KEY, DB.LAP.ACTIVITY, DB.LAP.LAP, DB.LAP.DISTANCE};
+      Cursor c = db.query(DB.LAP.TABLE, cols, null, null, null, null, null);
+      int fixedCount = 0;
+      
+      if (c.moveToFirst()) {
+        do {
+          if (!c.isNull(3)) { // DISTANCE column
+            double distance = c.getDouble(3);
+            // Round laps in 800-1200m range to 1000m (these are likely corrupted autolap distances)
+            if (distance >= 800 && distance <= 1200 && Math.abs(distance - 1000) > 10) {
+              long lapId = c.getLong(0);
+              ContentValues tmp = new ContentValues();
+              tmp.put(DB.LAP.DISTANCE, 1000.0);
+              db.update(DB.LAP.TABLE, tmp, "_id = ?", new String[] {Long.toString(lapId)});
+              fixedCount++;
+            }
+          }
+        } while (c.moveToNext());
+      }
+      c.close();
+      
+      if (fixedCount > 0) {
+        Log.i("ActivityCleaner", "Fixed " + fixedCount + " corrupted lap distances to 1000m");
+        
+        // Recalculate activity total distances from fixed lap distances
+        String[] activityCols = new String[] {DB.PRIMARY_KEY};
+        Cursor activityCursor = db.query(DB.ACTIVITY.TABLE, activityCols, null, null, null, null, null);
+        if (activityCursor.moveToFirst()) {
+          do {
+            long activityId = activityCursor.getLong(0);
+            // Recalculate total distance from lap distances
+            String[] lapDistCols = new String[] {DB.LAP.DISTANCE};
+            Cursor lapDistCursor = db.query(
+                DB.LAP.TABLE,
+                lapDistCols,
+                DB.LAP.ACTIVITY + " = " + activityId,
+                null, null, null, null);
+            double totalDistance = 0;
+            if (lapDistCursor.moveToFirst()) {
+              do {
+                if (!lapDistCursor.isNull(0)) {
+                  totalDistance += lapDistCursor.getDouble(0);
+                }
+              } while (lapDistCursor.moveToNext());
+            }
+            lapDistCursor.close();
+            
+            if (totalDistance > 0) {
+              ContentValues tmp = new ContentValues();
+              tmp.put(DB.ACTIVITY.DISTANCE, totalDistance);
+              db.update(DB.ACTIVITY.TABLE, tmp, "_id = ?", new String[] {Long.toString(activityId)});
+            }
+          } while (activityCursor.moveToNext());
+        }
+        activityCursor.close();
+      }
+    } catch (Exception e) {
+      Log.e("ActivityCleaner", "Error fixing corrupted lap distances: " + e.getMessage(), e);
+    }
+  }
+
 
   public void conditionalRecompute(SQLiteDatabase db) {
     try {
@@ -179,12 +336,48 @@ public class ActivityCleaner implements Constants {
       long id =
           db.compileStatement("SELECT MAX(_id) FROM " + DB.ACTIVITY.TABLE).simpleQueryForLong();
 
-      // check its TIME field - recompute if it isn't set
+      // check its TIME field - recompute if it isn't set or is 0
       String[] cols = new String[] {DB.ACTIVITY.TIME};
       Cursor c = db.query(DB.ACTIVITY.TABLE, cols, "_id = " + id, null, null, null, null);
       if (c.moveToFirst()) {
-        if (c.isNull(0)) {
+        if (c.isNull(0) || c.getLong(0) == 0) {
+          Log.i("ActivityCleaner", "Activity " + id + " has TIME = " + (c.isNull(0) ? "NULL" : c.getLong(0)) + ", recomputing...");
           recompute(db, id);
+        } else {
+          // Check if the last lap needs fixing (might be incomplete)
+          long maxLap = db.compileStatement("SELECT MAX(" + DB.LAP.LAP + ") FROM " + DB.LAP.TABLE + 
+              " WHERE " + DB.LAP.ACTIVITY + " = " + id).simpleQueryForLong();
+          if (maxLap >= 0) {
+            String[] lapCols = new String[] {DB.LAP.DISTANCE};
+            Cursor lapCursor = db.query(DB.LAP.TABLE, lapCols, 
+                DB.LAP.ACTIVITY + " = " + id + " AND " + DB.LAP.LAP + " = " + maxLap, 
+                null, null, null, null);
+            boolean needsFix = false;
+            if (lapCursor.moveToFirst()) {
+              if (lapCursor.isNull(0) || lapCursor.getDouble(0) == 0) {
+                // Last lap has 0 distance - needs recompute
+                needsFix = true;
+                Log.i("ActivityCleaner", "Activity " + id + " last lap has 0 distance, recomputing...");
+              } else {
+                double lastLapDist = lapCursor.getDouble(0);
+                // Check if last lap is exactly 1000m but might be incomplete
+                // (we'll recompute to get actual GPS distance)
+                if (lastLapDist >= 800 && lastLapDist <= 1200) {
+                  needsFix = true;
+                  Log.i("ActivityCleaner", "Activity " + id + " last lap is " + lastLapDist + "m, recomputing to check if incomplete...");
+                }
+              }
+            }
+            lapCursor.close();
+            
+            if (needsFix) {
+              recompute(db, id);
+            } else {
+              Log.d("ActivityCleaner", "Activity " + id + " has TIME = " + c.getLong(0) + ", skipping recompute");
+            }
+          } else {
+            Log.d("ActivityCleaner", "Activity " + id + " has TIME = " + c.getLong(0) + ", skipping recompute");
+          }
         }
       }
       c.close();

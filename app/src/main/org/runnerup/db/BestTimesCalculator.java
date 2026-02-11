@@ -285,6 +285,13 @@ public class BestTimesCalculator {
       return null;
     }
     
+    // Require that the activity's total distance is at least the target distance
+    // This prevents activities shorter than the target from being included
+    if (activityInfo.totalDistance < targetDistance) {
+      Log.d(TAG, "Activity " + activityId + " total distance (" + activityInfo.totalDistance + "m) is less than target (" + targetDistance + "m), skipping");
+      return null;
+    }
+    
     List<LapInfo> laps = getLaps(db, activityId);
     if (laps.isEmpty()) {
       return null;

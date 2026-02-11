@@ -242,6 +242,21 @@ public interface Constants {
       String OTHER_TOP25_COUNT = "other_top25_count"; // int
       String CURRENT_AVG_BPM_5MIN_KM = "current_avg_bpm_5min_km"; // int
       String OTHER_AVG_BPM_5MIN_KM = "other_avg_bpm_5min_km"; // int
+      // Best month columns (value and month/year)
+      String BEST_AVG_PACE = "best_avg_pace";           // seconds per km (lower is better)
+      String BEST_AVG_PACE_MONTH = "best_avg_pace_month"; // e.g., "Sep2024"
+      String BEST_TOTAL_KM = "best_total_km";           // meters (higher is better)
+      String BEST_TOTAL_KM_MONTH = "best_total_km_month"; // e.g., "Sep2024"
+      String BEST_AVG_DISTANCE_PER_RUN = "best_avg_distance_per_run"; // meters (higher is better)
+      String BEST_AVG_DISTANCE_PER_RUN_MONTH = "best_avg_distance_per_run_month"; // e.g., "Sep2024"
+      String BEST_AVG_BPM = "best_avg_bpm";             // int (context-dependent, usually lower is better)
+      String BEST_AVG_BPM_MONTH = "best_avg_bpm_month"; // e.g., "Sep2024"
+      String BEST_PB_COUNT = "best_pb_count";           // int (higher is better)
+      String BEST_PB_COUNT_MONTH = "best_pb_count_month"; // e.g., "Sep2024"
+      String BEST_TOP25_COUNT = "best_top25_count";     // int (higher is better)
+      String BEST_TOP25_COUNT_MONTH = "best_top25_count_month"; // e.g., "Sep2024"
+      String BEST_AVG_BPM_5MIN_KM = "best_avg_bpm_5min_km"; // int (lower is better)
+      String BEST_AVG_BPM_5MIN_KM_MONTH = "best_avg_bpm_5min_km_month"; // e.g., "Sep2024"
       String LAST_COMPUTED = "last_computed";          // timestamp
     }
 

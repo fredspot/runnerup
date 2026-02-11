@@ -110,6 +110,9 @@ public class HistoryFragment extends Fragment
     LoaderManager.getInstance(this).initLoader(0, null, this);
     AppCompatDelegate.setCompatVectorFromResourcesEnabled(true);
 
+    // Fix corrupted lap distances (one-time fix for activities with 800-1200m laps)
+    ActivityCleaner.fixCorruptedLapDistances(mDB);
+    
     new ActivityCleaner().conditionalRecompute(mDB);
   }
 

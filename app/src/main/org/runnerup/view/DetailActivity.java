@@ -769,10 +769,14 @@ deleteButtonClick.onClick(null);
     long t = 0;
     if (data.containsKey(DB.ACTIVITY.TIME)) {
       t = data.getAsInteger(DB.ACTIVITY.TIME);
+      android.util.Log.d("DetailActivity", "Activity ID " + mID + ": TIME from database = " + t + " seconds");
       activityTime.setText(formatter.formatElapsedTime(Formatter.Format.TXT_SHORT, t));
     } else {
+      android.util.Log.w("DetailActivity", "Activity ID " + mID + ": TIME field is missing in database!");
       activityTime.setText("");
     }
+
+    android.util.Log.d("DetailActivity", "Activity ID " + mID + ": distance = " + d + "m, time = " + t + "s");
 
     if (t != 0) {
       activityPace.setVisibility(View.VISIBLE);
@@ -780,6 +784,7 @@ deleteButtonClick.onClick(null);
       activityPace.setText(
           formatter.formatVelocityByPreferredUnit(Formatter.Format.TXT_LONG, d / t));
     } else {
+      android.util.Log.w("DetailActivity", "Activity ID " + mID + ": time is 0, hiding pace");
       activityPace.setVisibility(View.GONE);
       activityPaceSeparator.setVisibility(View.GONE);
     }

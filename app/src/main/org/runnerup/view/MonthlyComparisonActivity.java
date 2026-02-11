@@ -86,76 +86,209 @@ public class MonthlyComparisonActivity extends AppCompatActivity {
       Log.i(TAG, "Cursor row count: " + cursor.getCount());
       Log.i(TAG, "Cursor column names: " + java.util.Arrays.toString(cursor.getColumnNames()));
       
-      if (cursor.moveToFirst()) {
-        Log.i(TAG, "*** Found monthly comparison data ***");
-        // Get current month data
-        Double currentAvgPace = cursor.getDouble(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE));
-        Double currentTotalKm = cursor.getDouble(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.CURRENT_TOTAL_KM));
-        int currentAvgBpm = cursor.getInt(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM));
-        int currentPbCount = cursor.getInt(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.CURRENT_PB_COUNT));
-        Double currentAvgDistancePerRun = cursor.isNull(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_DISTANCE_PER_RUN)) ? null :
-                                         cursor.getDouble(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_DISTANCE_PER_RUN));
-        int currentTop25Count = cursor.getInt(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.CURRENT_TOP25_COUNT));
-
-        // Get other months data
-        Double otherAvgPace = cursor.getDouble(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_PACE));
-        Double otherTotalKm = cursor.getDouble(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.OTHER_TOTAL_KM));
-        int otherAvgBpm = cursor.getInt(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_BPM));
-        int otherPbCount = cursor.getInt(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.OTHER_PB_COUNT));
-        Double otherAvgDistancePerRun = cursor.isNull(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_DISTANCE_PER_RUN)) ? null :
-                                       cursor.getDouble(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_DISTANCE_PER_RUN));
-        int otherTop25Count = cursor.getInt(cursor.getColumnIndexOrThrow(Constants.DB.MONTHLY_COMPARISON.OTHER_TOP25_COUNT));
-        // Check if columns exist before trying to read them
-        int currentAvgBpm5MinKm = 0;
-        int otherAvgBpm5MinKm = 0;
-        try {
-          int colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM_5MIN_KM);
-          if (colIndex >= 0 && !cursor.isNull(colIndex)) {
-            currentAvgBpm5MinKm = cursor.getInt(colIndex);
-            Log.i(TAG, "*** Found CURRENT_AVG_BPM_5MIN_KM column, value: " + currentAvgBpm5MinKm + " ***");
-          } else {
-            Log.w(TAG, "*** CURRENT_AVG_BPM_5MIN_KM column not found or is null (colIndex=" + colIndex + ") ***");
+      if (cursor.getCount() == 0) {
+        Log.w(TAG, "No monthly comparison data found in database. Computation may not have run yet.");
+        // Trigger computation if no data exists
+        new android.os.AsyncTask<Void, Void, Void>() {
+          @Override
+          protected Void doInBackground(Void... params) {
+            SQLiteDatabase db = DBHelper.getWritableDatabase(MonthlyComparisonActivity.this);
+            try {
+              MonthlyComparisonCalculator.computeComparison(db);
+            } finally {
+              DBHelper.closeDB(db);
+            }
+            return null;
           }
           
-          colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_BPM_5MIN_KM);
-          if (colIndex >= 0 && !cursor.isNull(colIndex)) {
-            otherAvgBpm5MinKm = cursor.getInt(colIndex);
-            Log.i(TAG, "*** Found OTHER_AVG_BPM_5MIN_KM column, value: " + otherAvgBpm5MinKm + " ***");
-          } else {
-            Log.w(TAG, "*** OTHER_AVG_BPM_5MIN_KM column not found or is null (colIndex=" + colIndex + ") ***");
+          @Override
+          protected void onPostExecute(Void result) {
+            // Reload data after computation
+            loadComparisonData();
           }
+        }.execute();
+        return;
+      }
+      
+      if (cursor.moveToFirst()) {
+        Log.i(TAG, "*** Found monthly comparison data ***");
+        try {
+          // Get current month data
+          Double currentAvgPace = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE)) ? null :
+                                  cursor.getDouble(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE));
+          Double currentTotalKm = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_TOTAL_KM)) ? null :
+                                   cursor.getDouble(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_TOTAL_KM));
+          int currentAvgBpm = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM)) ? 0 :
+                              cursor.getInt(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM));
+          int currentPbCount = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_PB_COUNT)) ? 0 :
+                               cursor.getInt(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_PB_COUNT));
+          Double currentAvgDistancePerRun = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_DISTANCE_PER_RUN)) ? null :
+                                           cursor.getDouble(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_DISTANCE_PER_RUN));
+          int currentTop25Count = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_TOP25_COUNT)) ? 0 :
+                                  cursor.getInt(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_TOP25_COUNT));
+
+          // Get other months data
+          Double otherAvgPace = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_PACE)) ? null :
+                                cursor.getDouble(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_PACE));
+          Double otherTotalKm = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_TOTAL_KM)) ? null :
+                                cursor.getDouble(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_TOTAL_KM));
+          int otherAvgBpm = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_BPM)) ? 0 :
+                            cursor.getInt(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_BPM));
+          Double otherPbCount = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_PB_COUNT)) ? 0.0 :
+                                cursor.getDouble(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_PB_COUNT));
+          Double otherAvgDistancePerRun = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_DISTANCE_PER_RUN)) ? null :
+                                         cursor.getDouble(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_DISTANCE_PER_RUN));
+          Double otherTop25Count = cursor.isNull(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_TOP25_COUNT)) ? 0.0 :
+                                   cursor.getDouble(cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_TOP25_COUNT));
+          // Check if columns exist before trying to read them
+          int currentAvgBpm5MinKm = 0;
+          int otherAvgBpm5MinKm = 0;
+          try {
+            int colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM_5MIN_KM);
+            if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+              currentAvgBpm5MinKm = cursor.getInt(colIndex);
+              Log.i(TAG, "*** Found CURRENT_AVG_BPM_5MIN_KM column, value: " + currentAvgBpm5MinKm + " ***");
+            } else {
+              Log.w(TAG, "*** CURRENT_AVG_BPM_5MIN_KM column not found or is null (colIndex=" + colIndex + ") ***");
+            }
+            
+            colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_BPM_5MIN_KM);
+            if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+              otherAvgBpm5MinKm = cursor.getInt(colIndex);
+              Log.i(TAG, "*** Found OTHER_AVG_BPM_5MIN_KM column, value: " + otherAvgBpm5MinKm + " ***");
+            } else {
+              Log.w(TAG, "*** OTHER_AVG_BPM_5MIN_KM column not found or is null (colIndex=" + colIndex + ") ***");
+            }
+          } catch (Exception e) {
+            Log.e(TAG, "*** ERROR reading BPM 5min columns: " + e.getMessage(), e);
+          }
+
+          Log.i(TAG, "*** Current month: pace=" + currentAvgPace + ", km=" + currentTotalKm + ", bpm=" + currentAvgBpm + ", pbs=" + currentPbCount + ", bpm5min=" + currentAvgBpm5MinKm + " ***");
+          Log.i(TAG, "*** Other months: pace=" + otherAvgPace + ", km=" + otherTotalKm + ", bpm=" + otherAvgBpm + ", pbs=" + otherPbCount + ", bpm5min=" + otherAvgBpm5MinKm + " ***");
+
+          // Always compute BPM@5min/km on the fly (for now, until DB is populated)
+          android.util.Log.e(TAG, "*** About to compute current AVG_BPM_5MIN_KM on the fly ***");
+          int computed = computeAvgBpm5MinKm(true);
+          android.util.Log.e(TAG, "*** Computed current AVG_BPM_5MIN_KM on the fly: " + computed + " ***");
+          // Always use computed value, even if 0 (means no matching laps)
+          currentAvgBpm5MinKm = computed;
+          android.util.Log.e(TAG, "*** Setting currentAvgBpm5MinKm to: " + currentAvgBpm5MinKm + " ***");
+
+          // Display current month data
+          displayCurrentMonthData(currentAvgPace, currentTotalKm, currentAvgBpm, currentPbCount, currentAvgDistancePerRun, currentTop25Count, currentAvgBpm5MinKm);
+          
+          // Always compute BPM@5min/km on the fly (for now, until DB is populated)
+          android.util.Log.e(TAG, "*** About to compute other AVG_BPM_5MIN_KM on the fly ***");
+          int computedOther = computeAvgBpm5MinKm(false);
+          android.util.Log.e(TAG, "*** Computed other AVG_BPM_5MIN_KM on the fly: " + computedOther + " ***");
+          // Always use computed value
+          otherAvgBpm5MinKm = computedOther;
+          android.util.Log.e(TAG, "*** Setting otherAvgBpm5MinKm to: " + otherAvgBpm5MinKm + " ***");
+
+          // Display other months data
+          displayOtherMonthsData(otherAvgPace, otherTotalKm, otherAvgBpm, otherPbCount, otherAvgDistancePerRun, otherTop25Count, otherAvgBpm5MinKm);
+          
+            // Get best month data
+          Double bestAvgPace = null;
+          String bestAvgPaceMonth = null;
+          Double bestTotalKm = null;
+          String bestTotalKmMonth = null;
+          Double bestAvgDistancePerRun = null;
+          String bestAvgDistancePerRunMonth = null;
+          int bestAvgBpm = 0;
+          String bestAvgBpmMonth = null;
+          int bestPbCount = 0;
+          String bestPbCountMonth = null;
+          int bestTop25Count = 0;
+          String bestTop25CountMonth = null;
+          int bestAvgBpm5MinKm = 0;
+          String bestAvgBpm5MinKmMonth = null;
+          
+          try {
+            int colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE);
+            if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+              bestAvgPace = cursor.getDouble(colIndex);
+              colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE_MONTH);
+              if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+                bestAvgPaceMonth = cursor.getString(colIndex);
+              }
+            }
+            
+            colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_TOTAL_KM);
+            if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+              bestTotalKm = cursor.getDouble(colIndex);
+              colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_TOTAL_KM_MONTH);
+              if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+                bestTotalKmMonth = cursor.getString(colIndex);
+              }
+            }
+            
+            colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_DISTANCE_PER_RUN);
+            if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+              bestAvgDistancePerRun = cursor.getDouble(colIndex);
+              colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_DISTANCE_PER_RUN_MONTH);
+              if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+                bestAvgDistancePerRunMonth = cursor.getString(colIndex);
+              }
+            }
+            
+            colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_BPM);
+            if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+              bestAvgBpm = cursor.getInt(colIndex);
+              colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_BPM_MONTH);
+              if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+                bestAvgBpmMonth = cursor.getString(colIndex);
+              }
+            }
+            
+            colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_PB_COUNT);
+            if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+              bestPbCount = cursor.getInt(colIndex);
+              colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_PB_COUNT_MONTH);
+              if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+                bestPbCountMonth = cursor.getString(colIndex);
+              }
+            }
+            
+            colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_TOP25_COUNT);
+            if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+              bestTop25Count = cursor.getInt(colIndex);
+              colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_TOP25_COUNT_MONTH);
+              if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+                bestTop25CountMonth = cursor.getString(colIndex);
+              }
+            }
+            
+            colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_BPM_5MIN_KM);
+            if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+              bestAvgBpm5MinKm = cursor.getInt(colIndex);
+              colIndex = cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_BPM_5MIN_KM_MONTH);
+              if (colIndex >= 0 && !cursor.isNull(colIndex)) {
+                bestAvgBpm5MinKmMonth = cursor.getString(colIndex);
+              }
+            }
+          } catch (Exception e) {
+            Log.e(TAG, "Error reading best month columns: " + e.getMessage(), e);
+          }
+          
+          // Display best month data
+          displayBestMonthData(bestAvgPace, bestAvgPaceMonth, bestTotalKm, bestTotalKmMonth,
+                              bestAvgDistancePerRun, bestAvgDistancePerRunMonth,
+                              bestAvgBpm, bestAvgBpmMonth,
+                              bestPbCount, bestPbCountMonth,
+                              bestTop25Count, bestTop25CountMonth,
+                              bestAvgBpm5MinKm, bestAvgBpm5MinKmMonth);
         } catch (Exception e) {
-          Log.e(TAG, "*** ERROR reading BPM 5min columns: " + e.getMessage(), e);
+          Log.e(TAG, "Error reading monthly comparison data: " + e.getMessage(), e);
+          e.printStackTrace();
         }
-
-        Log.i(TAG, "*** Current month: pace=" + currentAvgPace + ", km=" + currentTotalKm + ", bpm=" + currentAvgBpm + ", pbs=" + currentPbCount + ", bpm5min=" + currentAvgBpm5MinKm + " ***");
-        Log.i(TAG, "*** Other months: pace=" + otherAvgPace + ", km=" + otherTotalKm + ", bpm=" + otherAvgBpm + ", pbs=" + otherPbCount + ", bpm5min=" + otherAvgBpm5MinKm + " ***");
-
-        // Always compute BPM@5min/km on the fly (for now, until DB is populated)
-        android.util.Log.e(TAG, "*** About to compute current AVG_BPM_5MIN_KM on the fly ***");
-        int computed = computeAvgBpm5MinKm(true);
-        android.util.Log.e(TAG, "*** Computed current AVG_BPM_5MIN_KM on the fly: " + computed + " ***");
-        // Always use computed value, even if 0 (means no matching laps)
-        currentAvgBpm5MinKm = computed;
-        android.util.Log.e(TAG, "*** Setting currentAvgBpm5MinKm to: " + currentAvgBpm5MinKm + " ***");
-
-        // Display current month data
-        displayCurrentMonthData(currentAvgPace, currentTotalKm, currentAvgBpm, currentPbCount, currentAvgDistancePerRun, currentTop25Count, currentAvgBpm5MinKm);
-        
-        // Always compute BPM@5min/km on the fly (for now, until DB is populated)
-        android.util.Log.e(TAG, "*** About to compute other AVG_BPM_5MIN_KM on the fly ***");
-        int computedOther = computeAvgBpm5MinKm(false);
-        android.util.Log.e(TAG, "*** Computed other AVG_BPM_5MIN_KM on the fly: " + computedOther + " ***");
-        // Always use computed value
-        otherAvgBpm5MinKm = computedOther;
-        android.util.Log.e(TAG, "*** Setting otherAvgBpm5MinKm to: " + otherAvgBpm5MinKm + " ***");
-
-        // Display other months data
-        displayOtherMonthsData(otherAvgPace, otherTotalKm, otherAvgBpm, otherPbCount, otherAvgDistancePerRun, otherTop25Count, otherAvgBpm5MinKm);
       } else {
         // No data available
         Log.w(TAG, "No monthly comparison data found");
       }
+    } catch (Exception e) {
+      Log.e(TAG, "Error loading comparison data: " + e.getMessage(), e);
+      e.printStackTrace();
     }
   }
 
@@ -263,8 +396,8 @@ public class MonthlyComparisonActivity extends AppCompatActivity {
     }
 
     if (totalKm != null && totalKm > 0) {
-      // Convert km to meters for formatter
-      String kmStr = formatter.formatDistance(Formatter.Format.TXT_SHORT, (long)(totalKm * 1000));
+      // Format with one decimal and "k" unit
+      String kmStr = String.format(java.util.Locale.US, "%.1fk", totalKm);
       totalKmView.setText(kmStr);
     } else {
       totalKmView.setText("--");
@@ -279,7 +412,9 @@ public class MonthlyComparisonActivity extends AppCompatActivity {
     pbCountView.setText(String.valueOf(pbCount));
 
     if (avgDistancePerRun != null && avgDistancePerRun > 0) {
-      String distanceStr = formatter.formatDistance(Formatter.Format.TXT_SHORT, avgDistancePerRun.longValue());
+      // Convert from meters to km, format with one decimal and "k" unit
+      double avgDistanceKm = avgDistancePerRun / 1000.0;
+      String distanceStr = String.format(java.util.Locale.US, "%.1fk", avgDistanceKm);
       avgDistancePerRunView.setText(distanceStr);
     } else {
       avgDistancePerRunView.setText("--");
@@ -297,7 +432,7 @@ public class MonthlyComparisonActivity extends AppCompatActivity {
     }
   }
 
-  private void displayOtherMonthsData(Double avgPace, Double totalKm, int avgBpm, int pbCount, Double avgDistancePerRun, int top25Count, int avgBpm5MinKm) {
+  private void displayOtherMonthsData(Double avgPace, Double totalKm, int avgBpm, Double pbCount, Double avgDistancePerRun, Double top25Count, int avgBpm5MinKm) {
     TextView avgPaceView = findViewById(R.id.other_months_avg_pace);
     TextView totalKmView = findViewById(R.id.other_months_total_km);
     TextView avgDistancePerRunView = findViewById(R.id.other_months_avg_distance_per_run);
@@ -314,8 +449,8 @@ public class MonthlyComparisonActivity extends AppCompatActivity {
     }
 
     if (totalKm != null && totalKm > 0) {
-      // Convert km to meters for formatter
-      String kmStr = formatter.formatDistance(Formatter.Format.TXT_SHORT, (long)(totalKm * 1000));
+      // Format with one decimal and "k" unit
+      String kmStr = String.format(java.util.Locale.US, "%.1fk", totalKm);
       totalKmView.setText(kmStr);
     } else {
       totalKmView.setText("--");
@@ -330,7 +465,9 @@ public class MonthlyComparisonActivity extends AppCompatActivity {
     pbCountView.setText(String.valueOf(pbCount));
 
     if (avgDistancePerRun != null && avgDistancePerRun > 0) {
-      String distanceStr = formatter.formatDistance(Formatter.Format.TXT_SHORT, avgDistancePerRun.longValue());
+      // Convert from meters to km, format with one decimal and "k" unit
+      double avgDistanceKm = avgDistancePerRun / 1000.0;
+      String distanceStr = String.format(java.util.Locale.US, "%.1fk", avgDistanceKm);
       avgDistancePerRunView.setText(distanceStr);
     } else {
       avgDistancePerRunView.setText("--");
@@ -345,6 +482,87 @@ public class MonthlyComparisonActivity extends AppCompatActivity {
     } else {
       avgBpm5MinKmView.setText("--");
       android.util.Log.e(TAG, "*** Set avgBpm5MinKmView to: -- (value is 0 or negative) ***");
+    }
+  }
+
+  private void displayBestMonthData(Double bestAvgPace, String bestAvgPaceMonth,
+                                    Double bestTotalKm, String bestTotalKmMonth,
+                                    Double bestAvgDistancePerRun, String bestAvgDistancePerRunMonth,
+                                    int bestAvgBpm, String bestAvgBpmMonth,
+                                    int bestPbCount, String bestPbCountMonth,
+                                    int bestTop25Count, String bestTop25CountMonth,
+                                    int bestAvgBpm5MinKm, String bestAvgBpm5MinKmMonth) {
+    // Avg Pace
+    TextView bestAvgPaceView = findViewById(R.id.best_month_avg_pace);
+    TextView bestAvgPaceLabelView = findViewById(R.id.best_month_avg_pace_label);
+    if (bestAvgPace != null && bestAvgPace > 0) {
+      String paceStr = formatter.formatPace(Formatter.Format.TXT_SHORT, bestAvgPace / 1000.0);
+      bestAvgPaceView.setText(paceStr);
+      bestAvgPaceLabelView.setText(bestAvgPaceMonth != null ? bestAvgPaceMonth : "");
+    } else {
+      bestAvgPaceView.setText("--");
+      bestAvgPaceLabelView.setText("");
+    }
+
+    // Total Distance
+    TextView bestTotalKmView = findViewById(R.id.best_month_total_km);
+    TextView bestTotalKmLabelView = findViewById(R.id.best_month_total_km_label);
+    if (bestTotalKm != null && bestTotalKm > 0) {
+      // Format with one decimal and "k" unit
+      String kmStr = String.format(java.util.Locale.US, "%.1fk", bestTotalKm);
+      bestTotalKmView.setText(kmStr);
+      bestTotalKmLabelView.setText(bestTotalKmMonth != null ? bestTotalKmMonth : "");
+    } else {
+      bestTotalKmView.setText("--");
+      bestTotalKmLabelView.setText("");
+    }
+
+    // Avg Distance Per Run
+    TextView bestAvgDistancePerRunView = findViewById(R.id.best_month_avg_distance_per_run);
+    TextView bestAvgDistancePerRunLabelView = findViewById(R.id.best_month_avg_distance_per_run_label);
+    if (bestAvgDistancePerRun != null && bestAvgDistancePerRun > 0) {
+      // Convert from meters to km, format with one decimal and "k" unit
+      double avgDistanceKm = bestAvgDistancePerRun / 1000.0;
+      String distanceStr = String.format(java.util.Locale.US, "%.1fk", avgDistanceKm);
+      bestAvgDistancePerRunView.setText(distanceStr);
+      bestAvgDistancePerRunLabelView.setText(bestAvgDistancePerRunMonth != null ? bestAvgDistancePerRunMonth : "");
+    } else {
+      bestAvgDistancePerRunView.setText("--");
+      bestAvgDistancePerRunLabelView.setText("");
+    }
+
+    // Avg BPM
+    TextView bestAvgBpmView = findViewById(R.id.best_month_avg_bpm);
+    TextView bestAvgBpmLabelView = findViewById(R.id.best_month_avg_bpm_label);
+    if (bestAvgBpm > 0) {
+      bestAvgBpmView.setText(String.valueOf(bestAvgBpm));
+      bestAvgBpmLabelView.setText(bestAvgBpmMonth != null ? bestAvgBpmMonth : "");
+    } else {
+      bestAvgBpmView.setText("--");
+      bestAvgBpmLabelView.setText("");
+    }
+
+    // PB Count
+    TextView bestPbCountView = findViewById(R.id.best_month_pb_count);
+    TextView bestPbCountLabelView = findViewById(R.id.best_month_pb_count_label);
+    bestPbCountView.setText(String.valueOf(bestPbCount));
+    bestPbCountLabelView.setText(bestPbCountMonth != null ? bestPbCountMonth : "");
+
+    // Top 25 Count
+    TextView bestTop25CountView = findViewById(R.id.best_month_top25_count);
+    TextView bestTop25CountLabelView = findViewById(R.id.best_month_top25_count_label);
+    bestTop25CountView.setText(String.valueOf(bestTop25Count));
+    bestTop25CountLabelView.setText(bestTop25CountMonth != null ? bestTop25CountMonth : "");
+
+    // Avg BPM @ 5min/km
+    TextView bestAvgBpm5MinKmView = findViewById(R.id.best_month_avg_bpm_5min_km);
+    TextView bestAvgBpm5MinKmLabelView = findViewById(R.id.best_month_avg_bpm_5min_km_label);
+    if (bestAvgBpm5MinKm > 0) {
+      bestAvgBpm5MinKmView.setText(String.valueOf(bestAvgBpm5MinKm));
+      bestAvgBpm5MinKmLabelView.setText(bestAvgBpm5MinKmMonth != null ? bestAvgBpm5MinKmMonth : "");
+    } else {
+      bestAvgBpm5MinKmView.setText("--");
+      bestAvgBpm5MinKmLabelView.setText("");
     }
   }
 }

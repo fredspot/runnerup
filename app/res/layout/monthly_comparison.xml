@@ -54,7 +54,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:weightSum="3"
+                android:weightSum="4"
                 android:background="@drawable/modern_card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
@@ -88,6 +88,16 @@
                     android:textSize="18sp"
                     android:textAlignment="center"/>
 
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Best Month"
+                    android:textColor="@color/colorText"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:textAlignment="center"/>
+
             </LinearLayout>
 
             <!-- Avg Pace Row -->
@@ -95,7 +105,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:weightSum="3"
+                android:weightSum="4"
                 android:background="@drawable/modern_card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
@@ -129,6 +139,31 @@
                     android:textSize="16sp"
                     android:textAlignment="center"/>
 
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+                    <TextView
+                        android:id="@+id/best_month_avg_pace"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="16sp"
+                        android:textAlignment="center"/>
+                    <TextView
+                        android:id="@+id/best_month_avg_pace_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text=""
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="10sp"
+                        android:textAlignment="center"/>
+                </LinearLayout>
+
             </LinearLayout>
 
             <!-- Total Distance Row -->
@@ -136,7 +171,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:weightSum="3"
+                android:weightSum="4"
                 android:background="@drawable/modern_card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
@@ -156,7 +191,7 @@
                     android:layout_weight="1"
                     android:text="--"
                     android:textColor="@color/colorAccent"
-                    android:textSize="16sp"
+                    android:textSize="14sp"
                     android:textStyle="bold"
                     android:textAlignment="center"/>
 
@@ -167,8 +202,33 @@
                     android:layout_weight="1"
                     android:text="--"
                     android:textColor="@color/colorTextSecondary"
-                    android:textSize="16sp"
+                    android:textSize="14sp"
                     android:textAlignment="center"/>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+                    <TextView
+                        android:id="@+id/best_month_total_km"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="14sp"
+                        android:textAlignment="center"/>
+                    <TextView
+                        android:id="@+id/best_month_total_km_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text=""
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="10sp"
+                        android:textAlignment="center"/>
+                </LinearLayout>
 
             </LinearLayout>
 
@@ -177,7 +237,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:weightSum="3"
+                android:weightSum="4"
                 android:background="@drawable/modern_card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
@@ -186,7 +246,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Avg Distance/Run"
+                    android:text="Avg Distance"
                     android:textColor="@color/colorText"
                     android:textSize="16sp"/>
 
@@ -211,6 +271,31 @@
                     android:textSize="16sp"
                     android:textAlignment="center"/>
 
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+                    <TextView
+                        android:id="@+id/best_month_avg_distance_per_run"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="16sp"
+                        android:textAlignment="center"/>
+                    <TextView
+                        android:id="@+id/best_month_avg_distance_per_run_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text=""
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="10sp"
+                        android:textAlignment="center"/>
+                </LinearLayout>
+
             </LinearLayout>
 
             <!-- Avg BPM Row -->
@@ -218,7 +303,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:weightSum="3"
+                android:weightSum="4"
                 android:background="@drawable/modern_card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
@@ -252,6 +337,31 @@
                     android:textSize="16sp"
                     android:textAlignment="center"/>
 
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+                    <TextView
+                        android:id="@+id/best_month_avg_bpm"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="16sp"
+                        android:textAlignment="center"/>
+                    <TextView
+                        android:id="@+id/best_month_avg_bpm_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text=""
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="10sp"
+                        android:textAlignment="center"/>
+                </LinearLayout>
+
             </LinearLayout>
 
             <!-- PB Count Row -->
@@ -259,7 +369,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:weightSum="3"
+                android:weightSum="4"
                 android:background="@drawable/modern_card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
@@ -293,6 +403,31 @@
                     android:textSize="16sp"
                     android:textAlignment="center"/>
 
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+                    <TextView
+                        android:id="@+id/best_month_pb_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="16sp"
+                        android:textAlignment="center"/>
+                    <TextView
+                        android:id="@+id/best_month_pb_count_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text=""
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="10sp"
+                        android:textAlignment="center"/>
+                </LinearLayout>
+
             </LinearLayout>
 
             <!-- Top 25 Count Row -->
@@ -300,7 +435,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:weightSum="3"
+                android:weightSum="4"
                 android:background="@drawable/modern_card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
@@ -334,6 +469,31 @@
                     android:textSize="16sp"
                     android:textAlignment="center"/>
 
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+                    <TextView
+                        android:id="@+id/best_month_top25_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="16sp"
+                        android:textAlignment="center"/>
+                    <TextView
+                        android:id="@+id/best_month_top25_count_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text=""
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="10sp"
+                        android:textAlignment="center"/>
+                </LinearLayout>
+
             </LinearLayout>
 
             <!-- Avg BPM @ 5min/km Row -->
@@ -341,7 +501,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:weightSum="3"
+                android:weightSum="4"
                 android:background="@drawable/modern_card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
@@ -350,7 +510,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Avg BPM @ 5min/km"
+                    android:text="Avg BPM @ 5pace"
                     android:textColor="@color/colorText"
                     android:textSize="16sp"/>
 
@@ -374,6 +534,31 @@
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="16sp"
                     android:textAlignment="center"/>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+                    <TextView
+                        android:id="@+id/best_month_avg_bpm_5min_km"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="16sp"
+                        android:textAlignment="center"/>
+                    <TextView
+                        android:id="@+id/best_month_avg_bpm_5min_km_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text=""
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="10sp"
+                        android:textAlignment="center"/>
+                </LinearLayout>
 
             </LinearLayout>
 
