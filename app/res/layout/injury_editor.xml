@@ -18,14 +18,14 @@
       android:orientation="horizontal"
       android:gravity="center_vertical"
       android:layout_marginTop="8dp">
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/phase_spinner"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:title="@string/injury" />
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/zone_spinner"
         android:layout_width="0dp"
         android:layout_height="wrap_content"

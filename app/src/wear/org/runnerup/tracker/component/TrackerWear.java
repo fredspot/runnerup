@@ -14,7 +14,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.runnerup.tracker.component;
+package org.runnerup.tracking.component;
 
 import android.content.Context;
 import android.content.Intent;
@@ -39,17 +39,17 @@ import java.util.List;
 import org.runnerup.common.tracker.TrackerState;
 import org.runnerup.common.util.Constants;
 import org.runnerup.common.util.ValueModel;
-import org.runnerup.tracker.Tracker;
-import org.runnerup.tracker.WorkoutObserver;
-import org.runnerup.util.Formatter;
+import org.runnerup.tracking.Tracker;
+import org.runnerup.tracking.WorkoutObserver;
+import org.runnerup.core.util.Formatter;
 import org.runnerup.wear.WearableClient;
-import org.runnerup.workout.Dimension;
-import org.runnerup.workout.Intensity;
-import org.runnerup.workout.Scope;
-import org.runnerup.workout.Step;
-import org.runnerup.workout.Workout;
-import org.runnerup.workout.WorkoutInfo;
-import org.runnerup.workout.WorkoutStepListener;
+import org.runnerup.core.workout.Dimension;
+import org.runnerup.core.workout.Intensity;
+import org.runnerup.core.workout.Scope;
+import org.runnerup.core.workout.Step;
+import org.runnerup.core.workout.Workout;
+import org.runnerup.core.workout.WorkoutInfo;
+import org.runnerup.core.workout.WorkoutStepListener;
 
 public class TrackerWear extends DefaultTrackerComponent
     implements Constants,

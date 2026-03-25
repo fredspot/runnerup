@@ -69,7 +69,7 @@
         <meta-data android:name="android.webkit.WebView.MetricsOptOut" android:value="true" />
         <activity
             android:exported="true"
-            android:name=".view.MainLayout"
+            android:name=".features.MainLayout"
             android:theme="@style/MainLayoutTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -93,228 +93,228 @@
         </activity>
 
         <activity
-            android:name=".view.RunActivity"
+            android:name=".features.RunActivity"
             android:configChanges="keyboardHidden|orientation"
             android:theme="@style/AppTheme.NoActionBar"/>
 
         <activity
-            android:name=".view.AudioCueSettingsActivity"
+            android:name=".features.AudioCueSettingsActivity"
             android:theme="@style/AppTheme"/>
 
         <activity
-            android:name=".view.DetailActivity"
+            android:name=".features.DetailActivity"
             android:configChanges="orientation|screenSize|uiMode"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.BestTimesDetailActivity"
+            android:name=".features.BestTimesDetailActivity"
             android:label="@string/best_times"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.StatisticsDetailActivity"
+            android:name=".features.StatisticsDetailActivity"
             android:label="@string/statistics"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.YearlyStatsActivity"
+            android:name=".features.YearlyStatsActivity"
             android:label="@string/statistics_year_month_breakdown"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.MonthlyComparisonActivity"
+            android:name=".features.MonthlyComparisonActivity"
             android:label="@string/monthly_comparison_title"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.HRZoneActivity"
+            android:name=".features.HRZoneActivity"
             android:label="@string/hr_zones_title"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.YearlyCumulativeActivity"
+            android:name=".features.YearlyCumulativeActivity"
             android:label="@string/yearly_progress_title"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.DistributionActivity"
+            android:name=".features.DistributionActivity"
             android:label="@string/statistics_distribution"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.InjuryEditorActivity"
+            android:name=".features.InjuryEditorActivity"
             android:label="@string/injury"
-            android:parentActivityName=".view.DetailActivity"
+            android:parentActivityName=".features.DetailActivity"
             android:theme="@style/AppTheme.NoActionBar">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.DetailActivity"/>
+                android:value=".features.DetailActivity"/>
         </activity>
 
         <activity
-            android:name=".view.PaceActivity"
+            android:name=".features.PaceActivity"
             android:label="@string/statistics_pace"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.ManualActivity"
+            android:name=".features.ManualActivity"
             android:label="@string/Manual_activity_title"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.AccountListActivity"
+            android:name=".features.AccountListActivity"
             android:label="@string/Configure_accounts"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme">
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.AccountActivity"
-            android:parentActivityName=".view.AccountListActivity"
+            android:name=".features.AccountActivity"
+            android:parentActivityName=".features.AccountListActivity"
             android:theme="@style/AppTheme">
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.AccountListActivity"/>
+                android:value=".features.AccountListActivity"/>
         </activity>
 
-        <activity android:name=".view.UploadActivity"
+        <activity android:name=".features.UploadActivity"
             android:theme="@style/AppTheme"/>
 
         <!-- ManageWorkoutsActivity completely disabled - not used -->
         <!--
         <activity
             android:exported="false"
-            android:name=".view.ManageWorkoutsActivity"
+            android:name=".features.ManageWorkoutsActivity"
             android:label="@string/Manage_workouts"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
         -->
 
         <provider
-            android:name=".content.WorkoutFileProvider"
+            android:name=".core.content.WorkoutFileProvider"
             android:authorities="${applicationId}.workout.file.provider"
             android:exported="false"
             android:grantUriPermissions="true"
             tools:ignore="ExportedContentProvider"/>
 
         <provider
-            android:name=".content.ActivityProvider"
+            android:name=".core.content.ActivityProvider"
             android:authorities="${applicationId}.activity.provider"
             android:exported="false"
             android:grantUriPermissions="true"
             tools:ignore="ExportedContentProvider"/>
 
         <provider
-            android:name=".content.BackupFileProvider"
+            android:name=".core.content.BackupFileProvider"
             android:authorities="${applicationId}.backup.file.provider"
             android:exported="false"
             android:grantUriPermissions="true"
             tools:ignore="ExportedContentProvider"/>
 
         <activity
-            android:name=".export.oauth2client.OAuth2Activity"
-            android:parentActivityName=".view.AccountListActivity"
+            android:name=".sync.oauth2client.OAuth2Activity"
+            android:parentActivityName=".features.AccountListActivity"
             android:theme="@style/AppTheme">
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.AccountListActivity"/>
+                android:value=".features.AccountListActivity"/>
         </activity>
 
         <activity
-            android:name=".view.HRSettingsActivity"
+            android:name=".features.HRSettingsActivity"
             android:label="@string/Heart_Rate_Monitor"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme">
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <activity
-            android:name=".view.HRZonesActivity"
+            android:name=".features.HRZonesActivity"
             android:label="@string/Heart_Rate_Zones"
-            android:parentActivityName=".view.MainLayout"
+            android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme">
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".view.MainLayout"/>
+                android:value=".features.MainLayout"/>
         </activity>
 
         <service
-            android:name=".tracker.Tracker"
+            android:name=".tracking.Tracker"
             android:foregroundServiceType="location|health" />
 
         <service
-            android:name=".export.RunnerUpLiveSynchronizer$LiveService"
+            android:name=".sync.RunnerUpLiveSynchronizer$LiveService"
             android:foregroundServiceType="location|health" />
 
-        <activity android:name=".view.CreateAdvancedWorkout"/>
+        <activity android:name=".features.CreateAdvancedWorkout"/>
 
     </application>
 </manifest>

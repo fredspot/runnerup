@@ -1,4 +1,4 @@
-package org.runnerup.workout;
+package org.runnerup.core.workout;
 
 /*
  * Copyright (C) 2012 - 2014 jonas.oreland@gmail.com
@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 
 import android.location.Location;
 import org.junit.Test;
-import org.runnerup.tracker.Tracker;
+import org.runnerup.tracking.Tracker;
 
 // Hint: Local Unit Test can use System.out.print for printouts
 

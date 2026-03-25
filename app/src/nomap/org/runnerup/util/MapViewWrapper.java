@@ -1,4 +1,4 @@
-package org.runnerup.util;
+package org.runnerup.core.util;
 
 import android.content.Context;
 import android.util.AttributeSet;

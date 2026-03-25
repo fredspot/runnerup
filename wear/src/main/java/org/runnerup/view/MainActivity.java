@@ -14,7 +14,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.runnerup.view;
+package org.runnerup.features;
 
 import static com.google.android.gms.wearable.PutDataRequest.WEAR_URI_SCHEME;
 
@@ -43,7 +43,7 @@ import org.runnerup.common.tracker.TrackerState;
 import org.runnerup.common.util.Constants;
 import org.runnerup.common.util.ValueModel;
 import org.runnerup.service.StateService;
-import org.runnerup.widget.MyDotsPageIndicator;
+import org.runnerup.ui.common.widget.MyDotsPageIndicator;
 
 public class MainActivity extends Activity
     implements Constants, ValueModel.ChangeListener<TrackerState> {

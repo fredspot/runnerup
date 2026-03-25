@@ -1,4 +1,4 @@
-package org.runnerup.workout;
+package org.runnerup.core.workout;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

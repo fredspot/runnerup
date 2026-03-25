@@ -21,7 +21,7 @@
     android:background="@color/backgroundPrimary"
     android:orientation="vertical" >
 
-	<org.runnerup.widget.TitleSpinner
+	<org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/settings_spinner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

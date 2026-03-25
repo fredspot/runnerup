@@ -14,12 +14,12 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.runnerup.tracker.component;
+package org.runnerup.tracking.component;
 
 import android.content.Context;
-import org.runnerup.tracker.Tracker;
-import org.runnerup.tracker.WorkoutObserver;
-import org.runnerup.workout.WorkoutInfo;
+import org.runnerup.tracking.Tracker;
+import org.runnerup.tracking.WorkoutObserver;
+import org.runnerup.core.workout.WorkoutInfo;
 
 public class TrackerWear extends DefaultTrackerComponent implements WorkoutObserver {
 

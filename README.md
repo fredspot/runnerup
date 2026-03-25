@@ -6,6 +6,20 @@ RunnerUp
 
 Track your sport activities with RunnerUp using the GPS in your Android phone.
 
+## Repository Layout
+
+- `app/`, `common/`, `hrdevice/`, `wear/`: Android modules.
+- `Documentation/`: project docs and setup notes.
+- `tools/`: helper scripts for local development/maintenance.
+- `fastlane/`: release automation assets.
+- `db_backups/`: local DB backup output directory.
+
+Useful docs/scripts:
+
+- Google Drive setup: `Documentation/setup/GOOGLE_DRIVE_SETUP.md`
+- Build guide: `Documentation/BUILD_GUIDE.md`
+- DB backup script: `tools/backup/backup_db.sh`
+
 ## Features
 
 * See detailed stats around your pace, distance and time

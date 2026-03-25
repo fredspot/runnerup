@@ -32,7 +32,7 @@
             app:iconSpaceReserved="false" />
 
         <!--suppress AndroidDomInspection -->
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="mm(31);kz(5,13);sg(5)"
             android:dependency="@string/pref_pace_graph_smoothing"
             android:inputType="none"

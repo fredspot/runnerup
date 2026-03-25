@@ -25,6 +25,8 @@ release.properties
 /runalyze.properties
 /dropbox.properties
 android-sdk/
+/db_backups/
+/debug.apk
 
 # Build artifacts
 build/

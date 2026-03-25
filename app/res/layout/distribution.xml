@@ -33,7 +33,7 @@
             android:padding="16dp">
 
             <!-- Distance Spinner -->
-            <org.runnerup.widget.TitleSpinner
+            <org.runnerup.ui.common.widget.TitleSpinner
                 android:id="@+id/distance_spinner"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -49,7 +49,7 @@
                 android:background="@drawable/modern_card_background"
                 android:padding="16dp">
 
-                <org.runnerup.view.DistributionChart
+                <org.runnerup.features.DistributionChart
                     android:id="@+id/distribution_chart"
                     android:layout_width="match_parent"
                     android:layout_height="500dp"/>

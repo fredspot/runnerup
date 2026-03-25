@@ -16,7 +16,7 @@
       android:background="@color/backgroundPrimary"
       android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
 
-  <org.runnerup.widget.TitleSpinner
+  <org.runnerup.ui.common.widget.TitleSpinner
       android:id="@+id/metric_spinner"
       android:layout_width="0dp"
       android:layout_height="wrap_content"
@@ -45,7 +45,7 @@
         android:layout_height="match_parent"
         android:orientation="horizontal">
 
-      <org.runnerup.view.PaceChart
+      <org.runnerup.features.PaceChart
           android:id="@+id/pace_chart"
           android:layout_width="wrap_content"
           android:layout_height="match_parent" />

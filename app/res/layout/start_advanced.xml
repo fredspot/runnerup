@@ -22,7 +22,7 @@
     android:background="@color/backgroundPrimary"
     android:orientation="vertical">
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/advanced_audio_cue_spinner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -37,7 +37,7 @@
         android:text="@string/Audio_cue_settings"
         runnerup:type="spinner_txt" />
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/advanced_workout_spinner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

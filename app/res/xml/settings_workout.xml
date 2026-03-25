@@ -44,7 +44,7 @@
             android:title="@string/Autolap"
             app:iconSpaceReserved="false" />
 
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="1000"
             android:enabled="true"
             android:inputType="number"
@@ -90,7 +90,7 @@
             android:title="@string/Activity_countdown"
             app:iconSpaceReserved="false" />
 
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="15"
             android:dependency="@string/pref_countdown_active"
             android:inputType="number"
@@ -108,7 +108,7 @@
             android:title="@string/Add_countdown_after_step_that_ends_with_user_press"
             app:iconSpaceReserved="false" />
 
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="15"
             android:dependency="@string/pref_step_countdown_active"
             android:inputType="number"
@@ -151,7 +151,7 @@
             android:summary="@string/Target_coaching_summary"
             app:iconSpaceReserved="false" />
 
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="20"
             android:inputType="number"
             android:key="@string/pref_target_pace_moving_average_seconds"
@@ -161,7 +161,7 @@
             android:title="@string/Target_pace_moving_average_seconds"
             app:iconSpaceReserved="false" />
 
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="30"
             android:inputType="number"
             android:key="@string/pref_target_pace_grace_seconds"

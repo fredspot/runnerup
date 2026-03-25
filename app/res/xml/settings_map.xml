@@ -20,7 +20,7 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent">
 
-    <org.runnerup.widget.TextPreference
+    <org.runnerup.ui.common.widget.TextPreference
         android:defaultValue="@string/mapboxDefaultStyle"
         android:inputType="text"
         android:key="@string/pref_mapbox_default_style"

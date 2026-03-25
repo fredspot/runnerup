@@ -14,7 +14,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.runnerup.view;
+package org.runnerup.features;
 
 import android.app.Fragment;
 import android.os.Bundle;

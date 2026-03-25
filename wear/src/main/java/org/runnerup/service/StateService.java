@@ -36,7 +36,7 @@ import com.google.android.gms.wearable.Wearable;
 import org.runnerup.common.tracker.TrackerState;
 import org.runnerup.common.util.Constants;
 import org.runnerup.common.util.ValueModel;
-import org.runnerup.view.MainActivity;
+import org.runnerup.features.MainActivity;
 import org.runnerup.wear.WearableClient;
 
 public class StateService extends Service

@@ -15,7 +15,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.runnerup.util;
+package org.runnerup.core.util;
 
 import android.content.Context;
 

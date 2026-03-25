@@ -30,7 +30,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/hrz_age"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -43,9 +43,9 @@
             app:min_val="0"
             app:max_val="300"
             android:key="@string/pref_hrz_age" >
-        </org.runnerup.widget.TitleSpinner>
+        </org.runnerup.ui.common.widget.TitleSpinner>
 
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/hrz_sex"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -57,9 +57,9 @@
             android:text="@string/Sex"
             app:type="spinner"
             android:key="@string/pref_hrz_sex" >
-        </org.runnerup.widget.TitleSpinner>
+        </org.runnerup.ui.common.widget.TitleSpinner>
         
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/hrz_mhr"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -72,7 +72,7 @@
             app:min_val="0"
             app:max_val="300"
             android:key="@string/pref_hrz_mhr" >
-        </org.runnerup.widget.TitleSpinner>
+        </org.runnerup.ui.common.widget.TitleSpinner>
         
         <TableLayout
             android:id="@+id/zones_table"

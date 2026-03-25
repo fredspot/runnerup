@@ -31,7 +31,7 @@
 		android:title="@string/Time_triggered_audio_cue"
 		android:summary="@string/Time_triggered_audio_cue_summary"
 		app:iconSpaceReserved="false" />
-	<org.runnerup.widget.TextPreference
+	<org.runnerup.ui.common.widget.TextPreference
 		android:dependency="cue_time"
 		android:defaultValue="120"
 		android:inputType="number"
@@ -47,7 +47,7 @@
 		android:title="@string/Distance_triggered_audio_cue"
 		android:summary="@string/Distance_triggered_audio_cue_summary"
 		app:iconSpaceReserved="false" />
-	<org.runnerup.widget.TextPreference
+	<org.runnerup.ui.common.widget.TextPreference
 		android:dependency="@string/cue_distance"
 		android:defaultValue="1000"
 		android:inputType="number"

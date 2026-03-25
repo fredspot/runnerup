@@ -37,7 +37,7 @@ import org.runnerup.BuildConfig;
 import org.runnerup.R;
 import org.runnerup.common.tracker.TrackerState;
 import org.runnerup.common.util.Constants;
-import org.runnerup.view.MainActivity;
+import org.runnerup.features.MainActivity;
 import org.runnerup.wear.WearableClient;
 
 public class ListenerService extends WearableListenerService {

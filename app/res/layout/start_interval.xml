@@ -31,7 +31,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/interval_audio_cue_spinner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -40,7 +40,7 @@
             android:text="@string/Audio_cue_settings"
             runnerup:type="spinner_txt" />
 
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
@@ -51,7 +51,7 @@
             android:text="@string/Repetitions"
             runnerup:type="numberpicker" />
 
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/interval_type"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -62,7 +62,7 @@
             android:prompt="@string/Type"
             android:text="@string/Interval_type" />
 
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/start_interval_time"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -74,7 +74,7 @@
             android:text=""
             runnerup:type="durationpicker" />
 
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/interval_distance"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -86,7 +86,7 @@
             android:text=""
             runnerup:type="distancepicker" />
 
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/interval_rest_type"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -96,7 +96,7 @@
             android:prompt="@string/Type"
             android:text="@string/Rest_type" />
 
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/interval_rest_time"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -108,7 +108,7 @@
             android:text=""
             runnerup:type="durationpicker" />
 
-        <org.runnerup.widget.TitleSpinner
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/interval_rest_distance"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

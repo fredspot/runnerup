@@ -29,7 +29,7 @@
     android:paddingRight="16dp"
     android:paddingBottom="@dimen/dialog_padding_vert">
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/step_dialog_intensity"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -38,7 +38,7 @@
         android:text="@string/Step_intensity"
         runnerup:values="@array/step_intensity_values"/>
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/step_dialog_duration_type"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -47,7 +47,7 @@
         android:text="@string/Type"
         runnerup:values="@array/step_duration_values"/>
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/step_dialog_duration_distance"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -57,7 +57,7 @@
         android:text=""
         runnerup:type="distancepicker"/>
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/step_dialog_duration_time"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -68,7 +68,7 @@
         android:visibility="gone"
         runnerup:type="durationpicker"/>
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/step_dialog_target_type"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -77,7 +77,7 @@
         android:text="@string/Target"
         runnerup:values="@array/target_values"/>
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/step_dialog_target_pace_lo"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -87,7 +87,7 @@
         android:text="@string/Low_pace"
         runnerup:type="durationpicker"/>
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/step_dialog_target_pace_hi"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -97,7 +97,7 @@
         android:text="@string/High_pace"
         runnerup:type="durationpicker"/>
 
-    <org.runnerup.widget.TitleSpinner
+    <org.runnerup.ui.common.widget.TitleSpinner
         android:id="@+id/step_dialog_target_hrz"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

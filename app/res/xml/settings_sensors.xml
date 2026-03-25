@@ -30,7 +30,7 @@
             android:title="@string/Heart_Rate_Monitor"
             app:iconSpaceReserved="false" >
             <intent
-                android:targetClass="org.runnerup.view.HRSettingsActivity"
+                android:targetClass="org.runnerup.features.HRSettingsActivity"
                 android:targetPackage="@string/applicationIdFull" />
         </Preference>
 
@@ -39,11 +39,11 @@
             android:title="@string/Heart_Rate_Zones"
             app:iconSpaceReserved="false" >
             <intent
-                android:targetClass="org.runnerup.view.HRZonesActivity"
+                android:targetClass="org.runnerup.features.HRZonesActivity"
                 android:targetPackage="@string/applicationIdFull" />
         </Preference>
 
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="15"
             android:inputType="number"
             android:key="@string/pref_battery_level_low_threshold"
@@ -52,7 +52,7 @@
             android:title="@string/Low_HRM_battery_level"
             app:iconSpaceReserved="false" />
 
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="75"
             android:inputType="number"
             android:key="@string/pref_battery_level_high_threshold"
@@ -80,7 +80,7 @@
         android:title="@string/GPS_recording_category"
         app:iconSpaceReserved="false">
 
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="1000"
             android:inputType="number"
             android:key="@string/pref_pollInterval"
@@ -89,7 +89,7 @@
             android:title="@string/Poll_interval_ms"
             app:iconSpaceReserved="false" />
 
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="0"
             android:inputType="number"
             android:key="@string/pref_pollDistance"
@@ -154,7 +154,7 @@
             android:title="@string/path_simplification_on_export"
             app:iconSpaceReserved="false" />
 
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="3"
             android:inputType="number"
             android:key="@string/pref_path_simplification_tolerance"
@@ -181,7 +181,7 @@
         app:iconSpaceReserved="false" >
 
         <!-- Enabled state depends upon pref_autopause_active (set in SettingsSensorsFragment). -->
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="5"
             android:enabled="true"
             android:inputType="number"
@@ -192,7 +192,7 @@
             app:iconSpaceReserved="false" />
 
         <!-- Enabled state depends upon pref_autopause_active (set in SettingsSensorsFragment). -->
-        <org.runnerup.widget.TextPreference
+        <org.runnerup.ui.common.widget.TextPreference
             android:defaultValue="20"
             android:enabled="true"
             android:inputType="number"

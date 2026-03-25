@@ -4,9 +4,9 @@
                 android:id="@+id/create_advanced_workout_view"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                tools:context="org.runnerup.view.CreateAdvancedWorkout">
+                tools:context="org.runnerup.features.CreateAdvancedWorkout">
 
-  <org.runnerup.widget.TitleSpinner
+  <org.runnerup.ui.common.widget.TitleSpinner
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:id="@+id/new_workout_spinner"

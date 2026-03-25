@@ -15,9 +15,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.runnerup.util;
+package org.runnerup.core.util;
 
-import static org.runnerup.util.Formatter.Format.TXT_SHORT;
+import static org.runnerup.core.util.Formatter.Format.TXT_SHORT;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -37,7 +37,7 @@ import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.Polyline;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
-import org.runnerup.db.entities.LocationEntity;
+import org.runnerup.data.entities.LocationEntity;
 
 public class MapWrapper implements Constants {
 

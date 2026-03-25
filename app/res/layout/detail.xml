@@ -124,7 +124,7 @@
                     android:orientation="vertical"
                     android:layout_margin="@dimen/activity_margin">
 
-                    <org.runnerup.widget.TitleSpinner
+                    <org.runnerup.ui.common.widget.TitleSpinner
                         android:id="@+id/summary_sport"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -133,7 +133,7 @@
                         android:text="@string/Sport"
                         android:visibility="gone" />
 
-		    <org.runnerup.widget.TitleSpinner
+		    <org.runnerup.ui.common.widget.TitleSpinner
 			android:id="@+id/summary_manual_distance"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
@@ -289,7 +289,7 @@
                     android:id="@+id/tab_map"
 		    android:layout_width="wrap_content"
 		    android:layout_height="wrap_content">
-		  <org.runnerup.util.MapViewWrapper
+		  <org.runnerup.core.util.MapViewWrapper
 		      android:id="@+id/mapview"
 		      android:layout_width="match_parent"
 		      android:layout_height="match_parent" />
