@@ -18,6 +18,7 @@
 package org.runnerup.ui.common.widget;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.widget.AdapterView;
@@ -40,7 +41,14 @@ public class TitleSpinner extends LinearLayout implements SpinnerInterface {
 
     LayoutInflater inflater =
         (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-    inflater.inflate(R.layout.title_spinner, this);
+    TypedArray arr = context.obtainStyledAttributes(attrs, R.styleable.TitleSpinner);
+    int rowLayoutId = arr.getResourceId(R.styleable.TitleSpinner_rowLayout, 0);
+    arr.recycle();
+    if (rowLayoutId != 0) {
+      inflater.inflate(rowLayoutId, this, true);
+    } else {
+      inflater.inflate(R.layout.title_spinner, this, true);
+    }
 
     mLayout = findViewById(R.id.title_spinner_layout);
     mLabel = findViewById(R.id.title);

@@ -36,6 +36,10 @@
   <string name="avg_run_length">Avg Run Length</string>
   
   <!-- Statistics tab categories -->
+  <string name="start_hr_no_signal">No signal</string>
+  <string name="start_hr_live">Live</string>
+  <string name="start_satellites_label">%1$d/%2$d sats</string>
+
   <string name="statistics_monthly_comparison">Month Comparison</string>
   <string name="statistics_year_month_breakdown">Year/Month Breakdown</string>
   <string name="statistics_hr_zones">HR Zones</string>

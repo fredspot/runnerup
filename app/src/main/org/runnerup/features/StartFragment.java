@@ -28,6 +28,7 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.graphics.drawable.Drawable;
 import android.database.sqlite.SQLiteDatabase;
 import android.location.Location;
 import android.net.Uri;
@@ -41,6 +42,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
@@ -59,6 +62,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
 import java.util.ArrayList;
@@ -129,6 +133,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
   private Button gpsEnable = null;
   private ImageView gpsIndicator = null;
+  private View gpsPulseRing = null;
   private TextView gpsMessage = null;
   private LinearLayout gpsDetailRow = null;
   private ImageView gpsDetailIndicator = null;
@@ -236,6 +241,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     noDevicesConnected = view.findViewById(R.id.device_status);
 
     gpsIndicator = view.findViewById(R.id.gps_indicator);
+    gpsPulseRing = view.findViewById(R.id.gps_pulse_ring);
     gpsMessage = view.findViewById(R.id.gps_message);
     gpsDetailRow = view.findViewById(R.id.gps_detail_row);
     gpsDetailIndicator = view.findViewById(R.id.gps_detail_indicator);
@@ -1086,6 +1092,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
       gpsIndicator.setVisibility(View.GONE);
       gpsDetailIndicator.setVisibility(View.GONE);
+      updateGpsSearchingPulse(false);
       return;
     }
 
@@ -1150,6 +1157,23 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     } else {
       notificationStateManager.displayNotificationState(gpsBoundState);
     }
+    updateGpsSearchingPulse(gpsLevel == GpsLevel.NOT_FIXED && !statusDetailsShown);
+  }
+
+  private void updateGpsSearchingPulse(boolean show) {
+    if (gpsPulseRing == null) {
+      return;
+    }
+    if (show) {
+      gpsPulseRing.setVisibility(View.VISIBLE);
+      if (gpsPulseRing.getAnimation() == null) {
+        Animation anim = AnimationUtils.loadAnimation(requireContext(), R.anim.gps_pulse);
+        gpsPulseRing.startAnimation(anim);
+      }
+    } else {
+      gpsPulseRing.clearAnimation();
+      gpsPulseRing.setVisibility(View.GONE);
+    }
   }
 
   private boolean updateHRView() {
@@ -1208,23 +1232,35 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     boolean gpsStarted = mGpsStatus != null && mGpsStatus.isStarted();
     boolean gpsFixed = mGpsStatus != null && mGpsStatus.isFixed();
     boolean trackerConnected = mTracker != null && mTracker.getState() == TrackerState.CONNECTED;
-    
+    int playTint;
     if (gpsStarted && gpsFixed && trackerConnected) {
-      // GPS is ready, show green "Start Activity" button
       startButton.setText("Start Activity");
       startButton.setBackgroundResource(R.drawable.button_start_activity);
+      startButton.setTextColor(ContextCompat.getColor(requireContext(), android.R.color.white));
       startButton.setEnabled(true);
+      playTint = ContextCompat.getColor(requireContext(), android.R.color.white);
     } else if (gpsStarted) {
-      // GPS is searching, show greyed out "Start Activity" button
       startButton.setText("Start Activity");
       startButton.setBackgroundResource(R.drawable.button_start_gps_disabled);
+      startButton.setTextColor(ContextCompat.getColor(requireContext(), R.color.ui_on_surface_variant));
       startButton.setEnabled(false);
+      playTint = ContextCompat.getColor(requireContext(), R.color.ui_on_surface_variant);
     } else {
-      // Not started, show blue "Start GPS" button
       startButton.setText("Start GPS");
       startButton.setBackgroundResource(R.drawable.button_start_gps);
+      startButton.setTextColor(ContextCompat.getColor(requireContext(), R.color.ui_on_primary));
       startButton.setEnabled(true);
+      playTint = ContextCompat.getColor(requireContext(), R.color.ui_on_primary);
     }
+    Drawable rawPlay = ContextCompat.getDrawable(requireContext(), R.drawable.ic_play_arrow_filled_24);
+    if (rawPlay != null) {
+      Drawable play = DrawableCompat.wrap(rawPlay.mutate());
+      DrawableCompat.setTint(play, playTint);
+      startButton.setCompoundDrawablesRelativeWithIntrinsicBounds(play, null, null, null);
+    } else {
+      startButton.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, null, null);
+    }
+    startButton.setCompoundDrawablePadding((int) (10 * getResources().getDisplayMetrics().density));
     startButton.setVisibility(View.VISIBLE);
   }
   
@@ -1232,16 +1268,21 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     View view = getView();
     if (view == null) return;
     ImageView hrIndicator = view.findViewById(R.id.new_hr_indicator);
+    TextView hrLabel = view.findViewById(R.id.new_hr_label);
     if (hrIndicator == null) return;
-    
+
     if (mTracker != null && mTracker.isComponentConnected(TrackerHRM.NAME)) {
-      // Bright white when connected
-      hrIndicator.setColorFilter(getResources().getColor(android.R.color.white));
+      hrIndicator.setColorFilter(ContextCompat.getColor(requireContext(), android.R.color.white));
       hrIndicator.setAlpha(1.0f);
+      if (hrLabel != null) {
+        hrLabel.setText(getString(R.string.start_hr_live));
+      }
     } else {
-      // Barely visible grey when not connected
-      hrIndicator.setColorFilter(0xFF808080);  // Medium grey
-      hrIndicator.setAlpha(0.2f);
+      hrIndicator.setColorFilter(ContextCompat.getColor(requireContext(), R.color.ui_secondary));
+      hrIndicator.setAlpha(0.45f);
+      if (hrLabel != null) {
+        hrLabel.setText(getString(R.string.start_hr_no_signal));
+      }
     }
   }
   
@@ -1251,17 +1292,12 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     LinearLayout satelliteInfo = view.findViewById(R.id.new_satellite_info);
     TextView satelliteCount = view.findViewById(R.id.new_satellite_count);
     if (satelliteInfo == null || satelliteCount == null) return;
-    
+
     boolean gpsStarted = mGpsStatus != null && mGpsStatus.isStarted();
-    
-    if (gpsStarted) {
-      int fixed = mGpsStatus.getSatellitesFixed();
-      int available = mGpsStatus.getSatellitesAvailable();
-      satelliteCount.setText(fixed + "/" + available);
-      satelliteInfo.setVisibility(View.VISIBLE);
-    } else {
-      satelliteInfo.setVisibility(View.GONE);
-    }
+    int fixed = gpsStarted ? mGpsStatus.getSatellitesFixed() : 0;
+    int available = gpsStarted ? mGpsStatus.getSatellitesAvailable() : 0;
+    satelliteCount.setText(getString(R.string.start_satellites_label, fixed, available));
+    satelliteInfo.setVisibility(View.VISIBLE);
   }
 
   @Override

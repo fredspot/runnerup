@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mock-aligned Run / Start tab palette (Material-style dark) -->
+    <color name="ui_background">#0c0e10</color>
+    <color name="ui_on_background">#e0e6ed</color>
+    <color name="ui_surface">#0c0e10</color>
+    <color name="ui_surface_container">#161a1e</color>
+    <color name="ui_surface_container_low">#111416</color>
+    <color name="ui_surface_variant">#20262c</color>
+    <color name="ui_outline_variant">#42494e</color>
+    <color name="ui_secondary">#8fa0b0</color>
+    <color name="ui_secondary_dim">#8fa0b0</color>
+    <color name="ui_on_surface_variant">#a6acb2</color>
+    <color name="ui_primary">#dac769</color>
+    <color name="ui_primary_dim">#cbb95d</color>
+    <color name="ui_on_primary">#4a4000</color>
+    <color name="ui_error">#ee7d77</color>
+    <color name="ui_glass_panel">#99161a1e</color>
+</resources>

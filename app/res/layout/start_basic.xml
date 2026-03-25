@@ -15,57 +15,68 @@
   ~  You should have received a copy of the GNU General Public License
   ~  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:runnerup="http://schemas.android.com/apk/res-auto"
     android:id="@+id/start_basic_tab"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:paddingTop="24dp"
-    android:paddingBottom="24dp"
-    android:background="@color/backgroundPrimary"
-    android:orientation="vertical">
+    android:fillViewport="true"
+    android:overScrollMode="never">
 
-    <org.runnerup.ui.common.widget.TitleSpinner
-        android:id="@+id/basic_audio_cue_spinner"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:key="@string/pref_basic_audio"
-        android:text="@string/Audio_cue_settings"
-        runnerup:type="spinner_txt"/>
+        android:background="@color/ui_background"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="24dp">
 
-    <org.runnerup.ui.common.widget.TitleSpinner
-        android:key="@string/pref_basic_target_type"
-        android:id="@+id/tab_basic_target_type"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:prompt="@string/Type"
-        android:entries="@array/target_types"
-        runnerup:values="@array/target_values"
-        android:text="@string/Target" />
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/basic_audio_cue_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:key="@string/pref_basic_audio"
+            android:text="@string/Audio_cue_settings"
+            runnerup:rowLayout="@layout/title_spinner_basic_row_audio"
+            runnerup:type="spinner_txt" />
 
-    <org.runnerup.ui.common.widget.TitleSpinner
-        android:id="@+id/tab_basic_target_pace_max"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:defaultValue="00:05:00"
-        android:inputType="time"
-        android:key="@string/pref_basic_target_pace_max"
-        android:prompt="@string/Type"
-        android:text="@string/Target_pace_HHMMSS"
-        runnerup:type="durationpicker" />
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/tab_basic_target_type"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:entries="@array/target_types"
+            android:key="@string/pref_basic_target_type"
+            android:prompt="@string/Type"
+            android:text="@string/Target"
+            runnerup:rowLayout="@layout/title_spinner_basic_row_primary"
+            runnerup:values="@array/target_values" />
 
-    <org.runnerup.ui.common.widget.TitleSpinner
-        android:id="@+id/tab_basic_target_hrz"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:key="@string/pref_basic_target_hrz"
-        android:prompt="@string/Type"
-        android:text="@string/Target_heart_rate_zone"
-        android:visibility="gone" />
-</LinearLayout>
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/tab_basic_target_pace_max"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="00:05:00"
+            android:inputType="time"
+            android:key="@string/pref_basic_target_pace_max"
+            android:prompt="@string/Type"
+            android:text="@string/Target_pace_HHMMSS"
+            runnerup:rowLayout="@layout/title_spinner_basic_row_duration"
+            runnerup:type="durationpicker" />
+
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/tab_basic_target_hrz"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:key="@string/pref_basic_target_hrz"
+            android:prompt="@string/Type"
+            android:text="@string/Target_heart_rate_zone"
+            android:visibility="gone"
+            runnerup:rowLayout="@layout/title_spinner_basic_row_simple" />
+    </LinearLayout>
+</ScrollView>

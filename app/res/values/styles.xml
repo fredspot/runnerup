@@ -109,6 +109,15 @@
         <item name="android:textSize">12sp</item>
         <item name="android:textColor">@color/colorText</item>
     </style>
+
+    <style name="StatusTextUi">
+        <item name="android:textSize">11sp</item>
+        <item name="android:fontFamily">@font/inter_variable</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textColor">@color/ui_on_surface_variant</item>
+        <item name="android:alpha">0.85</item>
+    </style>
     
     <!-- Modern card style -->
     <style name="CardTitle">
@@ -124,11 +133,11 @@
     
     <!-- Modern AlertDialog theme -->
     <style name="AlertDialogTheme" parent="Theme.AppCompat.Dialog.Alert">
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorAccent">@color/colorAccent</item>
-        <item name="android:textColorPrimary">@color/colorText</item>
-        <item name="android:textColorSecondary">@color/colorTextSecondary</item>
-        <item name="android:background">@color/backgroundCard</item>
+        <item name="colorPrimary">@color/ui_primary</item>
+        <item name="colorAccent">@color/ui_primary</item>
+        <item name="android:textColorPrimary">@color/ui_on_background</item>
+        <item name="android:textColorSecondary">@color/ui_on_surface_variant</item>
+        <item name="android:background">@color/ui_surface_container</item>
     </style>
 
 </resources>

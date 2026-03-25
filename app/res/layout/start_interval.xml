@@ -19,7 +19,7 @@
     android:id="@+id/start_interval_tab"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/backgroundPrimary"
+    android:background="@color/ui_background"
     android:clipToPadding="false"
     android:paddingBottom="@dimen/margin_for_fab"
     android:paddingLeft="16dp"

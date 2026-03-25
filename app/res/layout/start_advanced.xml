@@ -19,7 +19,7 @@
     android:id="@+id/start_advanced_tab"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/backgroundPrimary"
+    android:background="@color/ui_background"
     android:orientation="vertical">
 
     <org.runnerup.ui.common.widget.TitleSpinner
