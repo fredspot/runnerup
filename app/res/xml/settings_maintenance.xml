@@ -50,6 +50,36 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        android:key="auto_backup_category"
+        android:title="Automatic Backup"
+        app:iconSpaceReserved="false">
+
+        <Preference
+            android:key="pref_auto_backup_status"
+            android:summary="Automatic backups are enabled"
+            android:title="Backup Status"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_auto_backup_now"
+            android:summary="Create a backup now"
+            android:title="Backup Now"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_auto_backup_restore"
+            android:summary="View and restore from backups"
+            android:title="Restore from Backup"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_auto_backup_share"
+            android:summary="Send backup via email or cloud storage"
+            android:title="Share Backup"
+            app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
         android:key="backup_category"
         android:title="Google Drive Backup"
         app:iconSpaceReserved="false">

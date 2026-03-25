@@ -400,6 +400,96 @@ public class ActivityCleaner implements Constants {
     recomputeSummary(db, activityId);
   }
 
+  /**
+   * Adjust the last lap of the latest activity by adding distance and adjusting time proportionally.
+   * This is useful when GPS tracking stopped but the user continued running.
+   * Only adjusts if the last lap appears incomplete (distance < 1000m) and hasn't been adjusted yet.
+   * 
+   * @param db Database connection
+   * @param additionalDistanceMeters Additional distance to add to the last lap (in meters)
+   * @return true if adjustment was made, false otherwise
+   */
+  public static boolean adjustLastLap(SQLiteDatabase db, double additionalDistanceMeters) {
+    try {
+      // Get the latest activity ID
+      long activityId = db.compileStatement("SELECT MAX(_id) FROM " + DB.ACTIVITY.TABLE).simpleQueryForLong();
+      
+      // Get the last lap for this activity
+      String[] lapCols = new String[] {DB.LAP.LAP, DB.LAP.DISTANCE, DB.LAP.TIME};
+      long maxLap = db.compileStatement("SELECT MAX(" + DB.LAP.LAP + ") FROM " + DB.LAP.TABLE + 
+          " WHERE " + DB.LAP.ACTIVITY + " = " + activityId).simpleQueryForLong();
+      
+      Cursor lapCursor = db.query(
+          DB.LAP.TABLE,
+          lapCols,
+          DB.LAP.ACTIVITY + " = " + activityId + " AND " + DB.LAP.LAP + " = " + maxLap,
+          null, null, null, null);
+      
+      if (lapCursor.moveToFirst()) {
+        double currentDistance = lapCursor.isNull(1) ? 0 : lapCursor.getDouble(1);
+        long currentTime = lapCursor.isNull(2) ? 0 : lapCursor.getLong(2);
+        
+        // Only adjust if the lap appears incomplete (distance < 1000m) to avoid repeated adjustments
+        // Also check if it's close to the expected adjusted value (within 10m) - if so, already adjusted
+        double expectedAdjusted = currentDistance + additionalDistanceMeters;
+        if (currentDistance >= 1000 || Math.abs(currentDistance - expectedAdjusted) < 10) {
+          Log.i("ActivityCleaner", "Last lap already complete or adjusted (" + currentDistance + "m), skipping adjustment");
+          lapCursor.close();
+          return false;
+        }
+        
+        // Calculate new distance
+        double newDistance = currentDistance + additionalDistanceMeters;
+        
+        // Calculate new time based on current pace (maintain same pace)
+        long newTime = currentTime;
+        if (currentDistance > 0 && currentTime > 0) {
+          // pace = time / distance, so newTime = newDistance * (currentTime / currentDistance)
+          newTime = Math.round(newDistance * (currentTime / currentDistance));
+        } else if (currentTime > 0) {
+          // If distance was 0 but time exists, estimate based on average pace (e.g., 5 min/km = 300s/km)
+          // Use a conservative estimate of 5:00/km pace
+          newTime = currentTime + Math.round(additionalDistanceMeters * 0.3); // 300s per 1000m = 0.3s per meter
+        } else if (currentDistance > 0) {
+          // If time was 0 but distance exists, estimate time based on average pace
+          // Use 5:00/km = 300s/km = 0.3s/m
+          newTime = Math.round(newDistance * 0.3);
+        } else {
+          // Both are 0, estimate based on average pace
+          newTime = Math.round(additionalDistanceMeters * 0.3);
+        }
+        
+        Log.i("ActivityCleaner", "Adjusting last lap (lap " + maxLap + ") of activity " + activityId + 
+            ": distance " + currentDistance + "m -> " + newDistance + "m, time " + currentTime + "s -> " + newTime + "s");
+        
+        // Update the lap
+        ContentValues lapUpdate = new ContentValues();
+        lapUpdate.put(DB.LAP.DISTANCE, newDistance);
+        lapUpdate.put(DB.LAP.TIME, newTime);
+        db.update(
+            DB.LAP.TABLE,
+            lapUpdate,
+            DB.LAP.ACTIVITY + " = " + activityId + " AND " + DB.LAP.LAP + " = " + maxLap,
+            null);
+        
+        // Recompute activity totals from all laps
+        ActivityCleaner cleaner = new ActivityCleaner();
+        cleaner.recomputeSummary(db, activityId);
+        
+        Log.i("ActivityCleaner", "Last lap adjusted successfully");
+        lapCursor.close();
+        return true;
+      } else {
+        Log.w("ActivityCleaner", "No last lap found for activity " + activityId);
+        lapCursor.close();
+        return false;
+      }
+    } catch (Exception e) {
+      Log.e("ActivityCleaner", "Error adjusting last lap: " + e.getMessage(), e);
+      return false;
+    }
+  }
+
   public static void trim(SQLiteDatabase db, long activityId) {
     final String[] cols = new String[] {DB.LAP.LAP};
 

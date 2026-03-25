@@ -947,10 +947,20 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     }
     AlertDialog.Builder builder = new AlertDialog.Builder(ctx).setTitle("Import " + DBNAME);
     try {
+      // Create automatic backup before importing to prevent data loss
+      android.util.Log.i("DBHelper", "Creating automatic backup before import...");
+      boolean backupCreated = org.runnerup.util.AutomaticBackupManager.createBackup(ctx, true);
+      if (backupCreated) {
+        android.util.Log.i("DBHelper", "Automatic backup created successfully before import");
+      } else {
+        android.util.Log.w("DBHelper", "Failed to create automatic backup before import");
+      }
+      
       String to = getDbPath(ctx);
       int cnt = FileUtil.copyFile(to, from);
       builder
-          .setMessage("Copied " + cnt + " bytes from " + from + "\n\nRestart to use the database")
+          .setMessage("Copied " + cnt + " bytes from " + from + "\n\nRestart to use the database" +
+              (backupCreated ? "\n\nAutomatic backup created before import." : ""))
           .setPositiveButton(org.runnerup.common.R.string.OK, listener);
     } catch (IOException e) {
       builder

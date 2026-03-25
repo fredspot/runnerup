@@ -44,8 +44,10 @@ import androidx.fragment.app.Fragment;
 import androidx.loader.app.LoaderManager;
 import androidx.loader.app.LoaderManager.LoaderCallbacks;
 import androidx.loader.content.Loader;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
 import org.runnerup.db.ActivityCleaner;
@@ -140,13 +142,8 @@ public class HistoryFragment extends Fragment
     String whereClause = "deleted == 0";
     if (selectedYear != -1 && selectedMonth != -1) {
       Calendar cal = Calendar.getInstance();
-      // selectedMonth should be 0-11 (0=January, 11=December) for Calendar compatibility
-      // But handle both formats: if month is 1-12, convert to 0-11
-      int calendarMonth = selectedMonth;
-      if (selectedMonth >= 1 && selectedMonth <= 12) {
-        calendarMonth = selectedMonth - 1;
-      }
-      cal.set(selectedYear, calendarMonth, 1, 0, 0, 0);
+      // Internal representation is always 0-11 (0=January, 11=December).
+      cal.set(selectedYear, selectedMonth, 1, 0, 0, 0);
       cal.set(Calendar.MILLISECOND, 0);
       long startTime = cal.getTimeInMillis() / 1000;
       
@@ -173,7 +170,8 @@ public class HistoryFragment extends Fragment
    */
   public void applyFilter(int year, int month) {
     selectedYear = year;
-    selectedMonth = month;
+    // Programmatic callers may pass either 1-12 or 0-11; normalize once here.
+    selectedMonth = (month >= 1 && month <= 12) ? month - 1 : month;
     
     // Update filter button text
     if (filterButton != null) {
@@ -189,15 +187,17 @@ public class HistoryFragment extends Fragment
     NumberPicker yearPicker = dialogView.findViewById(R.id.year_picker);
     NumberPicker monthPicker = dialogView.findViewById(R.id.month_picker);
     
-    // Set up year picker (last 10 years)
-    Calendar cal = Calendar.getInstance();
-    int currentYear = cal.get(Calendar.YEAR);
-    String[] years = new String[11];
-    for (int i = 0; i <= 10; i++) {
-      years[i] = String.valueOf(currentYear - i);
+    // Show only years that actually exist in activity data.
+    List<Integer> availableYears = getAvailableFilterYears();
+    if (availableYears.isEmpty()) {
+      availableYears.add(Calendar.getInstance().get(Calendar.YEAR));
+    }
+    String[] years = new String[availableYears.size()];
+    for (int i = 0; i < availableYears.size(); i++) {
+      years[i] = String.valueOf(availableYears.get(i));
     }
     yearPicker.setMinValue(0);
-    yearPicker.setMaxValue(10);
+    yearPicker.setMaxValue(years.length - 1);
     yearPicker.setDisplayedValues(years);
     
     // Set up month picker
@@ -237,6 +237,29 @@ public class HistoryFragment extends Fragment
         .create();
     
     dialog.show();
+  }
+
+  private List<Integer> getAvailableFilterYears() {
+    List<Integer> years = new ArrayList<>();
+    String sql =
+        "SELECT DISTINCT strftime('%Y', " + DB.ACTIVITY.START_TIME + ", 'unixepoch') AS year"
+            + " FROM "
+            + DB.ACTIVITY.TABLE
+            + " WHERE "
+            + DB.ACTIVITY.DELETED
+            + " = 0"
+            + " ORDER BY year DESC";
+
+    try (Cursor cursor = mDB.rawQuery(sql, null)) {
+      while (cursor.moveToNext()) {
+        String year = cursor.getString(0);
+        if (year != null) {
+          years.add(Integer.parseInt(year));
+        }
+      }
+    } catch (Exception ignored) {
+    }
+    return years;
   }
 
   @Override

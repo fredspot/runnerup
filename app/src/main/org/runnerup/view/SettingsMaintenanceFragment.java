@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.SwitchPreference;
+import java.util.List;
 import java.util.Locale;
 import org.runnerup.R;
 import org.runnerup.db.DBHelper;
@@ -89,6 +90,9 @@ public class SettingsMaintenanceFragment extends PreferenceFragmentCompat {
                 res.getString(org.runnerup.common.R.string.Maintenance_explanation_summary),
                 path));
     
+    // Setup automatic backup preferences
+    setupAutomaticBackupPreferences();
+    
     // Setup Drive backup preferences
     setupDriveBackupPreferences();
   }
@@ -96,7 +100,224 @@ public class SettingsMaintenanceFragment extends PreferenceFragmentCompat {
   @Override
   public void onResume() {
     super.onResume();
+    updateAutomaticBackupStatus();
     updateDriveBackupStatus();
+  }
+  
+  private void setupAutomaticBackupPreferences() {
+    Preference statusPref = findPreference("pref_auto_backup_status");
+    Preference backupNowPref = findPreference("pref_auto_backup_now");
+    Preference restorePref = findPreference("pref_auto_backup_restore");
+    Preference sharePref = findPreference("pref_auto_backup_share");
+    
+    backupNowPref.setOnPreferenceClickListener(pref -> {
+      performAutomaticBackup();
+      return true;
+    });
+    
+    restorePref.setOnPreferenceClickListener(pref -> {
+      showRestoreBackupDialog();
+      return true;
+    });
+    
+    sharePref.setOnPreferenceClickListener(pref -> {
+      showShareBackupDialog();
+      return true;
+    });
+    
+    updateAutomaticBackupStatus();
+  }
+  
+  private void updateAutomaticBackupStatus() {
+    Preference statusPref = findPreference("pref_auto_backup_status");
+    if (statusPref == null) return;
+    
+    long lastBackup = org.runnerup.util.AutomaticBackupManager.getLastBackupTime(requireContext());
+    int backupCount = org.runnerup.util.AutomaticBackupManager.getBackupCount(requireContext());
+    List<org.runnerup.util.AutomaticBackupManager.BackupInfo> backups = 
+        org.runnerup.util.AutomaticBackupManager.getBackups(requireContext());
+    
+    String summary = "Automatic backups are enabled\n";
+    summary += "Total backups: " + backupCount + "\n";
+    summary += "Available backups: " + backups.size() + "\n";
+    if (lastBackup > 0) {
+      summary += "Last backup: " + DateFormat.format("yyyy-MM-dd HH:mm", lastBackup);
+    } else {
+      summary += "No backups created yet";
+    }
+    
+    statusPref.setSummary(summary);
+  }
+  
+  private void performAutomaticBackup() {
+    progressDialog = new ProgressDialog(requireContext());
+    progressDialog.setTitle("Creating Backup");
+    progressDialog.setMessage("Please wait...");
+    progressDialog.setCancelable(false);
+    progressDialog.show();
+    
+    // Run backup in background
+    new Thread(() -> {
+      boolean success = org.runnerup.util.AutomaticBackupManager.createBackup(requireContext(), true);
+      
+      requireActivity().runOnUiThread(() -> {
+        if (progressDialog != null && progressDialog.isShowing()) {
+          progressDialog.dismiss();
+        }
+        
+        if (success) {
+          Toast.makeText(requireContext(), "Backup created successfully", Toast.LENGTH_SHORT).show();
+          updateAutomaticBackupStatus();
+        } else {
+          Toast.makeText(requireContext(), "Failed to create backup", Toast.LENGTH_LONG).show();
+        }
+      });
+    }).start();
+  }
+  
+  private void showRestoreBackupDialog() {
+    List<org.runnerup.util.AutomaticBackupManager.BackupInfo> backups = 
+        org.runnerup.util.AutomaticBackupManager.getBackups(requireContext());
+    
+    if (backups.isEmpty()) {
+      new AlertDialog.Builder(requireContext())
+          .setTitle("No Backups Available")
+          .setMessage("No automatic backups found. Backups are created automatically after each run and before imports.")
+          .setPositiveButton("OK", null)
+          .show();
+      return;
+    }
+    
+    // Create list of backup names with dates
+    String[] backupNames = new String[backups.size()];
+    for (int i = 0; i < backups.size(); i++) {
+      org.runnerup.util.AutomaticBackupManager.BackupInfo info = backups.get(i);
+      backupNames[i] = info.getFormattedDate() + " (" + info.getFormattedSize() + ")";
+    }
+    
+    new AlertDialog.Builder(requireContext())
+        .setTitle("Restore from Backup")
+        .setMessage("Select a backup to restore. A new backup will be created before restoring.")
+        .setItems(backupNames, (dialog, which) -> {
+          org.runnerup.util.AutomaticBackupManager.BackupInfo selected = backups.get(which);
+          confirmRestore(selected);
+        })
+        .setNegativeButton("Cancel", null)
+        .show();
+  }
+  
+  private void confirmRestore(org.runnerup.util.AutomaticBackupManager.BackupInfo backup) {
+    new AlertDialog.Builder(requireContext())
+        .setTitle("Confirm Restore")
+        .setMessage("Restore database from backup?\n\n" +
+            "Date: " + backup.getFormattedDate() + "\n" +
+            "Size: " + backup.getFormattedSize() + "\n\n" +
+            "A backup of your current database will be created first.\n\n" +
+            "The app will need to be restarted after restore.")
+        .setPositiveButton("Restore", (dialog, which) -> {
+          performRestore(backup);
+        })
+        .setNegativeButton("Cancel", null)
+        .show();
+  }
+  
+  private void performRestore(org.runnerup.util.AutomaticBackupManager.BackupInfo backup) {
+    progressDialog = new ProgressDialog(requireContext());
+    progressDialog.setTitle("Restoring Backup");
+    progressDialog.setMessage("Please wait...");
+    progressDialog.setCancelable(false);
+    progressDialog.show();
+    
+    // Run restore in background
+    new Thread(() -> {
+      boolean success = org.runnerup.util.AutomaticBackupManager.restoreBackup(requireContext(), backup.file);
+      
+      requireActivity().runOnUiThread(() -> {
+        if (progressDialog != null && progressDialog.isShowing()) {
+          progressDialog.dismiss();
+        }
+        
+        if (success) {
+          new AlertDialog.Builder(requireContext())
+              .setTitle("Restore Complete")
+              .setMessage("Database restored successfully. Please restart the app to use the restored database.")
+              .setPositiveButton("OK", (dialog, which) -> {
+                // Exit app
+                requireActivity().finish();
+                System.exit(0);
+              })
+              .setCancelable(false)
+              .show();
+        } else {
+          Toast.makeText(requireContext(), "Failed to restore backup", Toast.LENGTH_LONG).show();
+        }
+      });
+    }).start();
+  }
+  
+  private void showShareBackupDialog() {
+    List<org.runnerup.util.AutomaticBackupManager.BackupInfo> backups = 
+        org.runnerup.util.AutomaticBackupManager.getBackups(requireContext());
+    
+    if (backups.isEmpty()) {
+      new AlertDialog.Builder(requireContext())
+          .setTitle("No Backups Available")
+          .setMessage("No automatic backups found. Create a backup first, or wait for automatic backup after your next run.")
+          .setPositiveButton("OK", null)
+          .show();
+      return;
+    }
+    
+    // Create list of backup names with dates
+    String[] backupNames = new String[backups.size()];
+    for (int i = 0; i < backups.size(); i++) {
+      org.runnerup.util.AutomaticBackupManager.BackupInfo info = backups.get(i);
+      backupNames[i] = info.getFormattedDate() + " (" + info.getFormattedSize() + ")";
+    }
+    
+    new AlertDialog.Builder(requireContext())
+        .setTitle("Share Backup - Select a backup to share")
+        .setItems(backupNames, (dialog, which) -> {
+          org.runnerup.util.AutomaticBackupManager.BackupInfo selected = backups.get(which);
+          shareBackup(selected);
+        })
+        .setNegativeButton("Cancel", null)
+        .show();
+  }
+  
+  private void shareBackup(org.runnerup.util.AutomaticBackupManager.BackupInfo backup) {
+    try {
+      // Create URI for the backup file using BackupFileProvider
+      String authority = requireContext().getPackageName() + ".backup.file.provider";
+      Uri backupUri = Uri.parse("content://" + authority + "/" + backup.file.getName());
+      
+      // Create share intent
+      Intent shareIntent = new Intent(Intent.ACTION_SEND);
+      shareIntent.setType("application/x-sqlite3");
+      shareIntent.putExtra(Intent.EXTRA_STREAM, backupUri);
+      shareIntent.putExtra(Intent.EXTRA_SUBJECT, "RunnerUp Backup - " + backup.getFormattedDate());
+      shareIntent.putExtra(Intent.EXTRA_TEXT, 
+          "RunnerUp database backup\n\n" +
+          "Date: " + backup.getFormattedDate() + "\n" +
+          "Size: " + backup.getFormattedSize() + "\n\n" +
+          "To restore this backup:\n" +
+          "1. Save this file to your device\n" +
+          "2. Open RunnerUp app\n" +
+          "3. Go to Settings > Maintenance > Restore from Backup\n" +
+          "4. Select this backup file");
+      
+      // Grant temporary permission to read the file
+      shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+      
+      // Show share chooser
+      Intent chooser = Intent.createChooser(shareIntent, "Share Backup");
+      chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+      
+      startActivity(chooser);
+    } catch (Exception e) {
+      Toast.makeText(requireContext(), "Failed to share backup: " + e.getMessage(), Toast.LENGTH_LONG).show();
+      android.util.Log.e("SettingsMaintenanceFragment", "Error sharing backup", e);
+    }
   }
   
   private void setupDriveBackupPreferences() {

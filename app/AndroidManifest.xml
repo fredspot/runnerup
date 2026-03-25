@@ -267,6 +267,13 @@
             android:grantUriPermissions="true"
             tools:ignore="ExportedContentProvider"/>
 
+        <provider
+            android:name=".content.BackupFileProvider"
+            android:authorities="${applicationId}.backup.file.provider"
+            android:exported="false"
+            android:grantUriPermissions="true"
+            tools:ignore="ExportedContentProvider"/>
+
         <activity
             android:name=".export.oauth2client.OAuth2Activity"
             android:parentActivityName=".view.AccountListActivity"

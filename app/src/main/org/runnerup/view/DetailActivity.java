@@ -1010,6 +1010,9 @@ deleteButtonClick.onClick(null);
     } catch (Exception e) {
       Log.e(getClass().getName(), "Failed to simplify path: " + e.getMessage());
     }
+    
+    // Create automatic backup after saving activity changes (if enough time has passed)
+    org.runnerup.util.AutomaticBackupManager.createBackupIfNeeded(this);
   }
 
   private final OnLongClickListener clearUploadClick =

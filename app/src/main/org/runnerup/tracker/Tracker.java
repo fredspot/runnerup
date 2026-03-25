@@ -597,6 +597,9 @@ public class Tracker extends android.app.Service implements LocationListener, Co
 
     String[] key = {Long.toString(mActivityId)};
     mDB.update(DB.ACTIVITY.TABLE, tmp, "_id = ?", key);
+    
+    // Create automatic backup after saving activity (if enough time has passed)
+    org.runnerup.util.AutomaticBackupManager.createBackupIfNeeded(this);
   }
 
   private void setNextLocationType(int newType) {

@@ -121,7 +121,8 @@ public class StatisticsDetailActivity extends AppCompatActivity implements Const
       Intent intent = new Intent(this, MainLayout.class);
       intent.putExtra("HISTORY_TAB", true);
       intent.putExtra("FILTER_YEAR", targetYear);
-      intent.putExtra("FILTER_MONTH", stats.getMonth());
+      // Monthly stats are stored as 1-12, History filter expects 0-11.
+      intent.putExtra("FILTER_MONTH", stats.getMonth() - 1);
       intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
       startActivity(intent);
       finish();
