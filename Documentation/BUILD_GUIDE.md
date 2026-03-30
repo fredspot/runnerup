@@ -2,6 +2,13 @@
 
 This guide provides step-by-step instructions for successfully building the RunnerUp Android APK from the command line without Android Studio.
 
+
+
+cd /home/fred/runnerup && adb devices && ./gradlew clean installLatestDebug
+
+
+
+
 ## Prerequisites
 
 ### 1. Install Java JDK
