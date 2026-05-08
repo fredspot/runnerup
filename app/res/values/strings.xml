@@ -26,6 +26,9 @@
   <string name="computing_best_times">Computing best times...</string>
   <string name="best_times_computed">Computed %d best times</string>
   <string name="best_times_compute_error">Error computing best times</string>
+  <string name="best_times_hr_placeholder">-</string>
+  <string name="best_times_hr_separator"> | </string>
+  <string name="activity_bulk_recompute_done">Updated heart-rate summaries for all activities. Open Best Times again if it was already open.</string>
   <string name="statistics">Statistics</string>
   <string name="compute_statistics">Compute Statistics</string>
   <string name="computing_statistics">Computing statistics...</string>
@@ -37,7 +40,7 @@
   
   <!-- Statistics tab categories -->
   <string name="statistics_monthly_comparison">Month Comparison</string>
-  <string name="statistics_year_month_breakdown">Year/Month Breakdown</string>
+  <string name="statistics_year_month_breakdown">Year/Month/Week Breakdown</string>
   <string name="statistics_hr_zones">HR Zones</string>
   <string name="statistics_yearly_progress">Yearly Progress</string>
   
@@ -65,6 +68,30 @@
   <!-- Distribution -->
   <string name="statistics_distribution">Distribution</string>
   <string name="statistics_pace">Pace</string>
+  <string name="statistics_weekly_km">Weekly km</string>
+  <string name="statistics_run_calendar">Run calendar</string>
+  <string name="run_calendar_title">Run calendar</string>
+  <string name="run_calendar_prev_month">Previous month</string>
+  <string name="run_calendar_next_month">Next month</string>
+  <string name="run_calendar_empty_month">No running activities this month.</string>
+  <string name="run_calendar_summary_runs">Runs: %d</string>
+  <string name="run_calendar_summary_distance">Total distance: %s</string>
+  <string name="run_calendar_summary_time">Total time: %s</string>
+  <string name="run_calendar_summary_avg_hr">Average heart rate: %d bpm</string>
+  <string name="run_calendar_summary_avg_hr_na">Average heart rate: —</string>
+  <string name="weekly_km_title">Weekly km</string>
+  <string name="weekly_km_range_heading">Period</string>
+  <string name="weekly_km_weeks_mon_sun">Weeks are Monday–Sunday. Chart labels show each week\'s Monday.</string>
+  <string name="weekly_km_custom_range">Custom date range</string>
+  <string name="weekly_km_pick_start_date">Start date</string>
+  <string name="weekly_km_pick_end_date">End date</string>
+  <string name="weekly_km_next">Next</string>
+  <string name="weekly_km_reset_default">Last 2 months</string>
+  <string name="weekly_km_invalid_range">End date must be on or after start date.</string>
+  <string name="weekly_km_empty">No running activities in this range.</string>
+  <string name="weekly_km_axis_km">km</string>
+  <string name="month_week_view_in_history">View month in History</string>
+  <string name="month_week_empty">No running activities this month.</string>
   <string name="pace_metric">Metric</string>
   <string name="pace_metric_laps">Laps</string>
   <string name="pace_metric_avg_hr">Average heart rate</string>

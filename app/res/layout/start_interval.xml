@@ -41,6 +41,42 @@
             runnerup:type="spinner_txt" />
 
         <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_warmup_type"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="-1"
+            android:entries="@array/interval_phase_duration_types"
+            android:key="@string/pref_interval_warmup_type"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_warmup_type"
+            runnerup:values="@array/interval_phase_duration_values" />
+
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_warmup_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="00:02:00"
+            android:inputType="time"
+            android:key="@string/pref_interval_warmup_time"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_warmup_time"
+            runnerup:type="durationpicker" />
+
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_warmup_distance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="2000"
+            android:inputType="numberDecimal"
+            android:key="@string/pref_interval_warmup_distance"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_warmup_distance"
+            runnerup:type="distancepicker" />
+
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
@@ -87,6 +123,53 @@
             runnerup:type="distancepicker" />
 
         <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_target_hrz"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="0"
+            android:entries="@array/interval_hr_zone_placeholder"
+            android:key="@string/pref_interval_target_hrz"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_work_hr_zone" />
+
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_hr_cue_seconds"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="0"
+            android:inputType="number"
+            android:key="@string/pref_interval_hr_cue_interval_seconds"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_hr_cue_seconds"
+            runnerup:type="numberpicker" />
+
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_hr_cue_announcement"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="0"
+            android:entries="@array/interval_hr_cue_announcement_types"
+            android:key="@string/pref_interval_hr_cue_announcement"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_hr_cue_announcement"
+            runnerup:values="@array/interval_hr_cue_announcement_values" />
+
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_pace_cue_seconds"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="0"
+            android:inputType="number"
+            android:key="@string/pref_interval_pace_cue_interval_seconds"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_pace_cue_seconds"
+            runnerup:type="numberpicker" />
+
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/interval_rest_type"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -120,31 +203,41 @@
             android:text=""
             runnerup:type="distancepicker" />
 
-        <LinearLayout
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_cooldown_type"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="horizontal">
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="-1"
+            android:entries="@array/interval_phase_duration_types"
+            android:key="@string/pref_interval_cooldown_type"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_cooldown_type"
+            runnerup:values="@array/interval_phase_duration_values" />
 
-            <CheckBox
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:minWidth="48dp"
-                android:minHeight="48dp"
-                android:checked="true"
-                android:enabled="true"
-                android:text="@string/warm_up" />
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_cooldown_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="00:02:00"
+            android:inputType="time"
+            android:key="@string/pref_interval_cooldown_time"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_cooldown_time"
+            runnerup:type="durationpicker" />
 
-            <CheckBox
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:minWidth="48dp"
-                android:minHeight="48dp"
-                android:checked="true"
-                android:enabled="true"
-                android:text="@string/cool_down" />
-        </LinearLayout>
+        <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_cooldown_distance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="2000"
+            android:inputType="numberDecimal"
+            android:key="@string/pref_interval_cooldown_distance"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_cooldown_distance"
+            runnerup:type="distancepicker" />
     </LinearLayout>
 
 </ScrollView>

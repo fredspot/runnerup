@@ -30,6 +30,18 @@
     <item>1</item>
     <item>2</item>
   </integer-array>
+  <!-- None, Until pressed, Time, Distance — see @array/interval_phase_duration_types -->
+  <integer-array name="interval_phase_duration_values" translatable="false">
+    <item>-2</item>
+    <item>-1</item>
+    <item>1</item>
+    <item>2</item>
+  </integer-array>
+  <integer-array name="interval_hr_cue_announcement_values" translatable="false">
+    <item>0</item>
+    <item>1</item>
+    <item>2</item>
+  </integer-array>
   <!--Note: same order as above, same values as Dimension-->
   <integer-array name="target_values" translatable="false">
     <item>-1</item>

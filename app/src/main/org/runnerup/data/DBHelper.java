@@ -49,7 +49,7 @@ import org.runnerup.core.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 40;
+  private static final int DBVERSION = 41;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -207,6 +207,7 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.BEST_TIMES.ACTIVITY_ID + " integer not null, ")
           + (DB.BEST_TIMES.START_TIME + " integer not null, ")
           + (DB.BEST_TIMES.AVG_HR + " integer, ")
+          + (DB.BEST_TIMES.MAX_HR + " integer, ")
           + (DB.BEST_TIMES.RANK + " integer not null, ")
           + ("FOREIGN KEY (" + DB.BEST_TIMES.ACTIVITY_ID + ") REFERENCES " + DB.ACTIVITY.TABLE + "(_id)")
           + ");";
@@ -553,6 +554,15 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
       // DBVERSION 40: Change OTHER_PB_COUNT and OTHER_TOP25_COUNT to real for decimal precision
       // SQLite is type-flexible, so existing integer values will work as real
       // No ALTER COLUMN needed - values will be stored as real going forward
+    }
+    if (oldVersion < 41) {
+      echoDo(
+          arg0,
+          "alter table " + DB.BEST_TIMES.TABLE + " add column " + DB.BEST_TIMES.MAX_HR + " integer");
+      arg0.delete(
+          DB.COMPUTATION_TRACKING.TABLE,
+          DB.COMPUTATION_TRACKING.COMPUTATION_TYPE + " = ?",
+          new String[] {"best_times"});
     }
     if (oldVersion < 39) {
       // Add best month columns to monthly_comparison table

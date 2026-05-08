@@ -212,13 +212,41 @@ public class ActivityCleaner implements Constants {
     _isActive = savedIsActive;
   }
 
+  /**
+   * Highest BPM recorded on any location row for this activity (per GPS/tracker sample). This is
+   * the true run-wide peak when HR was logged to {@code location.hr}; lap {@code avg_hr} is only an
+   * average over the lap.
+   */
+  private static int queryMaxHrFromLocations(SQLiteDatabase db, long activityId) {
+    String sql =
+        "SELECT MAX("
+            + DB.LOCATION.HR
+            + ") FROM "
+            + DB.LOCATION.TABLE
+            + " WHERE "
+            + DB.LOCATION.ACTIVITY
+            + " = ? AND "
+            + DB.LOCATION.HR
+            + " > 0";
+    try (Cursor c = db.rawQuery(sql, new String[] {String.valueOf(activityId)})) {
+      if (c.moveToFirst() && !c.isNull(0)) {
+        return c.getInt(0);
+      }
+    }
+    return 0;
+  }
+
   /** recompute an activity summary based on laps */
   void recomputeSummary(SQLiteDatabase db, long activityId) {
     // Recalculate total distance and time from all lap distances/times to ensure accuracy
     // (since we preserve original autolap distances, the sum of laps is more accurate)
     double totalDistanceFromLaps = 0;
     long totalTimeFromLaps = 0;
-    String[] lapCols = new String[] {DB.LAP.DISTANCE, DB.LAP.TIME};
+    long weightedHrSum = 0;
+    long timeForHrWeighted = 0;
+    int activityPeakFromLaps = 0;
+    String[] lapCols =
+        new String[] {DB.LAP.DISTANCE, DB.LAP.TIME, DB.LAP.AVG_HR, DB.LAP.MAX_HR};
     Cursor lapCursor = db.query(
         DB.LAP.TABLE,
         lapCols,
@@ -228,17 +256,28 @@ public class ActivityCleaner implements Constants {
     if (lapCursor.moveToFirst()) {
       do {
         lapCount++;
+        long lapTime = 0;
         if (!lapCursor.isNull(0)) {
           double lapDist = lapCursor.getDouble(0);
           totalDistanceFromLaps += lapDist;
           Log.d("ActivityCleaner", "Lap " + lapCount + ": distance = " + lapDist + "m");
         }
         if (!lapCursor.isNull(1)) {
-          long lapTime = lapCursor.getLong(1);
+          lapTime = lapCursor.getLong(1);
           totalTimeFromLaps += lapTime;
           Log.d("ActivityCleaner", "Lap " + lapCount + ": time = " + lapTime + "s");
         } else {
           Log.w("ActivityCleaner", "Lap " + lapCount + ": time is NULL");
+        }
+        int avgHr = lapCursor.isNull(2) ? 0 : lapCursor.getInt(2);
+        int maxHrLap = lapCursor.isNull(3) ? 0 : lapCursor.getInt(3);
+        if (avgHr > 0 && lapTime > 0) {
+          weightedHrSum += (long) avgHr * lapTime;
+          timeForHrWeighted += lapTime;
+        }
+        int lapPeak = Math.max(maxHrLap, avgHr);
+        if (lapPeak > 0) {
+          activityPeakFromLaps = Math.max(activityPeakFromLaps, lapPeak);
         }
       } while (lapCursor.moveToNext());
     }
@@ -247,10 +286,17 @@ public class ActivityCleaner implements Constants {
     Log.i("ActivityCleaner", "Activity " + activityId + ": totalDistanceFromLaps = " + totalDistanceFromLaps + "m, totalTimeFromLaps = " + totalTimeFromLaps + "s, _totalTime = " + _totalTime + "ms");
 
     ContentValues tmp = new ContentValues();
-    if (_totalSumHr > 0) {
-      long hr = Math.round(_totalSumHr / (double) _totalCount);
+    // Average HR: time-weighted from lap averages (works even when many autolaps skip GPS
+    // recomputation in recomputeLap()).
+    if (timeForHrWeighted > 0) {
+      long hr = Math.round(weightedHrSum / (double) timeForHrWeighted);
       tmp.put(DB.ACTIVITY.AVG_HR, hr);
-      tmp.put(DB.ACTIVITY.MAX_HR, _totalMaxHr);
+    }
+    // Peak HR: prefer MAX(location.hr) — each row is an actual sample — not lap averages.
+    int peakFromLocations = queryMaxHrFromLocations(db, activityId);
+    int activityPeak = Math.max(peakFromLocations, activityPeakFromLaps);
+    if (activityPeak > 0) {
+      tmp.put(DB.ACTIVITY.MAX_HR, activityPeak);
     }
     // Use sum of lap distances (which preserves original autolap distances)
     tmp.put(DB.ACTIVITY.DISTANCE, totalDistanceFromLaps > 0 ? totalDistanceFromLaps : _totalDistance);

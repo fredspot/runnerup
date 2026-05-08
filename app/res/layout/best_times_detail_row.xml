@@ -80,6 +80,8 @@
             android:id="@+id/hr_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:maxLines="2"
+            android:gravity="end"
             android:textAppearance="@style/ListDescription"
             android:textSize="14sp"
             android:textColor="@color/colorTextSecondary" />

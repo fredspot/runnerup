@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2026 RunnerUp
+  -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="56dp"
+    android:orientation="vertical"
+    android:padding="4dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/run_calendar_day_number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/colorText"
+        android:textSize="14sp"
+        tools:text="15"/>
+
+    <TextView
+        android:id="@+id/run_calendar_day_distance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/colorTextSecondary"
+        android:textSize="10sp"
+        android:maxLines="1"
+        android:visibility="gone"
+        tools:text="11 km"
+        tools:visibility="visible"/>
+</LinearLayout>

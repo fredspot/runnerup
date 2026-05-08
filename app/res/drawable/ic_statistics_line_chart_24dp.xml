@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2026 RunnerUp
+  ~
+  ~  This program is free software: you can redistribute it and/or modify
+  ~  it under the terms of the GNU General Public License as published by
+  ~  the Free Software Foundation, either version 3 of the License, or
+  ~  (at your option) any later version.
+  -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M3,21 L3,5 L4.5,5 L4.5,19.5 L21,19.5 L21,21 Z"/>
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M6,16 L7.5,14 L9,15 L12,11 L15.5,12 L19,7 L20.5,8.5 L15.5,14 L12,13 L9,17 L7.5,15.5 L6,17 Z"/>
+</vector>

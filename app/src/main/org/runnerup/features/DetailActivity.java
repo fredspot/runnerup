@@ -851,9 +851,24 @@ deleteButtonClick.onClick(null);
         case RECOVERY:
         case WARMUP:
         case REPEAT:
-          viewHolder.tv0.setText(
-              String.format(
-                  Locale.getDefault(), "(%s)", getResources().getString(intensity.getTextId())));
+          String lapTypeLabel;
+          switch (intensity) {
+            case RECOVERY:
+              lapTypeLabel = "recover";
+              break;
+            case WARMUP:
+              lapTypeLabel = "warmup";
+              break;
+            case COOLDOWN:
+              lapTypeLabel = "cooling";
+              break;
+            default:
+              lapTypeLabel =
+                  String.format(
+                      Locale.getDefault(), "(%s)", getResources().getString(intensity.getTextId()));
+              break;
+          }
+          viewHolder.tv0.setText(lapTypeLabel);
         default:
           break;
       }

@@ -269,13 +269,9 @@ public class BestTimesFragment extends Fragment
           dateText.setText("-");
         }
         
-        // Heart rate
-        if (bestTime.getAvgHr() != null && bestTime.getAvgHr() > 0) {
-          hrText.setText(formatter.formatHeartRate(
-              org.runnerup.core.util.Formatter.Format.TXT_SHORT, bestTime.getAvgHr()));
-        } else {
-          hrText.setText("-");
-        }
+        // Heart rate (segment avg | whole-run max)
+        hrText.setText(
+            formatter.formatBestTimesHeartRateLine(bestTime.getAvgHr(), bestTime.getMaxHr()));
       } else {
         // No best time data available
         timeText.setText("-");

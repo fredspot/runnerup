@@ -64,6 +64,14 @@
 		android:title="@string/End_of_lap_audio_cue"
 		android:summary="@string/End_of_lap_audio_cue_summary"
 		app:iconSpaceReserved="false" />
+	<CheckBoxPreference
+		android:defaultValue="false"
+		android:persistent="true"
+		android:dependency="@string/cue_end_of_lap"
+		android:key="@string/cueinfo_lap_end_summary"
+		android:title="@string/Lap_end_time_and_heart_rate"
+		android:summary="@string/Lap_end_time_and_heart_rate_summary"
+		app:iconSpaceReserved="false" />
 
 	<PreferenceCategory android:key="cueinfo" android:title="@string/Cue_information"
 		app:iconSpaceReserved="false">
@@ -202,6 +210,13 @@
 			android:persistent="true"
 			android:key="@string/cueinfo_current_hr"
 			android:title="@string/Current_heart_rate"
+			app:iconSpaceReserved="false" />
+		<CheckBoxPreference
+			android:defaultValue="false"
+			android:persistent="true"
+			android:key="@string/cueinfo_current_pace_and_hr"
+			android:title="@string/Current_pace_and_heart_rate"
+			android:summary="@string/Current_pace_and_heart_rate_summary"
 			app:iconSpaceReserved="false" />
 		<CheckBoxPreference
 			android:defaultValue="false"

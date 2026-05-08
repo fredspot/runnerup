@@ -51,6 +51,8 @@ public class StatisticsFragment extends Fragment
     R.drawable.ic_tab_besttimes_24dp, // Line chart icon (placeholder)
     R.drawable.ic_bell_curve_24dp, // Bell curve icon
     R.drawable.ic_shoes_24dp, // Shoes icon
+    R.drawable.ic_statistics_line_chart_24dp, // Weekly km line chart
+    R.drawable.ic_calendar_24dp, // Run calendar
   };
 
   private static final int[] CATEGORY_LABELS = {
@@ -60,6 +62,8 @@ public class StatisticsFragment extends Fragment
     R.string.statistics_yearly_progress,
     R.string.statistics_distribution,
     R.string.statistics_pace,
+    R.string.statistics_weekly_km,
+    R.string.statistics_run_calendar,
   };
 
   public StatisticsFragment() {
@@ -113,6 +117,14 @@ public class StatisticsFragment extends Fragment
         break;
       case 5: // Pace
         intent = new Intent(requireContext(), PaceActivity.class);
+        startActivity(intent);
+        break;
+      case 6: // Weekly km
+        intent = new Intent(requireContext(), WeeklyKmActivity.class);
+        startActivity(intent);
+        break;
+      case 7: // Run calendar
+        intent = new Intent(requireContext(), RunCalendarActivity.class);
         startActivity(intent);
         break;
       default:

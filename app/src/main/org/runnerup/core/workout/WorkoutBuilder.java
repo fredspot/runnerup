@@ -37,6 +37,8 @@ import org.runnerup.core.workout.Workout.StepListEntry;
 import org.runnerup.core.workout.feedback.AudioCountdownFeedback;
 import org.runnerup.core.workout.feedback.AudioFeedback;
 import org.runnerup.core.workout.feedback.CoachFeedback;
+import org.runnerup.core.workout.feedback.CurrentPaceAndHrAudioFeedback;
+import org.runnerup.core.workout.feedback.LapCompletedStatsAudioFeedback;
 import org.runnerup.core.workout.feedback.CountdownFeedback;
 import org.runnerup.core.workout.feedback.HRMStateChangeFeedback;
 
@@ -135,17 +137,30 @@ public class WorkoutBuilder {
     w.sport = prefs.getInt(res.getString(R.string.pref_sport), DB.ACTIVITY.SPORT_RUNNING);
     w.setWorkoutType(Constants.WORKOUT_TYPE.INTERVAL);
 
-    final boolean warmup = true;
-    final boolean cooldown = true;
     final boolean convertRestToRecovery =
         prefs.getBoolean(
             res.getString(R.string.pref_convert_interval_distance_rest_to_recovery), true);
 
-    //noinspection ConstantConditions
-    if (warmup) {
+    final int warmupType =
+        prefs.getInt(res.getString(R.string.pref_interval_warmup_type), /* until pressed */ -1);
+    if (warmupType != -2) {
       Step step = new Step();
       step.intensity = Intensity.WARMUP;
-      step.durationType = null;
+      if (warmupType == -1) {
+        step.durationType = null;
+      } else if (warmupType == DB.DIMENSION.TIME) {
+        step.durationType = Dimension.TIME;
+        step.durationValue =
+            SafeParse.parseSeconds(
+                prefs.getString(res.getString(R.string.pref_interval_warmup_time), "00:02:00"),
+                2 * 60);
+      } else if (warmupType == DB.DIMENSION.DISTANCE) {
+        step.durationType = Dimension.DISTANCE;
+        step.durationValue =
+            SafeParse.parseDouble(
+                prefs.getString(res.getString(R.string.pref_interval_warmup_distance), "2000"),
+                2000);
+      }
       w.steps.add(step);
     }
 
@@ -183,6 +198,16 @@ public class WorkoutBuilder {
           step.durationValue = intervalDistance;
           break;
       }
+      int intervalHrzSel =
+          prefs.getInt(res.getString(R.string.pref_interval_target_hrz), /* none */ 0);
+      if (intervalHrzSel > 0) {
+        HRZones hrCalc = new HRZones(res, prefs);
+        Pair<Integer, Integer> vals = hrCalc.getHRValues(intervalHrzSel);
+        if (vals != null) {
+          step.targetType = Dimension.HR;
+          step.targetValue = new Range(vals.first, vals.second);
+        }
+      }
       repeat.steps.add(step);
 
       Step rest = null;
@@ -199,11 +224,26 @@ public class WorkoutBuilder {
     }
     w.steps.add(repeat);
 
-    //noinspection ConstantConditions
-    if (cooldown) {
+    final int cooldownType =
+        prefs.getInt(res.getString(R.string.pref_interval_cooldown_type), /* until pressed */ -1);
+    if (cooldownType != -2) {
       Step step = new Step();
       step.intensity = Intensity.COOLDOWN;
-      step.durationType = null;
+      if (cooldownType == -1) {
+        step.durationType = null;
+      } else if (cooldownType == DB.DIMENSION.TIME) {
+        step.durationType = Dimension.TIME;
+        step.durationValue =
+            SafeParse.parseSeconds(
+                prefs.getString(res.getString(R.string.pref_interval_cooldown_time), "00:02:00"),
+                2 * 60);
+      } else if (cooldownType == DB.DIMENSION.DISTANCE) {
+        step.durationType = Dimension.DISTANCE;
+        step.durationValue =
+            SafeParse.parseDouble(
+                prefs.getString(res.getString(R.string.pref_interval_cooldown_distance), "2000"),
+                2000);
+      }
       w.steps.add(step);
     }
 
@@ -240,7 +280,7 @@ public class WorkoutBuilder {
       Resources res, Workout w, SharedPreferences audioPrefs, SharedPreferences prefs) {
     final boolean muteMusic = audioPrefs.getBoolean(res.getString(R.string.pref_mute_bool), false);
     w.setMute(muteMusic);
-    addAudioCuesToWorkout(res, w.steps, audioPrefs, prefs);
+    addAudioCuesToWorkout(res, w.steps, audioPrefs, prefs, w.getWorkoutType());
   }
 
   /**
@@ -252,7 +292,11 @@ public class WorkoutBuilder {
    * @param prefs
    */
   private static void addAudioCuesToWorkout(
-      Resources res, ArrayList<Step> steps, SharedPreferences audioPrefs, SharedPreferences prefs) {
+      Resources res,
+      ArrayList<Step> steps,
+      SharedPreferences audioPrefs,
+      SharedPreferences prefs,
+      int workoutType) {
     final boolean skip_startstop_cue =
         audioPrefs.getBoolean(res.getString(R.string.cueinfo_skip_startstop), false);
     final boolean isLapStartedCue =
@@ -265,7 +309,7 @@ public class WorkoutBuilder {
       Step next = i + 1 == stepArr.length ? null : stepArr[i + 1];
 
       if (step.getIntensity() == Intensity.REPEAT) {
-        addAudioCuesToWorkout(res, ((RepeatStep) step).steps, audioPrefs, prefs);
+        addAudioCuesToWorkout(res, ((RepeatStep) step).steps, audioPrefs, prefs, workoutType);
         continue;
       }
 
@@ -381,6 +425,57 @@ public class WorkoutBuilder {
         step.triggers.add(tr);
       }
 
+      if (workoutType == Constants.WORKOUT_TYPE.INTERVAL
+          && step.getIntensity() == Intensity.ACTIVE) {
+        int hrCueEvery =
+            SafeParse.parseInt(
+                prefs.getString(
+                    res.getString(R.string.pref_interval_hr_cue_interval_seconds), "0"),
+                0);
+        if (hrCueEvery > 0) {
+          hrCueEvery = Math.min(600, Math.max(1, hrCueEvery));
+          int announcement =
+              prefs.getInt(res.getString(R.string.pref_interval_hr_cue_announcement), 0);
+          if (announcement < 0 || announcement > 2) {
+            announcement = 0;
+          }
+          ArrayList<Feedback> hrActions = new ArrayList<>();
+          if (announcement == 0 || announcement == 2) {
+            hrActions.add(new AudioFeedback(Scope.CURRENT, Dimension.HR));
+          }
+          if (announcement == 1 || announcement == 2) {
+            hrActions.add(new AudioFeedback(Scope.CURRENT, Dimension.HRZ));
+          }
+          if (!hrActions.isEmpty()) {
+            IntervalTrigger hrCue = new IntervalTrigger();
+            hrCue.first = hrCueEvery;
+            hrCue.interval = hrCueEvery;
+            hrCue.scope = Scope.STEP;
+            hrCue.dimension = Dimension.TIME;
+            hrCue.triggerAction = hrActions;
+            hrCue.triggerSuppression.add(EndOfLapSuppression.EmptyLapSuppression);
+            step.triggers.add(hrCue);
+          }
+        }
+
+        int paceCueEvery =
+            SafeParse.parseInt(
+                prefs.getString(
+                    res.getString(R.string.pref_interval_pace_cue_interval_seconds), "0"),
+                0);
+        if (paceCueEvery > 0) {
+          paceCueEvery = Math.min(600, Math.max(1, paceCueEvery));
+          IntervalTrigger paceCue = new IntervalTrigger();
+          paceCue.first = paceCueEvery;
+          paceCue.interval = paceCueEvery;
+          paceCue.scope = Scope.STEP;
+          paceCue.dimension = Dimension.TIME;
+          paceCue.triggerAction.add(new AudioFeedback(Scope.CURRENT, Dimension.PACE));
+          paceCue.triggerSuppression.add(EndOfLapSuppression.EmptyLapSuppression);
+          step.triggers.add(paceCue);
+        }
+      }
+
       checkDuplicateTriggers(step);
     }
   }
@@ -489,8 +584,21 @@ public class WorkoutBuilder {
 
     addFeedbackFromPreferences(prefs, res, feedback);
 
+    final boolean lapEndSummary =
+        prefs.getBoolean(res.getString(R.string.cueinfo_lap_end_summary), false);
+
     for (Trigger t : triggers) {
-      t.triggerAction = feedback;
+      if (lapEndSummary
+          && t instanceof EventTrigger ev
+          && ev.event == Event.COMPLETED
+          && ev.scope == Scope.LAP) {
+        ArrayList<Feedback> lapFeedback = new ArrayList<>();
+        lapFeedback.add(new LapCompletedStatsAudioFeedback());
+        lapFeedback.addAll(feedback);
+        t.triggerAction = lapFeedback;
+      } else {
+        t.triggerAction = feedback;
+      }
       /* suppress empty laps */
       t.triggerSuppression.add(EndOfLapSuppression.EmptyLapSuppression);
     }
@@ -734,14 +842,18 @@ public class WorkoutBuilder {
     }
 
     /* CURRENT */
-    if (prefs.getBoolean(res.getString(R.string.cueinfo_current_pace), false)) {
-      feedback.add(new AudioFeedback(Scope.CURRENT, Dimension.PACE));
+    if (prefs.getBoolean(res.getString(R.string.cueinfo_current_pace_and_hr), false)) {
+      feedback.add(new CurrentPaceAndHrAudioFeedback());
+    } else {
+      if (prefs.getBoolean(res.getString(R.string.cueinfo_current_pace), false)) {
+        feedback.add(new AudioFeedback(Scope.CURRENT, Dimension.PACE));
+      }
+      if (prefs.getBoolean(res.getString(R.string.cueinfo_current_hr), false)) {
+        feedback.add(new AudioFeedback(Scope.CURRENT, Dimension.HR));
+      }
     }
     if (prefs.getBoolean(res.getString(R.string.cueinfo_current_speed), false)) {
       feedback.add(new AudioFeedback(Scope.CURRENT, Dimension.SPEED));
-    }
-    if (prefs.getBoolean(res.getString(R.string.cueinfo_current_hr), false)) {
-      feedback.add(new AudioFeedback(Scope.CURRENT, Dimension.HR));
     }
     if (prefs.getBoolean(res.getString(R.string.cueinfo_current_hrz), false)) {
       feedback.add(new AudioFeedback(Scope.CURRENT, Dimension.HRZ));

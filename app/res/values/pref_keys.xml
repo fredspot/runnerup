@@ -68,6 +68,8 @@
     <string name="cueinfo_current_hr">cueinfo_current_hr</string>
     <string name="cueinfo_current_hrz">cueinfo_current_hrz</string>
     <string name="cueinfo_current_pace">cueinfo_current_pace</string>
+    <string name="cueinfo_current_pace_and_hr">cueinfo_current_pace_and_hr</string>
+    <string name="cueinfo_lap_end_summary">cueinfo_lap_end_summary</string>
     <string name="cueinfo_current_cad">cueinfo_current_cadence</string>
 
     <string name="cueinfo_target_coaching">cueinfo_target_coaching</string>
@@ -90,6 +92,17 @@
     <string name="pref_interval_rest_type">intervalRestType</string>
     <string name="pref_interval_rest_time">intervalRestTime</string>
     <string name="pref_interval_rest_distance">intervalRestDistance</string>
+
+    <string name="pref_interval_warmup_type">intervalWarmupType</string>
+    <string name="pref_interval_warmup_time">intervalWarmupTime</string>
+    <string name="pref_interval_warmup_distance">intervalWarmupDistance</string>
+    <string name="pref_interval_cooldown_type">intervalCooldownType</string>
+    <string name="pref_interval_cooldown_time">intervalCooldownTime</string>
+    <string name="pref_interval_cooldown_distance">intervalCooldownDistance</string>
+    <string name="pref_interval_target_hrz">intervalTargetHrz</string>
+    <string name="pref_interval_hr_cue_interval_seconds">intervalHrCueIntervalSeconds</string>
+    <string name="pref_interval_hr_cue_announcement">intervalHrCueAnnouncement</string>
+    <string name="pref_interval_pace_cue_interval_seconds">intervalPaceCueIntervalSeconds</string>
 
     <string name="pref_advanced_audio">advancedAudio</string>
     <string name="pref_advanced_workout">advancedWorkout</string>

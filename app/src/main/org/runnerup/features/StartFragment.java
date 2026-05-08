@@ -37,6 +37,7 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
+import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -84,6 +85,7 @@ import org.runnerup.tracking.component.TrackerCadence;
 import org.runnerup.tracking.component.TrackerHRM;
 import org.runnerup.tracking.component.TrackerWear;
 import org.runnerup.core.util.Formatter;
+import org.runnerup.core.util.HRZones;
 import org.runnerup.core.util.SafeParse;
 import org.runnerup.core.util.TickListener;
 import org.runnerup.ui.common.widget.ClassicSpinner;
@@ -156,6 +158,14 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   TitleSpinner intervalRestType = null;
   TitleSpinner intervalRestTime = null;
   TitleSpinner intervalRestDistance = null;
+  TitleSpinner intervalWarmupType = null;
+  TitleSpinner intervalWarmupTime = null;
+  TitleSpinner intervalWarmupDistance = null;
+  TitleSpinner intervalCooldownType = null;
+  TitleSpinner intervalCooldownTime = null;
+  TitleSpinner intervalCooldownDistance = null;
+  TitleSpinner intervalTargetHrz = null;
+  TitleSpinner intervalHrCueSeconds = null;
   AudioSchemeListAdapter intervalAudioListAdapter = null;
 
   TitleSpinner advancedWorkoutSpinner = null;
@@ -291,6 +301,12 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     simpleTargetHrz.setAdapter(hrZonesAdapter);
     simpleTargetType.setOnCloseDialogListener(simpleTargetTypeClick);
 
+    intervalWarmupType = view.findViewById(R.id.interval_warmup_type);
+    intervalWarmupTime = view.findViewById(R.id.interval_warmup_time);
+    intervalWarmupTime.setOnSetValueListener(onSetTimeValidator);
+    intervalWarmupDistance = view.findViewById(R.id.interval_warmup_distance);
+    intervalWarmupType.setOnSetValueListener(
+        makeIntervalPhaseTypeListener(intervalWarmupTime, intervalWarmupDistance));
     intervalType = view.findViewById(R.id.interval_type);
     intervalTime = view.findViewById(R.id.start_interval_time);
     intervalTime.setOnSetValueListener(onSetTimeValidator);
@@ -301,6 +317,17 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     intervalRestTime.setOnSetValueListener(onSetTimeValidator);
     intervalRestDistance = view.findViewById(R.id.interval_rest_distance);
     intervalRestType.setOnSetValueListener(intervalRestTypeSetValue);
+    intervalCooldownType = view.findViewById(R.id.interval_cooldown_type);
+    intervalCooldownTime = view.findViewById(R.id.interval_cooldown_time);
+    intervalCooldownTime.setOnSetValueListener(onSetTimeValidator);
+    intervalCooldownDistance = view.findViewById(R.id.interval_cooldown_distance);
+    intervalCooldownType.setOnSetValueListener(
+        makeIntervalPhaseTypeListener(intervalCooldownTime, intervalCooldownDistance));
+    syncIntervalPhasePickers(intervalWarmupType, intervalWarmupTime, intervalWarmupDistance);
+    syncIntervalPhasePickers(intervalCooldownType, intervalCooldownTime, intervalCooldownDistance);
+    intervalTargetHrz = view.findViewById(R.id.interval_target_hrz);
+    configureIntervalTargetHrzSpinner(intervalTargetHrz);
+    intervalHrCueSeconds = view.findViewById(R.id.interval_hr_cue_seconds);
     intervalAudioListAdapter = new AudioSchemeListAdapter(mDB, inflater, false);
     intervalAudioListAdapter.reload();
     TitleSpinner intervalAudioSpinner = view.findViewById(R.id.interval_audio_cue_spinner);
@@ -1458,6 +1485,58 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
           simpleTargetHrz.setVisibility(View.VISIBLE);
       }
     }
+  }
+
+  private void configureIntervalTargetHrzSpinner(TitleSpinner sp) {
+    Context ctx = requireContext();
+    HRZones hz = new HRZones(ctx);
+    int count = hz.getCount();
+    ArrayList<String> labels = new ArrayList<>();
+    labels.add(getString(org.runnerup.common.R.string.Interval_no_hr_target));
+    for (int i = 0; i < count; i++) {
+      Pair<Integer, Integer> p = hz.getHRValues(i + 1);
+      if (p != null) {
+        labels.add("Zone " + (i + 1) + " (" + p.first + " - " + p.second + ")");
+      }
+    }
+    sp.setArrayEntries(labels.toArray(new String[0]));
+    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(ctx);
+    int saved = pref.getInt(getString(R.string.pref_interval_target_hrz), 0);
+    if (saved >= 0 && saved < labels.size()) {
+      sp.setValue(saved);
+    }
+  }
+
+  private static void syncIntervalPhasePickers(
+      TitleSpinner typeSpinner, TitleSpinner timeSpinner, TitleSpinner distSpinner) {
+    if (typeSpinner == null || timeSpinner == null || distSpinner == null) {
+      return;
+    }
+    int v = typeSpinner.getValueInt();
+    boolean time = (v == DB.DIMENSION.TIME);
+    boolean dist = (v == DB.DIMENSION.DISTANCE);
+    timeSpinner.setVisibility(time ? View.VISIBLE : View.GONE);
+    distSpinner.setVisibility(dist ? View.VISIBLE : View.GONE);
+  }
+
+  private static OnSetValueListener makeIntervalPhaseTypeListener(
+      TitleSpinner timeSpinner, TitleSpinner distSpinner) {
+    return new OnSetValueListener() {
+
+      @Override
+      public String preSetValue(String newValue) throws IllegalArgumentException {
+        return newValue;
+      }
+
+      @Override
+      public int preSetValue(int newValue) throws IllegalArgumentException {
+        boolean time = (newValue == DB.DIMENSION.TIME);
+        boolean dist = (newValue == DB.DIMENSION.DISTANCE);
+        timeSpinner.setVisibility(time ? View.VISIBLE : View.GONE);
+        distSpinner.setVisibility(dist ? View.VISIBLE : View.GONE);
+        return newValue;
+      }
+    };
   }
 
   private final OnSetValueListener intervalTypeSetValue =

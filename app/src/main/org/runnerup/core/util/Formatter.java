@@ -407,6 +407,25 @@ public class Formatter implements OnSharedPreferenceChangeListener {
   }
 
   /**
+   * Best Times card line: segment average HR and whole-activity max HR, e.g. {@code 164 | 177}.
+   */
+  public String formatBestTimesHeartRateLine(Integer avgHr, Integer maxHr) {
+    String dash = resources.getString(R.string.best_times_hr_placeholder);
+    String avgPart =
+        (avgHr != null && avgHr > 0)
+            ? formatHeartRate(Format.TXT_SHORT, avgHr)
+            : dash;
+    String maxPart =
+        (maxHr != null && maxHr > 0)
+            ? formatHeartRate(Format.TXT_SHORT, maxHr)
+            : dash;
+    if (dash.equals(avgPart) && dash.equals(maxPart)) {
+      return dash;
+    }
+    return avgPart + resources.getString(R.string.best_times_hr_separator) + maxPart;
+  }
+
+  /**
    * Format cadence
    *
    * @param target

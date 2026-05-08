@@ -145,6 +145,10 @@ public class RepeatStep extends Step {
         s.onRepeat(currentRepeat, repeatCount);
       }
     }
+    // Restart STEP scope for the new inner step so duration and interval triggers reset each phase.
+    if (currentStep < steps.size()) {
+      steps.get(currentStep).onStart(Scope.STEP, w);
+    }
     return false;
   }
 

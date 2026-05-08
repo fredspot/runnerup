@@ -195,7 +195,8 @@ public interface Constants {
       String PACE = "pace";                   // pace in seconds per km
       String ACTIVITY_ID = "activity_id";     // reference to activity
       String START_TIME = "start_time";       // when this record was achieved
-      String AVG_HR = "avg_hr";              // average heart rate
+      String AVG_HR = "avg_hr";              // average heart rate (segment / best window)
+      String MAX_HR = "max_hr";              // max heart rate for whole activity
       String RANK = "rank";                   // 1-25 (top 25)
     }
 

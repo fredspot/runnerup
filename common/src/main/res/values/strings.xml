@@ -34,6 +34,19 @@
   <string name="recovery">recovery</string>
   <string name="warm_up">warmup</string>
   <string name="cool_down">cooldown</string>
+  <string name="Interval_warmup_type">Warm-up</string>
+  <string name="Interval_warmup_time">Warm-up time</string>
+  <string name="Interval_warmup_distance">Warm-up distance</string>
+  <string name="Interval_cooldown_type">Cool-down</string>
+  <string name="Interval_cooldown_time">Cool-down time</string>
+  <string name="Interval_cooldown_distance">Cool-down distance</string>
+  <string name="Interval_work_hr_zone">Work interval heart rate zone</string>
+  <string name="Interval_no_hr_target">None</string>
+  <string name="Interval_hr_cue_seconds">HR cue interval (seconds)</string>
+  <string name="Interval_hr_cue_seconds_summary">During each work interval, how often to hear current heart rate and zone (0 = off). Independent of the pace cue interval below.</string>
+  <string name="Interval_hr_cue_announcement">HR cue speaks</string>
+  <string name="Interval_pace_cue_seconds">Pace cue interval (seconds)</string>
+  <string name="Interval_pace_cue_seconds_summary">During each work interval, how often to hear current pace (0 = off). Can differ from the HR cue interval (e.g. pace every 10 s, HR every 30 s).</string>
   <string name="repeat">Repeat</string>
   <string name="repeat_times">Repeat %1$d times</string>
   <string name="Time">Time</string>
@@ -232,6 +245,10 @@
   <string name="Current_pace">Current pace</string>
   <string name="Current_speed">Current speed</string>
   <string name="Current_heart_rate">Current heart rate</string>
+  <string name="Current_pace_and_heart_rate">Current pace and heart rate</string>
+  <string name="Current_pace_and_heart_rate_summary">Announces both together on time or distance cues (instead of enabling the two cues separately).</string>
+  <string name="Lap_end_time_and_heart_rate_summary">At end of lap: total activity time, lap time, and average lap heart rate when a sensor is connected. Turn off separate total time, lap time, or lap heart rate cues below if you do not want those repeated.</string>
+  <string name="Lap_end_time_and_heart_rate">Lap end: time and heart rate summary</string>
   <string name="Current_heart_rate_zone">Current heart rate zone</string>
   <string name="Current_cadence">Current cadence</string>
   <string name="Current">Current</string>

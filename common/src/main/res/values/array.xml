@@ -62,6 +62,22 @@
     <item>Time</item>
     <item>Distance</item>
   </string-array>
+  <!-- Interval tab warm-up / cool-down: order must match @integer-array/interval_phase_duration_values -->
+  <string-array name="interval_phase_duration_types">
+    <item>None</item>
+    <item>Until pressed</item>
+    <item>Time</item>
+    <item>Distance</item>
+  </string-array>
+  <!-- Replaced at runtime in StartFragment with zones + “None” -->
+  <string-array name="interval_hr_zone_placeholder" translatable="false">
+    <item>—</item>
+  </string-array>
+  <string-array name="interval_hr_cue_announcement_types">
+    <item>Heart rate (BPM)</item>
+    <item>Heart rate zone</item>
+    <item>BPM and zone</item>
+  </string-array>
   <string-array name="sexes">
     <item>Male</item>
     <item>Female</item>

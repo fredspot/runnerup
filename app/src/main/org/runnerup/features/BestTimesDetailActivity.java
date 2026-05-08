@@ -221,12 +221,9 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
           dateText.setText(dateFormat.format(date));
         }
 
-        // Heart rate
-        if (bestTime.getAvgHr() != null && bestTime.getAvgHr() > 0) {
-          hrText.setText(formatter.formatHeartRate(Formatter.Format.TXT_SHORT, bestTime.getAvgHr()));
-        } else {
-          hrText.setText("-");
-        }
+        // Heart rate (segment avg | whole-run max)
+        hrText.setText(
+            formatter.formatBestTimesHeartRateLine(bestTime.getAvgHr(), bestTime.getMaxHr()));
       }
 
       return view;

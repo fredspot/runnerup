@@ -76,4 +76,6 @@
   <string name="cue_lap_completed">lap completed</string>
   <string name="cue_warmup_started">warmup started</string>
   <string name="cue_cooldown_started">cooldown started</string>
+  <string name="cue_lap_end_summary_with_hr">Total time %1$s. Lap time %2$s. Average heart rate %3$s.</string>
+  <string name="cue_lap_end_summary_no_hr">Total time %1$s. Lap time %2$s.</string>
 </resources>

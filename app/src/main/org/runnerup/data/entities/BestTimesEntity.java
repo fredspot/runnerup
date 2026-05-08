@@ -116,6 +116,18 @@ public class BestTimesEntity extends AbstractEntity {
     return null;
   }
 
+  /** Maximum heart rate for the whole activity */
+  public void setMaxHr(Integer value) {
+    values().put(Constants.DB.BEST_TIMES.MAX_HR, value);
+  }
+
+  public Integer getMaxHr() {
+    if (values().containsKey(Constants.DB.BEST_TIMES.MAX_HR)) {
+      return values().getAsInteger(Constants.DB.BEST_TIMES.MAX_HR);
+    }
+    return null;
+  }
+
   /** Rank (1, 2, or 3 for top 3) */
   public void setRank(Integer value) {
     values().put(Constants.DB.BEST_TIMES.RANK, value);
@@ -138,6 +150,7 @@ public class BestTimesEntity extends AbstractEntity {
     columns.add(Constants.DB.BEST_TIMES.ACTIVITY_ID);
     columns.add(Constants.DB.BEST_TIMES.START_TIME);
     columns.add(Constants.DB.BEST_TIMES.AVG_HR);
+    columns.add(Constants.DB.BEST_TIMES.MAX_HR);
     columns.add(Constants.DB.BEST_TIMES.RANK);
     return columns;
   }

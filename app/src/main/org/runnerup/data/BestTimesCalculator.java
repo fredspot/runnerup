@@ -224,7 +224,8 @@ public class BestTimesCalculator {
       Constants.DB.ACTIVITY.START_TIME,
       Constants.DB.ACTIVITY.DISTANCE,
       Constants.DB.ACTIVITY.TIME,
-      Constants.DB.ACTIVITY.AVG_HR
+      Constants.DB.ACTIVITY.AVG_HR,
+      Constants.DB.ACTIVITY.MAX_HR
     };
     
     try (Cursor cursor = db.query(Constants.DB.ACTIVITY.TABLE, columns, 
@@ -238,6 +239,7 @@ public class BestTimesCalculator {
         info.totalDistance = cursor.getDouble(1);
         info.totalTime = cursor.getLong(2);
         info.avgHr = cursor.getInt(3);
+        info.maxHr = cursor.getInt(4);
         return info;
       }
     }
@@ -358,6 +360,7 @@ public class BestTimesCalculator {
             bestResult.timeMs = lap.timeSeconds * 1000; // Convert to milliseconds for storage
             bestResult.pacePerKm = pacePerKm;
             bestResult.avgHr = lap.avgHr > 0 ? lap.avgHr : activityInfo.avgHr;
+            bestResult.maxHr = activityInfo.maxHr > 0 ? activityInfo.maxHr : null;
             bestTime = lap.timeSeconds;
             Log.d(TAG, "New best time: " + lap.timeSeconds + "s for " + lap.distanceM + "m");
           }
@@ -408,6 +411,7 @@ public class BestTimesCalculator {
             bestResult.timeMs = totalTime * 1000; // Convert to milliseconds for storage
             bestResult.pacePerKm = pacePerKm;
             bestResult.avgHr = hrCount > 0 ? totalHr / hrCount : activityInfo.avgHr;
+            bestResult.maxHr = activityInfo.maxHr > 0 ? activityInfo.maxHr : null;
             bestTime = totalTime;
           }
         }
@@ -428,6 +432,9 @@ public class BestTimesCalculator {
     values.put(Constants.DB.BEST_TIMES.ACTIVITY_ID, result.activityId);
     values.put(Constants.DB.BEST_TIMES.START_TIME, result.startTime);
     values.put(Constants.DB.BEST_TIMES.AVG_HR, result.avgHr);
+    if (result.maxHr != null && result.maxHr > 0) {
+      values.put(Constants.DB.BEST_TIMES.MAX_HR, result.maxHr);
+    }
     values.put(Constants.DB.BEST_TIMES.RANK, rank);
     
     db.insert(Constants.DB.BEST_TIMES.TABLE, null, values);
@@ -442,6 +449,7 @@ public class BestTimesCalculator {
     Double totalDistance;
     Long totalTime;
     Integer avgHr;
+    int maxHr;
   }
 
   private static class LapInfo {
@@ -457,6 +465,7 @@ public class BestTimesCalculator {
     Long timeMs;
     Double pacePerKm;
     Integer avgHr;
+    Integer maxHr;
     int targetDistance;
   }
 }

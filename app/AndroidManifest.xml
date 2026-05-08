@@ -135,6 +135,16 @@
         </activity>
 
         <activity
+            android:name=".features.MonthWeekBreakdownActivity"
+            android:label="@string/statistics"
+            android:parentActivityName=".features.StatisticsDetailActivity"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".features.StatisticsDetailActivity"/>
+        </activity>
+
+        <activity
             android:name=".features.YearlyStatsActivity"
             android:label="@string/statistics_year_month_breakdown"
             android:parentActivityName=".features.MainLayout"
@@ -177,6 +187,26 @@
         <activity
             android:name=".features.DistributionActivity"
             android:label="@string/statistics_distribution"
+            android:parentActivityName=".features.MainLayout"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".features.MainLayout"/>
+        </activity>
+
+        <activity
+            android:name=".features.WeeklyKmActivity"
+            android:label="@string/weekly_km_title"
+            android:parentActivityName=".features.MainLayout"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".features.MainLayout"/>
+        </activity>
+
+        <activity
+            android:name=".features.RunCalendarActivity"
+            android:label="@string/run_calendar_title"
             android:parentActivityName=".features.MainLayout"
             android:theme="@style/AppTheme.NoActionBar">
             <meta-data

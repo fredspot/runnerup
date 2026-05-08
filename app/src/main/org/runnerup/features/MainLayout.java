@@ -54,8 +54,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import org.runnerup.BuildConfig;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants.DB;
+import org.runnerup.data.ActivityCleaner;
 import org.runnerup.data.BestTimesCalculator;
 import org.runnerup.data.DBHelper;
 import org.runnerup.data.HRZoneCalculator;
@@ -78,6 +80,9 @@ public class MainLayout extends AppCompatActivity {
   }
 
   private ViewPager2 pager;
+
+  /** Set from background task when a full activity recompute just finished (for UI feedback). */
+  private volatile boolean autoComputeBulkRecomputeJustRan = false;
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -475,11 +480,67 @@ public class MainLayout extends AppCompatActivity {
   private class AutoComputeTask extends AsyncTask<Void, Void, Void> {
     private static final String TAG = "AutoComputeTask";
 
+    /**
+     * Persisted stamp so bulk recompute runs again when the APK {@link BuildConfig#VERSION_CODE}
+     * changes or when {@link #BULK_RECOMPUTE_DATA_REVISION} is bumped (HR/summary logic fixes).
+     */
+    private static final String PREF_ACTIVITY_BULK_STAMP = "activity_bulk_recompute_stamp";
+
+    private static final int BULK_RECOMPUTE_DATA_REVISION = 2;
+
     @Override
     protected Void doInBackground(Void... params) {
+      autoComputeBulkRecomputeJustRan = false;
       SQLiteDatabase db = DBHelper.getWritableDatabase(MainLayout.this);
       
       try {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainLayout.this);
+        long requiredStamp =
+            (long) BuildConfig.VERSION_CODE * 1000L + BULK_RECOMPUTE_DATA_REVISION;
+        long appliedStamp = prefs.getLong(PREF_ACTIVITY_BULK_STAMP, 0L);
+        if (appliedStamp < requiredStamp) {
+          Log.i(
+              TAG,
+              "Bulk activity recompute (apk version "
+                  + BuildConfig.VERSION_CODE
+                  + ", data revision "
+                  + BULK_RECOMPUTE_DATA_REVISION
+                  + ", last stamp "
+                  + appliedStamp
+                  + ")...");
+          ActivityCleaner cleaner = new ActivityCleaner();
+          int n = 0;
+          try (Cursor c =
+              db.query(
+                  DB.ACTIVITY.TABLE,
+                  new String[] {DB.PRIMARY_KEY},
+                  DB.ACTIVITY.DELETED + " = ?",
+                  new String[] {"0"},
+                  null,
+                  null,
+                  DB.PRIMARY_KEY + " ASC")) {
+            while (c.moveToNext()) {
+              long id = c.getLong(0);
+              try {
+                cleaner.recompute(db, id);
+                n++;
+                if (n % 50 == 0) {
+                  Log.i(TAG, "Bulk recompute progress: " + n + " activities...");
+                }
+              } catch (Exception e) {
+                Log.w(TAG, "Recompute failed for activity " + id, e);
+              }
+            }
+          }
+          Log.i(TAG, "Bulk activity recompute finished for " + n + " activities");
+          db.delete(
+              DB.COMPUTATION_TRACKING.TABLE,
+              DB.COMPUTATION_TRACKING.COMPUTATION_TYPE + " IN (?, ?)",
+              new String[] {"best_times", "statistics"});
+          prefs.edit().putLong(PREF_ACTIVITY_BULK_STAMP, requiredStamp).apply();
+          autoComputeBulkRecomputeJustRan = true;
+        }
+
         // Check and compute Best Times if stale
         if (BestTimesCalculator.isDataStale(db)) {
           Log.i(TAG, "Best times data is stale, computing...");
@@ -528,6 +589,17 @@ public class MainLayout extends AppCompatActivity {
       }
       
       return null;
+    }
+
+    @Override
+    protected void onPostExecute(Void result) {
+      if (autoComputeBulkRecomputeJustRan) {
+        Toast.makeText(
+                MainLayout.this,
+                R.string.activity_bulk_recompute_done,
+                Toast.LENGTH_LONG)
+            .show();
+      }
     }
   }
 }
