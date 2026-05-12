@@ -340,7 +340,9 @@ public class TCX {
           long last_time = 0;
           while (pok && cLocation.getLong(0) == lap) {
             int locType = cLocation.getInt(1);
-            if (hasTrackpoints && locType == DB.LOCATION.TYPE_RESUME) {
+            if (hasTrackpoints
+                && (locType == DB.LOCATION.TYPE_RESUME
+                    || locType == DB.LOCATION.TYPE_AUTO_RESUME)) {
               // Pauses handling
               mXML.endTag("", "Track");
               mXML.startTag("", "Track");

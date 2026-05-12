@@ -52,8 +52,10 @@ public class LocationEntity extends AbstractEntity {
         case Constants.DB.LOCATION.TYPE_START:
         case Constants.DB.LOCATION.TYPE_END:
         case Constants.DB.LOCATION.TYPE_RESUME:
+        case Constants.DB.LOCATION.TYPE_AUTO_RESUME:
           break;
         case Constants.DB.LOCATION.TYPE_PAUSE:
+        case Constants.DB.LOCATION.TYPE_AUTO_PAUSE:
         case Constants.DB.LOCATION.TYPE_GPS:
           float[] res = {0};
           Location.distanceBetween(

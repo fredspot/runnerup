@@ -48,6 +48,22 @@ public class Step implements TickComponent {
   final ArrayList<Trigger> triggers = new ArrayList<>();
 
   /**
+   * Phase 2: id of this step's row in the {@code step} table, written by
+   * {@link Workout#persistSchedule}. {@code 0} means "not persisted" (e.g. older callers or
+   * tests that bypass {@code Tracker.start}); in that case no {@code DB.LAP.STEP} value is
+   * recorded on new laps.
+   */
+  long persistedStepId = 0;
+
+  public long getPersistedStepId() {
+    return persistedStepId;
+  }
+
+  public void setPersistedStepId(long id) {
+    this.persistedStepId = id;
+  }
+
+  /**
    * @return the name
    */
   public String getName() {
@@ -195,6 +211,9 @@ public class Step implements TickComponent {
       lapStartHeartbeats = beats;
       ContentValues tmp = new ContentValues();
       tmp.put(DB.LAP.INTENSITY, intensity.getValue());
+      if (persistedStepId > 0) {
+        tmp.put(DB.LAP.STEP, persistedStepId);
+      }
       if (durationType != null) {
         switch (durationType) {
           case TIME:

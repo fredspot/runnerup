@@ -41,6 +41,7 @@ import org.runnerup.core.workout.feedback.CurrentPaceAndHrAudioFeedback;
 import org.runnerup.core.workout.feedback.LapCompletedStatsAudioFeedback;
 import org.runnerup.core.workout.feedback.CountdownFeedback;
 import org.runnerup.core.workout.feedback.HRMStateChangeFeedback;
+import org.runnerup.core.workout.feedback.IntervalCountAudioFeedback;
 
 public class WorkoutBuilder {
 
@@ -103,26 +104,11 @@ public class WorkoutBuilder {
   }
 
   private static void addAutoPauseTrigger(Resources res, Step step, SharedPreferences prefs) {
-    boolean enableAutoPause =
-        prefs.getBoolean(res.getString(R.string.pref_autopause_active), false);
-    if (!enableAutoPause) return;
-
-    float autoPauseMinSpeed = 0;
-    float autoPauseAfterSeconds = 5f;
-
-    String val = prefs.getString(res.getString(R.string.pref_autopause_minpace), "20");
-    try {
-      float autoPauseMinPace = Float.parseFloat(val);
-      if (autoPauseMinPace > 0) autoPauseMinSpeed = 1000 / (autoPauseMinPace * 60);
-    } catch (NumberFormatException e) {
-    }
-    val = prefs.getString(res.getString(R.string.pref_autopause_afterseconds), "5");
-    try {
-      autoPauseAfterSeconds = Float.parseFloat(val);
-    } catch (NumberFormatException e) {
-    }
-    AutoPauseTrigger tr = new AutoPauseTrigger(autoPauseAfterSeconds, autoPauseMinSpeed);
-    step.triggers.add(tr);
+    // Auto-pause is permanently disabled: it was dropping GPS rows during rest intervals in
+    // interval workouts (samples weren't being saved while the tracker thought the runner had
+    // stopped), which produced under-counted active-lap distances. We never attach the
+    // trigger anymore, regardless of pref_autopause_active. The preference and UI rows are
+    // left in place to avoid breaking settings screens, but they have no effect.
   }
 
   /**
@@ -198,14 +184,32 @@ public class WorkoutBuilder {
           step.durationValue = intervalDistance;
           break;
       }
-      int intervalHrzSel =
-          prefs.getInt(res.getString(R.string.pref_interval_target_hrz), /* none */ 0);
-      if (intervalHrzSel > 0) {
-        HRZones hrCalc = new HRZones(res, prefs);
-        Pair<Integer, Integer> vals = hrCalc.getHRValues(intervalHrzSel);
-        if (vals != null) {
-          step.targetType = Dimension.HR;
-          step.targetValue = new Range(vals.first, vals.second);
+      // Pace target takes precedence over HR zone target if both are configured. A pace
+      // string of "00:00:00" (the default) means no pace target.
+      long intervalTargetPaceSec =
+          SafeParse.parseSeconds(
+              prefs.getString(res.getString(R.string.pref_interval_target_pace), "00:00:00"), 0);
+      boolean paceTargetApplied = false;
+      if (intervalTargetPaceSec > 0) {
+        double unitMeters = Formatter.getUnitMeters(res, prefs);
+        int targetPaceRange =
+            prefs.getInt(res.getString(R.string.pref_basic_target_pace_min_range), 15);
+        double targetPaceMax = intervalTargetPaceSec / unitMeters;
+        double targetPaceMin = (targetPaceMax * unitMeters - targetPaceRange) / unitMeters;
+        step.targetType = Dimension.PACE;
+        step.targetValue = new Range(targetPaceMin, targetPaceMax);
+        paceTargetApplied = true;
+      }
+      if (!paceTargetApplied) {
+        int intervalHrzSel =
+            prefs.getInt(res.getString(R.string.pref_interval_target_hrz), /* none */ 0);
+        if (intervalHrzSel > 0) {
+          HRZones hrCalc = new HRZones(res, prefs);
+          Pair<Integer, Integer> vals = hrCalc.getHRValues(intervalHrzSel);
+          if (vals != null) {
+            step.targetType = Dimension.HR;
+            step.targetValue = new Range(vals.first, vals.second);
+          }
         }
       }
       repeat.steps.add(step);
@@ -309,7 +313,26 @@ public class WorkoutBuilder {
       Step next = i + 1 == stepArr.length ? null : stepArr[i + 1];
 
       if (step.getIntensity() == Intensity.REPEAT) {
-        addAudioCuesToWorkout(res, ((RepeatStep) step).steps, audioPrefs, prefs, workoutType);
+        RepeatStep repeat = (RepeatStep) step;
+        addAudioCuesToWorkout(res, repeat.steps, audioPrefs, prefs, workoutType);
+        // After audio cues are attached to inner steps, optionally announce "interval N of M" at
+        // the start of every active inner step. Insert the trigger first so the count is spoken
+        // before the existing "lap started" cue.
+        boolean announceIteration =
+            workoutType == Constants.WORKOUT_TYPE.INTERVAL
+                && audioPrefs.getBoolean(
+                    res.getString(R.string.pref_interval_announce_iteration), true);
+        if (announceIteration && repeat.getRepeatCount() > 1) {
+          for (Step inner : repeat.steps) {
+            if (inner.getIntensity() != Intensity.ACTIVE) continue;
+            EventTrigger countCue = new EventTrigger();
+            countCue.event = Event.STARTED;
+            countCue.scope = Scope.STEP;
+            countCue.maxCounter = 1;
+            countCue.triggerAction.add(new IntervalCountAudioFeedback(repeat));
+            inner.triggers.add(0, countCue);
+          }
+        }
         continue;
       }
 
@@ -470,7 +493,10 @@ public class WorkoutBuilder {
           paceCue.interval = paceCueEvery;
           paceCue.scope = Scope.STEP;
           paceCue.dimension = Dimension.TIME;
-          paceCue.triggerAction.add(new AudioFeedback(Scope.CURRENT, Dimension.PACE));
+          // Step-scoped pace = average pace over this work interval only. Avoids the
+          // Tracker.mCurrentSpeed EMA bleeding warmup/rest samples into the cue at the start
+          // of a work interval (see Tracker.java alpha=0.4 low-pass with no per-step reset).
+          paceCue.triggerAction.add(new AudioFeedback(Scope.STEP, Dimension.PACE));
           paceCue.triggerSuppression.add(EndOfLapSuppression.EmptyLapSuppression);
           step.triggers.add(paceCue);
         }
@@ -697,11 +723,15 @@ public class WorkoutBuilder {
       }
       Log.d("WorkoutBuilder", "setAutolap(" + val + ")");
       for (StepListEntry s : steps) {
+        // Apply autolap to: every step in BASIC workouts; otherwise to ACTIVE work intervals
+        // and to WARMUP/COOLDOWN so a long warmup or cooldown is split into 1 km laps with a
+        // shorter remainder lap. (Step.checkFinished handles the per-km split + remainder once
+        // setAutolap is called; nothing else is needed.)
+        Intensity intensity = s.step.getIntensity();
         if (basic
-            || s.step.getIntensity() == Intensity.ACTIVE
-            ||
-            // Also set on the last in the flat list
-            s == steps.get(steps.size() - 1)) {
+            || intensity == Intensity.ACTIVE
+            || intensity == Intensity.WARMUP
+            || intensity == Intensity.COOLDOWN) {
           s.step.setAutolap(val);
         }
       }

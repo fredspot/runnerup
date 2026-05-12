@@ -78,6 +78,31 @@ public class PersistentGpsLoggerListener extends LocationListenerBase implements
       Float cadValue,
       Float temperatureValue,
       Float pressureValue) {
+    onLocationChanged(
+        arg0,
+        eleValue,
+        elapsed,
+        distance,
+        hrValue,
+        /* hrSource= */ null,
+        cadValue,
+        /* cadenceSource= */ null,
+        temperatureValue,
+        pressureValue);
+  }
+
+  /** Phase 5: variant that tags the row with the source of HR / cadence. */
+  public void onLocationChanged(
+      Location arg0,
+      Double eleValue,
+      Long elapsed,
+      Double distance,
+      Integer hrValue,
+      Integer hrSource,
+      Float cadValue,
+      Integer cadenceSource,
+      Float temperatureValue,
+      Float pressureValue) {
     ContentValues values;
     synchronized (mLock) {
       if (mKey == null) values = new ContentValues();
@@ -127,9 +152,15 @@ public class PersistentGpsLoggerListener extends LocationListenerBase implements
     }
     if (hrValue != null) {
       values.put(DB.LOCATION.HR, hrValue);
+      if (hrSource != null && hrSource > 0) {
+        values.put(DB.LOCATION.HR_SOURCE, hrSource);
+      }
     }
     if (cadValue != null) {
       values.put(DB.LOCATION.CADENCE, cadValue);
+      if (cadenceSource != null && cadenceSource > 0) {
+        values.put(DB.LOCATION.CADENCE_SOURCE, cadenceSource);
+      }
     }
     if (temperatureValue != null) {
       values.put(DB.LOCATION.TEMPERATURE, temperatureValue);

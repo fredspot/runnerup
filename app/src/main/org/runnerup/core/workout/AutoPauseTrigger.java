@@ -54,6 +54,9 @@ public class AutoPauseTrigger extends Trigger {
           mStoppedMovingAt = lastTime;
         } else if ((lastTime - mStoppedMovingAt) >= mAutoPauseAfter) {
           mIsAutoPaused = true;
+          // Tag the persisted PAUSE row as TYPE_AUTO_PAUSE so recompute and exporters can
+          // tell auto-pause apart from a user button press.
+          workout.tracker.markNextPauseAsAuto();
           workout.onPause(workout);
         }
       } else {
@@ -62,6 +65,7 @@ public class AutoPauseTrigger extends Trigger {
     } else {
       if (currentSpeed > mAutoPauseMinSpeed) {
         resetPaused(mPausedByUser);
+        workout.tracker.markNextResumeAsAuto();
         workout.onResume(workout);
       }
     }

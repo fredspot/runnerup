@@ -112,9 +112,9 @@ public class HistoryFragment extends Fragment
     LoaderManager.getInstance(this).initLoader(0, null, this);
     AppCompatDelegate.setCompatVectorFromResourcesEnabled(true);
 
-    // Fix corrupted lap distances (one-time fix for activities with 800-1200m laps)
-    ActivityCleaner.fixCorruptedLapDistances(mDB);
-    
+    // Note: fixCorruptedLapDistances was destructive for interval workouts (it snapped any
+    // 800-1200 m lap to exactly 1000 m, mangling intervals). It is no longer invoked
+    // automatically; conditionalRecompute now preserves authoritative workout-saved values.
     new ActivityCleaner().conditionalRecompute(mDB);
   }
 

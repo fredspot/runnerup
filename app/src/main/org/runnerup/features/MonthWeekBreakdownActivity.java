@@ -197,6 +197,17 @@ public class MonthWeekBreakdownActivity extends AppCompatActivity {
       byWeek.put(ws, new Agg());
     }
 
+    // Load activities for the full Monday–Sunday span of every listed week — not only the calendar
+    // month. Otherwise a week that straddles two months gets different totals when opened from
+    // each month (runs in the other month were excluded by START_TIME month bounds).
+    long queryStartSec = 0;
+    long queryEndSecExclusive = 0;
+    if (!weekStarts.isEmpty()) {
+      queryStartSec = weekStarts.get(0) / 1000L;
+      queryEndSecExclusive =
+          weekStarts.get(weekStarts.size() - 1) / 1000L + 7L * 24 * 3600;
+    }
+
     String sql =
         "SELECT "
             + Constants.DB.ACTIVITY.START_TIME
@@ -218,8 +229,8 @@ public class MonthWeekBreakdownActivity extends AppCompatActivity {
 
     String[] args = {
       String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING),
-      String.valueOf(monthStartSec),
-      String.valueOf(monthEndSecExclusive)
+      String.valueOf(queryStartSec),
+      String.valueOf(queryEndSecExclusive)
     };
 
     Locale locale = Locale.getDefault();

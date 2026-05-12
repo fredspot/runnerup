@@ -49,7 +49,7 @@ import org.runnerup.core.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 41;
+  private static final int DBVERSION = 46;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -101,7 +101,10 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.LOCATION.ACCURANCY + " real, ")
           + (DB.LOCATION.SPEED + " real, ")
           + (DB.LOCATION.BEARING + " real, ")
-          + (DB.LOCATION.SATELLITES + " integer ")
+          + (DB.LOCATION.SATELLITES + " integer, ")
+          + (DB.LOCATION.STEP + " integer, ")
+          + (DB.LOCATION.HR_SOURCE + " integer, ")
+          + (DB.LOCATION.CADENCE_SOURCE + " integer ")
           + ");";
 
   private static final String CREATE_TABLE_LAP =
@@ -119,8 +122,50 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.LAP.PLANNED_PACE + " real, ")
           + (DB.LAP.AVG_HR + " integer, ")
           + (DB.LAP.MAX_HR + " integer, ")
-          + (DB.LAP.AVG_CADENCE + " real ")
+          + (DB.LAP.AVG_CADENCE + " real, ")
+          + (DB.LAP.STEP + " integer ")
           + ");";
+
+  private static final String CREATE_TABLE_STEP =
+      "create table "
+          + DB.STEP.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.STEP.ACTIVITY + " integer not null, ")
+          + (DB.STEP.PARENT_ID + " integer, ")
+          + (DB.STEP.ORDER_IN_PARENT + " integer not null, ")
+          + (DB.STEP.INTENSITY + " integer not null, ")
+          + (DB.STEP.DURATION_TYPE + " integer, ")
+          + (DB.STEP.DURATION_VALUE + " real, ")
+          + (DB.STEP.TARGET_TYPE + " integer, ")
+          + (DB.STEP.TARGET_MIN + " real, ")
+          + (DB.STEP.TARGET_MAX + " real, ")
+          + (DB.STEP.REPEAT_COUNT + " integer, ")
+          + (DB.STEP.NAME + " text ")
+          + ");";
+
+  private static final String CREATE_TABLE_ACTIVITY_EVENT =
+      "create table "
+          + DB.ACTIVITY_EVENT.TABLE
+          + " ( "
+          + ("_id integer primary key autoincrement, ")
+          + (DB.ACTIVITY_EVENT.ACTIVITY + " integer not null, ")
+          + (DB.ACTIVITY_EVENT.TS_ELAPSED_MS + " integer, ")
+          + (DB.ACTIVITY_EVENT.TS_WALLCLOCK_MS + " integer not null, ")
+          + (DB.ACTIVITY_EVENT.EVENT_TYPE + " integer not null, ")
+          + (DB.ACTIVITY_EVENT.STEP_ID + " integer, ")
+          + (DB.ACTIVITY_EVENT.LAP + " integer, ")
+          + (DB.ACTIVITY_EVENT.PAYLOAD + " text ")
+          + ");";
+
+  private static final String CREATE_INDEX_ACTIVITY_EVENT =
+      "create index if not exists ACTIVITY_EVENT_ACTIVITY on "
+          + DB.ACTIVITY_EVENT.TABLE
+          + " ("
+          + DB.ACTIVITY_EVENT.ACTIVITY
+          + ", "
+          + DB.ACTIVITY_EVENT.TS_ELAPSED_MS
+          + ")";
 
   @SuppressWarnings("SyntaxError")
   private static final String CREATE_TABLE_ACCOUNT =
@@ -397,6 +442,9 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     arg0.execSQL(CREATE_TABLE_YEARLY_CUMULATIVE);
     arg0.execSQL(CREATE_TABLE_TENDON);
     arg0.execSQL(CREATE_TABLE_ACTIVITY_INJURY);
+    arg0.execSQL(CREATE_TABLE_STEP);
+    arg0.execSQL(CREATE_TABLE_ACTIVITY_EVENT);
+    arg0.execSQL(CREATE_INDEX_ACTIVITY_EVENT);
 
     onCreateUpgrade(arg0, 0, DBVERSION);
   }
@@ -563,6 +611,77 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           DB.COMPUTATION_TRACKING.TABLE,
           DB.COMPUTATION_TRACKING.COMPUTATION_TYPE + " = ?",
           new String[] {"best_times"});
+    }
+    if (oldVersion < 42) {
+      // Phase 2: persistent workout schedule. Existing activities get a NULL LAP.STEP and no
+      // step rows; readers must tolerate the absence.
+      arg0.execSQL(CREATE_TABLE_STEP);
+      echoDo(arg0, "alter table " + DB.LAP.TABLE + " add column " + DB.LAP.STEP + " integer");
+    }
+    if (oldVersion < 44) {
+      // Phase 4: activity event log. Existing activities have no events; readers must handle
+      // the empty case.
+      arg0.execSQL(CREATE_TABLE_ACTIVITY_EVENT);
+      arg0.execSQL(CREATE_INDEX_ACTIVITY_EVENT);
+    }
+    if (oldVersion < 45) {
+      // Phase 5: per-sample HR / cadence source tags. NULL for legacy rows; new writes set
+      // them to one of DB.SENSOR_SOURCE values.
+      echoDo(
+          arg0,
+          "alter table " + DB.LOCATION.TABLE + " add column " + DB.LOCATION.HR_SOURCE + " integer");
+      echoDo(
+          arg0,
+          "alter table "
+              + DB.LOCATION.TABLE
+              + " add column "
+              + DB.LOCATION.CADENCE_SOURCE
+              + " integer");
+    }
+    if (oldVersion < 46) {
+      // BestTimesCalculator algorithm change: laps with elapsed time but zero recorded
+      // distance (e.g. a 60 s recovery with a GPS dropout) now correctly contribute their
+      // time to the sliding 10 km / etc. window — previously they were silently skipped,
+      // giving the segment a free time shortcut. Wipe the cached best_times tracking row
+      // so isDataStale() forces a recompute under the new logic on next launch.
+      arg0.delete(
+          DB.COMPUTATION_TRACKING.TABLE,
+          DB.COMPUTATION_TRACKING.COMPUTATION_TYPE + " = ?",
+          new String[] {"best_times"});
+    }
+    if (oldVersion < 43) {
+      // Phase 3: LOCATION.STEP. Best-effort backfill from LAP.STEP (legacy rows that have a
+      // step on their lap inherit it). NULL elsewhere.
+      echoDo(arg0, "alter table " + DB.LOCATION.TABLE + " add column " + DB.LOCATION.STEP + " integer");
+      echoDo(
+          arg0,
+          "update "
+              + DB.LOCATION.TABLE
+              + " set "
+              + DB.LOCATION.STEP
+              + " = (select "
+              + DB.LAP.STEP
+              + " from "
+              + DB.LAP.TABLE
+              + " where "
+              + DB.LAP.TABLE
+              + "."
+              + DB.LAP.ACTIVITY
+              + " = "
+              + DB.LOCATION.TABLE
+              + "."
+              + DB.LOCATION.ACTIVITY
+              + " and "
+              + DB.LAP.TABLE
+              + "."
+              + DB.LAP.LAP
+              + " = "
+              + DB.LOCATION.TABLE
+              + "."
+              + DB.LOCATION.LAP
+              + ") where "
+              + DB.LOCATION.STEP
+              + " is null");
     }
     if (oldVersion < 39) {
       // Add best month columns to monthly_comparison table

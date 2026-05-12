@@ -6,7 +6,6 @@ import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import org.runnerup.common.util.Constants;
 import org.runnerup.data.entities.BestTimesEntity;
@@ -279,145 +278,118 @@ public class BestTimesCalculator {
   }
 
   /**
-   * Computes best time for a specific distance using lap data.
+   * Computes the best time for a target distance using a sliding cumulative lap window.
+   *
+   * <p>For every starting lap {@code i} we extend a window forward, accumulating distance and time
+   * (including any lap intensity — rest/recovery laps in an interval workout are <em>not</em>
+   * skipped, so a 10 km interval workout's overall 10 km elapsed time is fairly considered against
+   * the 10 km best-time list). The window stops as soon as it covers at least {@code
+   * targetDistance}; if the last included lap overshoots, the segment time is linearly interpolated
+   * over that lap so it represents exactly {@code targetDistance} at the lap's average pace. The
+   * best (smallest) such segment time across all start positions is the activity's best time for
+   * that target.
    */
-  private static BestTimeResult computeBestTimeFromLaps(SQLiteDatabase db, Long activityId, int targetDistance) {
+  private static BestTimeResult computeBestTimeFromLaps(
+      SQLiteDatabase db, Long activityId, int targetDistance) {
     ActivityInfo activityInfo = getActivityInfo(db, activityId);
     if (activityInfo == null) {
       return null;
     }
-    
-    // Require that the activity's total distance is at least the target distance
-    // This prevents activities shorter than the target from being included
+
     if (activityInfo.totalDistance < targetDistance) {
-      Log.d(TAG, "Activity " + activityId + " total distance (" + activityInfo.totalDistance + "m) is less than target (" + targetDistance + "m), skipping");
+      Log.d(
+          TAG,
+          "Activity "
+              + activityId
+              + " total distance ("
+              + activityInfo.totalDistance
+              + "m) is less than target ("
+              + targetDistance
+              + "m), skipping");
       return null;
     }
-    
+
     List<LapInfo> laps = getLaps(db, activityId);
     if (laps.isEmpty()) {
       return null;
     }
-    
-    BestTimeResult bestResult = null;
-    long bestTime = Long.MAX_VALUE;
-    
-    // Strategy based on target distance
-    if (targetDistance == 1000) {
-      // For 1km: find the fastest single lap that's close to 1km
-      bestResult = findFastestSingleLap(laps, targetDistance, activityInfo);
-    } else if (targetDistance == 5000) {
-      // For 5km: find fastest 5 consecutive laps
-      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 5);
-    } else if (targetDistance == 10000) {
-      // For 10km: find fastest 10 consecutive laps
-      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 10);
-    } else if (targetDistance == 15000) {
-      // For 15km: find fastest 15 consecutive laps
-      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 15);
-    } else if (targetDistance == 20000) {
-      // For 20km: find fastest 20 consecutive laps
-      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 20);
-    } else if (targetDistance == 21097) {
-      // For Half Marathon: find fastest ~21 consecutive laps
-      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 21);
-    } else if (targetDistance == 30000) {
-      // For 30km: find fastest 30 consecutive laps
-      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 30);
-    } else if (targetDistance == 40000) {
-      // For 40km: find fastest 40 consecutive laps
-      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 40);
-    } else if (targetDistance == 42195) {
-      // For Marathon: find fastest ~42 consecutive laps
-      bestResult = findFastestConsecutiveLaps(laps, targetDistance, activityInfo, 42);
-    }
-    
-    return bestResult;
+
+    return findFastestSegment(laps, targetDistance, activityInfo);
   }
 
   /**
-   * Finds the fastest single lap close to target distance.
+   * Sliding cumulative window. Returns the fastest contiguous lap segment that covers exactly
+   * {@code targetDistance} (interpolating into the final overshooting lap), or {@code null} if no
+   * such segment exists with a sane pace.
+   *
+   * <p>Time is sacrosanct: a lap that has elapsed time but zero recorded distance (e.g. a 60 s
+   * recovery during which GPS dropped out) still contributes its time to the window — silently
+   * skipping it would give the run a free 60 s shortcut that did not actually happen.
    */
-  private static BestTimeResult findFastestSingleLap(List<LapInfo> laps, int targetDistance, ActivityInfo activityInfo) {
+  private static BestTimeResult findFastestSegment(
+      List<LapInfo> laps, int targetDistance, ActivityInfo activityInfo) {
     BestTimeResult bestResult = null;
-    long bestTime = Long.MAX_VALUE;
-    
-    for (LapInfo lap : laps) {
-      // Check if lap distance is close to target (within 5% tolerance for complete laps)
-      double distanceRatio = lap.distanceM / targetDistance;
-      Log.d(TAG, "Lap " + lap.lapNumber + ": " + lap.distanceM + "m, ratio: " + String.format("%.2f", distanceRatio));
-      
-      if (distanceRatio >= 0.95 && distanceRatio <= 1.05) {
-        // Validate pace
-        double pacePerKm = lap.timeSeconds / (lap.distanceM / 1000.0);
-        Log.d(TAG, "Valid lap " + lap.lapNumber + ": pace " + String.format("%.1f", pacePerKm) + "s/km");
-        
-        if (pacePerKm >= MIN_PACE_PER_KM && pacePerKm <= MAX_PACE_PER_KM) {
-          if (lap.timeSeconds < bestTime) {
-            bestResult = new BestTimeResult();
-            bestResult.activityId = activityInfo.activityId;
-            bestResult.startTime = activityInfo.startTime;
-            bestResult.timeMs = lap.timeSeconds * 1000; // Convert to milliseconds for storage
-            bestResult.pacePerKm = pacePerKm;
-            bestResult.avgHr = lap.avgHr > 0 ? lap.avgHr : activityInfo.avgHr;
-            bestResult.maxHr = activityInfo.maxHr > 0 ? activityInfo.maxHr : null;
-            bestTime = lap.timeSeconds;
-            Log.d(TAG, "New best time: " + lap.timeSeconds + "s for " + lap.distanceM + "m");
-          }
+    double bestTimeSec = Double.MAX_VALUE;
+
+    int n = laps.size();
+    for (int startIdx = 0; startIdx < n; startIdx++) {
+      double accumDist = 0;
+      double accumTime = 0;
+      int accumHrSum = 0;
+      int accumHrCount = 0;
+
+      for (int j = startIdx; j < n; j++) {
+        LapInfo lap = laps.get(j);
+        if (lap.timeSeconds <= 0) {
+          // Lap with no recorded elapsed time is a pure marker — skip it. Skipping
+          // a real-time lap would artificially shorten the segment.
+          continue;
         }
-      } else {
-        Log.d(TAG, "Skipping lap " + lap.lapNumber + " - distance ratio " + String.format("%.2f", distanceRatio) + " outside 0.95-1.05 range");
-      }
-    }
-    
-    return bestResult;
-  }
+        // Note: we deliberately do NOT skip laps with distanceM == 0 but timeSeconds > 0.
+        // These are real elapsed time the runner experienced (e.g. a 60 s recovery during
+        // which GPS happened to drop out, or a paused-rest with no movement). Their time
+        // must remain inside the window or the segment pace would be falsely improved.
 
-  /**
-   * Finds the fastest consecutive laps that add up to approximately target distance.
-   */
-  private static BestTimeResult findFastestConsecutiveLaps(List<LapInfo> laps, int targetDistance, ActivityInfo activityInfo, int expectedLapCount) {
-    BestTimeResult bestResult = null;
-    long bestTime = Long.MAX_VALUE;
-    
-    // Try different starting positions
-    for (int startIdx = 0; startIdx <= laps.size() - expectedLapCount; startIdx++) {
-      long totalTime = 0;
-      double totalDistance = 0;
-      int totalHr = 0;
-      int hrCount = 0;
-      
-      // Sum up consecutive laps
-      for (int i = 0; i < expectedLapCount && startIdx + i < laps.size(); i++) {
-        LapInfo lap = laps.get(startIdx + i);
-        totalTime += lap.timeSeconds;
-        totalDistance += lap.distanceM;
+        double remaining = targetDistance - accumDist;
+        if (lap.distanceM < remaining) {
+          accumDist += lap.distanceM;
+          accumTime += lap.timeSeconds;
+          if (lap.avgHr > 0) {
+            accumHrSum += lap.avgHr;
+            accumHrCount++;
+          }
+          continue;
+        }
+
+        // This lap completes (or overshoots) the target. Linearly interpolate its time
+        // proportionally to the remaining distance covered within it.
+        double partialTime = lap.timeSeconds * (remaining / lap.distanceM);
+        double segmentTime = accumTime + partialTime;
         if (lap.avgHr > 0) {
-          totalHr += lap.avgHr;
-          hrCount++;
+          // Weight HR by the partial fraction of this lap consumed.
+          accumHrSum += (int) Math.round(lap.avgHr);
+          accumHrCount++;
         }
-      }
-      
-      // Check if total distance is close to target (within 5% tolerance for complete laps)
-      double distanceRatio = totalDistance / targetDistance;
-      if (distanceRatio >= 0.95 && distanceRatio <= 1.05) {
-        // Validate pace
-        double pacePerKm = totalTime / (totalDistance / 1000.0);
+
+        double pacePerKm = segmentTime / (targetDistance / 1000.0);
         if (pacePerKm >= MIN_PACE_PER_KM && pacePerKm <= MAX_PACE_PER_KM) {
-          if (totalTime < bestTime) {
+          if (segmentTime < bestTimeSec) {
+            bestTimeSec = segmentTime;
             bestResult = new BestTimeResult();
             bestResult.activityId = activityInfo.activityId;
             bestResult.startTime = activityInfo.startTime;
-            bestResult.timeMs = totalTime * 1000; // Convert to milliseconds for storage
+            bestResult.timeMs = Math.round(segmentTime * 1000.0);
             bestResult.pacePerKm = pacePerKm;
-            bestResult.avgHr = hrCount > 0 ? totalHr / hrCount : activityInfo.avgHr;
+            bestResult.avgHr =
+                accumHrCount > 0 ? accumHrSum / accumHrCount : activityInfo.avgHr;
             bestResult.maxHr = activityInfo.maxHr > 0 ? activityInfo.maxHr : null;
-            bestTime = totalTime;
           }
         }
+        // Done with this start position.
+        break;
       }
     }
-    
+
     return bestResult;
   }
 

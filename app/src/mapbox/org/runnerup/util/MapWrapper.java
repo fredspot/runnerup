@@ -191,8 +191,15 @@ public class MapWrapper implements Constants {
         } else if (type == DB.LOCATION.TYPE_START
             || type == DB.LOCATION.TYPE_END
             || type == DB.LOCATION.TYPE_PAUSE
-            || type == DB.LOCATION.TYPE_RESUME) {
-          iconImage = type.toString();
+            || type == DB.LOCATION.TYPE_RESUME
+            || type == DB.LOCATION.TYPE_AUTO_PAUSE
+            || type == DB.LOCATION.TYPE_AUTO_RESUME) {
+          // Auto-pause/resume reuse the manual icons; no UI change today.
+          int iconType =
+              type == DB.LOCATION.TYPE_AUTO_PAUSE
+                  ? DB.LOCATION.TYPE_PAUSE
+                  : type == DB.LOCATION.TYPE_AUTO_RESUME ? DB.LOCATION.TYPE_RESUME : type;
+          iconImage = Integer.toString(iconType);
         } else {
           iconImage = null;
         }

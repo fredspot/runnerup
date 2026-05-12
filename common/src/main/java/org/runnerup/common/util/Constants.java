@@ -83,6 +83,15 @@ public interface Constants {
       String CADENCE = "cadence";
       String TEMPERATURE = "temperature";
       String PRESSURE = "pressure";
+      // Phase 3: foreign key into the STEP table; identifies the workout step this sample
+      // belongs to. Nullable for samples logged before this column existed and for sessions
+      // without a structured workout.
+      String STEP = "step";
+      // Phase 5: source of the HR and cadence values on this row, from {@link SENSOR_SOURCE}.
+      // Nullable; legacy rows leave these NULL. Future code can use them to decide which
+      // source to trust when multiple sensors are paired or one drops out mid-run.
+      String HR_SOURCE = "hr_source";
+      String CADENCE_SOURCE = "cadence_source";
 
       int TYPE_START = 1;
       int TYPE_END = 2;
@@ -90,6 +99,22 @@ public interface Constants {
       int TYPE_PAUSE = 4;
       int TYPE_RESUME = 5;
       int TYPE_DISCARD = 6;
+      // Phase 1: distinguish auto-pause/resume from a manually-triggered pause/resume so that
+      // recompute, exporters, and the event log can tell them apart. Existing TYPE_PAUSE /
+      // TYPE_RESUME values continue to mean "manual" by default.
+      int TYPE_AUTO_PAUSE = 7;
+      int TYPE_AUTO_RESUME = 8;
+    }
+
+    /** Phase 5: source of an HR or cadence sample on a {@link LOCATION} row. */
+    interface SENSOR_SOURCE {
+      // Reserved: keep 0 free so a NULL column equals "unknown" by convention without needing
+      // a sentinel constant.
+      int UNKNOWN = 0;
+      int INTERNAL = 1; // Android device sensor
+      int BLE = 2; // Bluetooth Low Energy (e.g. chest strap, optical sensor)
+      int ANT = 3; // ANT+ accessory
+      int MANUAL = 4; // user-entered, not measured
     }
 
     interface LAP {
@@ -105,6 +130,75 @@ public interface Constants {
       String AVG_HR = "avg_hr";
       String MAX_HR = "max_hr";
       String AVG_CADENCE = "avg_cadence";
+      // Phase 2: foreign key into the new STEP table; identifies the workout step this lap
+      // belongs to. Nullable for activities recorded before this column existed and for
+      // sessions that don't have a structured workout (e.g. open-ended runs).
+      String STEP = "step";
+    }
+
+    /**
+     * Phase 4: streaming event log written during the activity. Captures things that don't fit
+     * the per-sample {@link LOCATION} or per-lap {@link LAP} rows: button presses, auto-step
+     * advance, audio cue firings, sensor connect/disconnect, etc. Optional and append-only;
+     * recompute and other readers must tolerate it being empty.
+     */
+    interface ACTIVITY_EVENT {
+      String TABLE = "activity_event";
+      String ACTIVITY = "activity_id";
+      // Tracker.getTimeMs() at the moment the event fired (matches LOCATION.ELAPSED).
+      String TS_ELAPSED_MS = "ts_elapsed_ms";
+      // System.currentTimeMillis() at the moment the event fired.
+      String TS_WALLCLOCK_MS = "ts_wallclock_ms";
+      // Discriminator from {@link EVENT_TYPE}.
+      String EVENT_TYPE = "event_type";
+      String STEP_ID = "step_id"; // FK to STEP._id, NULL if no current step
+      String LAP = "lap"; // mirrors LOCATION.LAP at fire time, NULL if unknown
+      // Small text blob carrying event-specific data (e.g. cue voice text). Optional.
+      String PAYLOAD = "payload";
+    }
+
+    /** Event type discriminator for {@link ACTIVITY_EVENT#EVENT_TYPE}. */
+    interface EVENT_TYPE {
+      int MANUAL_LAP = 1;
+      int AUTO_STEP_ADVANCE = 2;
+      int MANUAL_PAUSE = 3;
+      int MANUAL_RESUME = 4;
+      int AUTO_PAUSE = 5;
+      int AUTO_RESUME = 6;
+      int CUE_FIRED = 7;
+      int GPS_LOST = 8;
+      int GPS_REGAINED = 9;
+      int HR_CONNECTED = 10;
+      int HR_DISCONNECTED = 11;
+    }
+
+    /**
+     * Phase 2: persistent workout schedule. One row per planned step (and one row per repeat
+     * container). Written once at workout start by {@code Workout.persistSchedule}; never
+     * mutated after. Lets recompute and future analytics query the workout's intent without
+     * keeping the in-memory {@code Workout} object alive.
+     */
+    interface STEP {
+      String TABLE = "step";
+      String ACTIVITY = "activity_id";
+      // Parent repeat step's _id, NULL for top-level entries. Lets us reconstruct the tree.
+      String PARENT_ID = "parent_id";
+      // Position among siblings (0-based) under the parent (or the workout root if no parent).
+      String ORDER_IN_PARENT = "order_in_parent";
+      // Mirrors DB.INTENSITY: ACTIVE / RESTING / WARMUP / COOLDOWN / REPEAT / RECOVERY.
+      String INTENSITY = "intensity";
+      // Mirrors DB.DIMENSION (TIME / DISTANCE). NULL for keypress-terminated steps and repeat
+      // containers.
+      String DURATION_TYPE = "duration_type";
+      String DURATION_VALUE = "duration_value";
+      // Mirrors DB.DIMENSION (PACE / SPEED / HR / HRZ ...). NULL when no target was set.
+      String TARGET_TYPE = "target_type";
+      String TARGET_MIN = "target_min";
+      String TARGET_MAX = "target_max";
+      // Number of repeats for REPEAT steps; NULL otherwise.
+      String REPEAT_COUNT = "repeat_count";
+      // Optional human-readable step name (e.g. "Hill repeats x6").
+      String NAME = "name";
     }
 
     interface INTENSITY {

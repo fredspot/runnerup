@@ -272,9 +272,11 @@ public class TrackerWear extends DefaultTrackerComponent
     switch (type) {
       case DB.LOCATION.TYPE_START:
       case DB.LOCATION.TYPE_RESUME:
+      case DB.LOCATION.TYPE_AUTO_RESUME:
         setTrackerState(TrackerState.STARTED);
         break;
       case DB.LOCATION.TYPE_PAUSE:
+      case DB.LOCATION.TYPE_AUTO_PAUSE:
         setTrackerState(TrackerState.PAUSED);
       case DB.LOCATION.TYPE_END:
         break;

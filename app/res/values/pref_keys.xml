@@ -100,9 +100,11 @@
     <string name="pref_interval_cooldown_time">intervalCooldownTime</string>
     <string name="pref_interval_cooldown_distance">intervalCooldownDistance</string>
     <string name="pref_interval_target_hrz">intervalTargetHrz</string>
+    <string name="pref_interval_target_pace">intervalTargetPace</string>
     <string name="pref_interval_hr_cue_interval_seconds">intervalHrCueIntervalSeconds</string>
     <string name="pref_interval_hr_cue_announcement">intervalHrCueAnnouncement</string>
     <string name="pref_interval_pace_cue_interval_seconds">intervalPaceCueIntervalSeconds</string>
+    <string name="pref_interval_announce_iteration">intervalAnnounceIteration</string>
 
     <string name="pref_advanced_audio">advancedAudio</string>
     <string name="pref_advanced_workout">advancedWorkout</string>

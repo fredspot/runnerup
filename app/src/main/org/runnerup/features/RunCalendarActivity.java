@@ -154,8 +154,10 @@ public class RunCalendarActivity extends AppCompatActivity implements Constants 
   private void populateWeekdayRow() {
     LinearLayout row = findViewById(R.id.run_calendar_weekday_row);
     row.removeAllViews();
-    java.util.Calendar cal = java.util.Calendar.getInstance();
-    int firstDow = cal.getFirstDayOfWeek();
+    // The rest of the app (Statistics, week-break SQL, WeekCalendarUtil) uses Monday-start
+    // weeks; the calendar grid must match to avoid weeks being split across rows
+    // inconsistently between the calendar and the per-week aggregates.
+    int firstDow = java.util.Calendar.MONDAY;
     DateFormatSymbols dfs = new DateFormatSymbols(Locale.getDefault());
     String[] shortWeekdays = dfs.getShortWeekdays();
     int dow = firstDow;
@@ -191,7 +193,8 @@ public class RunCalendarActivity extends AppCompatActivity implements Constants 
 
     java.util.Calendar monthCal = monthStartCal();
     int firstDayDow = monthCal.get(java.util.Calendar.DAY_OF_WEEK);
-    int firstDayOfWeek = monthCal.getFirstDayOfWeek();
+    // Force Monday-start regardless of locale; must match populateWeekdayRow() above.
+    int firstDayOfWeek = java.util.Calendar.MONDAY;
     int startOffset = (firstDayDow - firstDayOfWeek + 7) % 7;
     int daysInMonth = monthCal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH);
 
@@ -244,6 +247,7 @@ public class RunCalendarActivity extends AppCompatActivity implements Constants 
 
   private java.util.Calendar monthStartCal() {
     java.util.Calendar c = java.util.Calendar.getInstance();
+    c.setFirstDayOfWeek(java.util.Calendar.MONDAY);
     c.set(viewYear, viewMonth, 1, 0, 0, 0);
     c.set(java.util.Calendar.MILLISECOND, 0);
     return c;

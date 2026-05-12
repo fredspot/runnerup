@@ -18,6 +18,7 @@
 package org.runnerup.core.workout;
 
 import android.content.ContentValues;
+import android.database.sqlite.SQLiteDatabase;
 import android.location.Location;
 import android.util.Log;
 import java.util.ArrayList;
@@ -108,6 +109,77 @@ public class Workout implements WorkoutComponent, WorkoutInfo {
     this.tracker = tracker;
   }
 
+  /**
+   * Phase 4: route an event from any workout-level component (triggers, feedback) to the
+   * tracker's event log without exposing the package-private tracker field. No-op when there
+   * is no tracker (e.g. unit tests).
+   */
+  public void logEvent(int eventType, String payload) {
+    if (tracker != null) {
+      tracker.logEvent(eventType, payload);
+    }
+  }
+
+  /**
+   * Phase 2: persist the planned workout tree to the {@code step} table for {@code activityId}.
+   * Called once by {@link Tracker#start()} after the activity row is inserted, before
+   * {@link #onStart(Scope, Workout)} fires (so the first lap can already record its
+   * {@code LAP.STEP}).
+   *
+   * <p>Each persisted row's {@code _id} is stored on the in-memory {@link Step} via
+   * {@link Step#setPersistedStepId}. Repeat children inherit the repeat row's {@code _id} as
+   * their {@code PARENT_ID}.
+   *
+   * <p>Safe to call with a {@code null} db (no-op) for tests that don't use a real database.
+   */
+  public void persistSchedule(SQLiteDatabase db, long activityId) {
+    if (db == null || activityId <= 0) return;
+    for (int i = 0; i < steps.size(); i++) {
+      persistStepRecursive(db, activityId, steps.get(i), /* parentId= */ 0L, i);
+    }
+  }
+
+  private static void persistStepRecursive(
+      SQLiteDatabase db, long activityId, Step step, long parentId, int orderInParent) {
+    ContentValues row = new ContentValues();
+    row.put(DB.STEP.ACTIVITY, activityId);
+    if (parentId > 0) row.put(DB.STEP.PARENT_ID, parentId);
+    row.put(DB.STEP.ORDER_IN_PARENT, orderInParent);
+    row.put(DB.STEP.INTENSITY, step.getIntensity().getValue());
+
+    Dimension durationType = step.getDurationType();
+    if (durationType != null) {
+      row.put(DB.STEP.DURATION_TYPE, durationType.getValue());
+      row.put(DB.STEP.DURATION_VALUE, step.getDurationValue());
+    }
+
+    Dimension targetType = step.getTargetType();
+    Range target = step.getTargetValue();
+    if (targetType != null && target != null) {
+      row.put(DB.STEP.TARGET_TYPE, targetType.getValue());
+      row.put(DB.STEP.TARGET_MIN, target.minValue);
+      row.put(DB.STEP.TARGET_MAX, target.maxValue);
+    }
+
+    if (step instanceof RepeatStep) {
+      row.put(DB.STEP.REPEAT_COUNT, ((RepeatStep) step).getRepeatCount());
+    }
+
+    if (step.getName() != null) {
+      row.put(DB.STEP.NAME, step.getName());
+    }
+
+    long id = db.insert(DB.STEP.TABLE, null, row);
+    step.setPersistedStepId(id);
+
+    if (step instanceof RepeatStep) {
+      ArrayList<Step> children = ((RepeatStep) step).getSteps();
+      for (int i = 0; i < children.size(); i++) {
+        persistStepRecursive(db, activityId, children.get(i), id, i);
+      }
+    }
+  }
+
   public void onInit(Workout w) {
     if (BuildConfig.DEBUG && w != this) {
       throw new AssertionError();
@@ -181,6 +253,11 @@ public class Workout implements WorkoutComponent, WorkoutInfo {
       boolean finished = currentStep.onTick(this);
       if (!finished) break;
 
+      // Phase 4: this transition was triggered by the step naturally finishing (duration or
+      // distance reached), not a user button. Tag it as auto.
+      if (tracker != null) {
+        tracker.logEvent(Constants.DB.EVENT_TYPE.AUTO_STEP_ADVANCE, null);
+      }
       onNextStep();
     }
     emitFeedback();
@@ -229,6 +306,12 @@ public class Workout implements WorkoutComponent, WorkoutInfo {
   }
 
   public void onNewLapOrNextStep() {
+    // Phase 4: this entry point is wired to user button presses (and Wear/Pebble forwarded
+    // presses). Always log as MANUAL_LAP — whether we ultimately call onNewLap or onNextStep
+    // is a workout-internal routing detail; the user intent is "advance the lap".
+    if (tracker != null) {
+      tracker.logEvent(Constants.DB.EVENT_TYPE.MANUAL_LAP, null);
+    }
     if (currentStep == null
         || isLastStep()
             && (

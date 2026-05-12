@@ -37,6 +37,10 @@ public class ActivityCleaner implements Constants {
 
   /** recompute laps aggregates based on locations */
   private void recomputeLaps(SQLiteDatabase db, long activityId) {
+    recomputeLaps(db, activityId, false);
+  }
+
+  private void recomputeLaps(SQLiteDatabase db, long activityId, boolean force) {
     final String[] cols = new String[] {DB.LAP.LAP};
 
     ArrayList<Long> laps = new ArrayList<>();
@@ -58,48 +62,99 @@ public class ActivityCleaner implements Constants {
     c.close();
 
     for (long lap : laps) {
-      recomputeLap(db, activityId, lap);
+      recomputeLap(db, activityId, lap, force);
     }
   }
 
-  /** recompute a lap aggregate based on locations */
+  /**
+   * Recompute a lap aggregate from GPS rows.
+   *
+   * <p>Workout-saved values are authoritative and must not be wiped:
+   *
+   * <ul>
+   *   <li>For non-ACTIVE laps (warmup, cooldown, rest, recovery), {@code Step.onComplete(LAP)}
+   *       already wrote correct DISTANCE/TIME (a paused-rest lap has no GPS rows but a real time).
+   *       Never overwrite those.
+   *   <li>For ACTIVE laps with non-zero saved DISTANCE/TIME, keep the saved values; GPS sums are
+   *       only used when the saved values are NULL/0 (e.g. older data, or a partial last lap).
+   * </ul>
+   *
+   * <p>HR aggregates are always (re)derived from GPS samples for this lap when present.
+   */
   void recomputeLap(SQLiteDatabase db, long activityId, long lap) {
-    // Reset lap-specific state (each lap should be processed independently)
-    // Save current state to restore after processing this lap
+    recomputeLap(db, activityId, lap, false);
+  }
+
+  /**
+   * Force-mode variant: when {@code force} is true, GPS-derived sums always overwrite saved
+   * DISTANCE/TIME for ANY intensity, EXCEPT when GPS yields zero (e.g. a paused-rest lap with no
+   * location rows). In that case we keep the saved value to avoid dropping useful data.
+   */
+  void recomputeLap(SQLiteDatabase db, long activityId, long lap, boolean force) {
     Location savedLastLocation = _lastLocation;
     boolean savedIsActive = _isActive;
     _lastLocation = null;
     _isActive = false;
-    
-    // Check if this is the last lap (might be incomplete and should use GPS distance)
-    long maxLap = db.compileStatement("SELECT MAX(" + DB.LAP.LAP + ") FROM " + DB.LAP.TABLE + 
-        " WHERE " + DB.LAP.ACTIVITY + " = " + activityId).simpleQueryForLong();
-    boolean isLastLap = (lap == maxLap);
-    
-    // First, check if the lap already has a distance set (from autolap during run)
-    // If so, preserve it to maintain accurate autolap distances
-    // Skip recomputation entirely if distance is already set and reasonable (800-1200m range)
-    // EXCEPT for the last lap, which might be incomplete and should always use GPS distance
-    double originalDistance = 0;
-    String[] lapCols = new String[] {DB.LAP.DISTANCE};
-    Cursor lapCursor = db.query(
-        DB.LAP.TABLE,
-        lapCols,
-        DB.LAP.ACTIVITY + " = " + activityId + " and " + DB.LAP.LAP + " = " + lap,
-        null, null, null, null);
-    if (lapCursor.moveToFirst() && !lapCursor.isNull(0)) {
-      originalDistance = lapCursor.getDouble(0);
-      
-      // If distance is already set and in reasonable autolap range (800-1200m), 
-      // skip recomputation UNLESS it's the last lap (which might be incomplete)
-      if (originalDistance >= 800 && originalDistance <= 1200 && !isLastLap) {
-        lapCursor.close();
-        return; // Skip recomputation - preserve the original autolap distance
-      }
-      // For last lap, we'll recompute to get actual GPS distance even if it was set to ~1000m
-    }
-    lapCursor.close();
 
+    int intensity = DB.INTENSITY.ACTIVE;
+    double originalDistance = 0;
+    long originalTime = 0;
+    boolean haveOriginalDistance = false;
+    boolean haveOriginalTime = false;
+    long plannedTime = 0;
+    double plannedDistance = 0;
+    boolean havePlannedTime = false;
+    boolean havePlannedDistance = false;
+    String[] lapCols =
+        new String[] {
+          DB.LAP.INTENSITY,
+          DB.LAP.DISTANCE,
+          DB.LAP.TIME,
+          DB.LAP.PLANNED_TIME,
+          DB.LAP.PLANNED_DISTANCE
+        };
+    try (Cursor lapCursor =
+        db.query(
+            DB.LAP.TABLE,
+            lapCols,
+            DB.LAP.ACTIVITY + " = " + activityId + " and " + DB.LAP.LAP + " = " + lap,
+            null,
+            null,
+            null,
+            null)) {
+      if (lapCursor.moveToFirst()) {
+        if (!lapCursor.isNull(0)) intensity = lapCursor.getInt(0);
+        if (!lapCursor.isNull(1)) {
+          originalDistance = lapCursor.getDouble(1);
+          haveOriginalDistance = true;
+        }
+        if (!lapCursor.isNull(2)) {
+          originalTime = lapCursor.getLong(2);
+          haveOriginalTime = true;
+        }
+        if (!lapCursor.isNull(3)) {
+          plannedTime = lapCursor.getLong(3);
+          havePlannedTime = plannedTime > 0;
+        }
+        if (!lapCursor.isNull(4)) {
+          plannedDistance = lapCursor.getDouble(4);
+          havePlannedDistance = plannedDistance > 0;
+        }
+      }
+    }
+
+    // First, try to derive sum_time / sum_distance from the live tracker values that were
+    // persisted on each LOCATION row: ELAPSED (monotonic active milliseconds since workout
+    // start, paused-aware) and DISTANCE (cumulative active distance). These are exactly what
+    // the live tracker measured, so when present they make recompute near-lossless.
+    //
+    // We walk active sub-segments (between START/RESUME and PAUSE/END) and sum the deltas of
+    // ELAPSED/DISTANCE within each segment. This handles intra-lap pauses correctly: time and
+    // distance only advance while STARTED, so consecutive deltas across a pause are zero.
+    long sum_time_elapsed_ms = 0;
+    double sum_distance_elapsed = 0;
+    boolean haveElapsedSamples = false;
+    boolean haveDistanceSamples = false;
     long sum_time = 0;
     long sum_hr = 0;
     double sum_distance = 0;
@@ -112,13 +167,50 @@ public class ActivityCleaner implements Constants {
           DB.LOCATION.LONGITUDE,
           DB.LOCATION.TYPE,
           DB.LOCATION.HR,
-          // DB.LOCATION.CADENCE,
-          // DB.LOCATION.TEMPERATURE,
-          // DB.LOCATION.PRESSURE,
+          DB.LOCATION.ELAPSED,
+          DB.LOCATION.DISTANCE,
           "_id"
         };
 
-    Cursor c =
+    // Seed the running cumulative ELAPSED / DISTANCE from the previous lap's last row, when
+    // available, so the inter-lap edge (typically 0.5-2 s and 3-5 m of GPS movement that
+    // happened between the last sample of the previous lap and the first sample of this one)
+    // is credited to *this* lap. Without this seeding, recompute would systematically lose
+    // ~1 s and ~3 m per lap compared to the live tracker, because the live tracker accumulates
+    // mElapsedDistance/Time continuously across lap boundaries (lap distance is computed as
+    // mElapsedDistance(now) - lapStartDistance, where lapStartDistance was sampled at lap
+    // start), whereas the recompute cursor only sees this lap's rows.
+    //
+    // Only seed from a TYPE_GPS row in the previous lap: if the previous row was a PAUSE/END
+    // (workout was stopped), the workout was inactive across that boundary and there is no
+    // real edge to credit.
+    Long seedElapsed = null;
+    Double seedDistanceCum = null;
+    try (Cursor pc =
+        db.query(
+            DB.LOCATION.TABLE,
+            new String[] {DB.LOCATION.ELAPSED, DB.LOCATION.DISTANCE, DB.LOCATION.TYPE},
+            DB.LOCATION.ACTIVITY + " = " + activityId + " and " + DB.LOCATION.LAP + " < " + lap,
+            null,
+            null,
+            null,
+            "_id desc",
+            "1")) {
+      if (pc.moveToFirst()) {
+        int prevType = pc.getInt(2);
+        boolean prevWasActiveRow =
+            prevType == DB.LOCATION.TYPE_GPS
+                || prevType == DB.LOCATION.TYPE_START
+                || prevType == DB.LOCATION.TYPE_RESUME
+                || prevType == DB.LOCATION.TYPE_AUTO_RESUME;
+        if (prevWasActiveRow) {
+          if (!pc.isNull(0)) seedElapsed = pc.getLong(0);
+          if (!pc.isNull(1)) seedDistanceCum = pc.getDouble(1);
+        }
+      }
+    }
+
+    try (Cursor c =
         db.query(
             DB.LOCATION.TABLE,
             cols,
@@ -127,87 +219,186 @@ public class ActivityCleaner implements Constants {
             null,
             null,
             "_id",
-            null);
-    if (c.moveToFirst()) {
-      do {
-        Location l = new Location("Dill poh");
-        l.setTime(c.getLong(0));
-        l.setLatitude(c.getDouble(1));
-        l.setLongitude(c.getDouble(2));
-        l.setProvider("" + c.getLong(3));
+            null)) {
+      Long prevElapsed = seedElapsed;
+      Double prevDistanceCum = seedDistanceCum;
+      if (c.moveToFirst()) {
+        do {
+          Location l = new Location("Dill poh");
+          l.setTime(c.getLong(0));
+          l.setLatitude(c.getDouble(1));
+          l.setLongitude(c.getDouble(2));
+          l.setProvider("" + c.getLong(3));
 
-        int type = c.getInt(3);
-        switch (type) {
-          case DB.LOCATION.TYPE_START:
-          case DB.LOCATION.TYPE_RESUME:
-            _lastLocation = l;
-            _isActive = true;
-            break;
-          case DB.LOCATION.TYPE_END:
-          case DB.LOCATION.TYPE_PAUSE:
-          case DB.LOCATION.TYPE_GPS:
-            if (_lastLocation == null) {
-              // First location in this lap - initialize it and mark as active
-              // (laps can start with GPS points if they're continuation of previous lap)
+          int type = c.getInt(3);
+          Long elapsedCum = c.isNull(5) ? null : c.getLong(5);
+          Double distanceCum = c.isNull(6) ? null : c.getDouble(6);
+
+          // ELAPSED / DISTANCE accumulation: deltas between consecutive rows in the same
+          // active segment. Reset on START/RESUME (lap may also start with a GPS row if the
+          // logger didn't emit an explicit START). Auto-pause/resume behave the same as the
+          // manual variants — the segment boundaries are identical.
+          boolean isResumeOrStart =
+              type == DB.LOCATION.TYPE_START
+                  || type == DB.LOCATION.TYPE_RESUME
+                  || type == DB.LOCATION.TYPE_AUTO_RESUME;
+          boolean isPauseOrEnd =
+              type == DB.LOCATION.TYPE_PAUSE
+                  || type == DB.LOCATION.TYPE_AUTO_PAUSE
+                  || type == DB.LOCATION.TYPE_END;
+          boolean segmentBoundary = isResumeOrStart || isPauseOrEnd;
+          if (segmentBoundary) {
+            // Include the boundary row itself in the previous segment's delta when it's a
+            // PAUSE/END (it carries the final ELAPSED/DISTANCE just before stopping).
+            if (isPauseOrEnd && prevElapsed != null && elapsedCum != null) {
+              long dt = elapsedCum - prevElapsed;
+              if (dt > 0) {
+                sum_time_elapsed_ms += dt;
+                haveElapsedSamples = true;
+              }
+            }
+            if (isPauseOrEnd && prevDistanceCum != null && distanceCum != null) {
+              double dd = distanceCum - prevDistanceCum;
+              if (dd > 0) {
+                sum_distance_elapsed += dd;
+                haveDistanceSamples = true;
+              }
+            }
+            // For START/RESUME, just seed the segment without crediting any delta.
+            // For PAUSE/END, clear the segment so the next active row doesn't add the gap.
+            prevElapsed = isResumeOrStart ? elapsedCum : null;
+            prevDistanceCum = isResumeOrStart ? distanceCum : null;
+          } else if (type == DB.LOCATION.TYPE_GPS) {
+            if (prevElapsed != null && elapsedCum != null) {
+              long dt = elapsedCum - prevElapsed;
+              if (dt > 0) {
+                sum_time_elapsed_ms += dt;
+                haveElapsedSamples = true;
+              }
+            }
+            if (prevDistanceCum != null && distanceCum != null) {
+              double dd = distanceCum - prevDistanceCum;
+              if (dd > 0) {
+                sum_distance_elapsed += dd;
+                haveDistanceSamples = true;
+              }
+            }
+            if (elapsedCum != null) prevElapsed = elapsedCum;
+            if (distanceCum != null) prevDistanceCum = distanceCum;
+          }
+
+          switch (type) {
+            case DB.LOCATION.TYPE_START:
+            case DB.LOCATION.TYPE_RESUME:
+            case DB.LOCATION.TYPE_AUTO_RESUME:
               _lastLocation = l;
               _isActive = true;
               break;
-            }
+            case DB.LOCATION.TYPE_END:
+            case DB.LOCATION.TYPE_PAUSE:
+            case DB.LOCATION.TYPE_AUTO_PAUSE:
+            case DB.LOCATION.TYPE_GPS:
+              if (_lastLocation == null) {
+                _lastLocation = l;
+                _isActive = true;
+                break;
+              }
 
-            if (_isActive) {
-              double diffDist = l.distanceTo(_lastLocation);
-              sum_distance += diffDist;
-              // Always accumulate GPS distance for total (will be recalculated from laps if needed)
-              _totalDistance += diffDist;
+              if (_isActive) {
+                double diffDist = l.distanceTo(_lastLocation);
+                sum_distance += diffDist;
+                _totalDistance += diffDist;
 
-              long diffTime = l.getTime() - _lastLocation.getTime();
-              sum_time += diffTime;
-              _totalTime += diffTime;
+                long diffTime = l.getTime() - _lastLocation.getTime();
+                sum_time += diffTime;
+                _totalTime += diffTime;
 
-              int hr = c.getInt(4);
-              sum_hr += hr;
-              max_hr = Math.max(max_hr, hr);
-              _totalMaxHr = Math.max(_totalMaxHr, hr);
-              count++;
-              _totalCount++;
-              _totalSumHr += hr;
-            }
-            _lastLocation = l;
-            if (type == DB.LOCATION.TYPE_PAUSE || type == DB.LOCATION.TYPE_END) {
-              _isActive = false;
-            }
-            break;
-        }
-      } while (c.moveToNext());
+                int hr = c.getInt(4);
+                sum_hr += hr;
+                max_hr = Math.max(max_hr, hr);
+                _totalMaxHr = Math.max(_totalMaxHr, hr);
+                count++;
+                _totalCount++;
+                _totalSumHr += hr;
+              }
+              _lastLocation = l;
+              if (isPauseOrEnd) {
+                _isActive = false;
+              }
+              break;
+          }
+        } while (c.moveToNext());
+      }
     }
-    c.close();
+
+    // Prefer live-tracker derived values when this lap had ELAPSED/DISTANCE samples.
+    // Fallback chain: ELAPSED/DISTANCE deltas -> lat/lon + wall-clock sums (legacy rows).
+    if (haveElapsedSamples) {
+      sum_time = sum_time_elapsed_ms;
+    }
+    if (haveDistanceSamples) {
+      sum_distance = sum_distance_elapsed;
+    }
+
+    // Pick the values to write for this lap.
+    //
+    // Default (non-force) mode: workout-saved values are authoritative; only fill in when
+    // missing (NULL/0) and only for ACTIVE laps.
+    //
+    // Force mode (user-initiated "rebuild from raw data"):
+    //   ACTIVE laps   -> trust GPS sums (a 1.00 km work interval becomes the actual ~0.99 km).
+    //                    Only fall back to the saved value if GPS yielded nothing.
+    //   non-ACTIVE   -> the workout's intent is authoritative for warmup/cooldown/rest/recovery
+    //                    (e.g. "rest 60 s" is what the runner asked for; GPS-active-time during a
+    //                    paused rest is meaningless). Use PLANNED_* when present, otherwise GPS,
+    //                    otherwise the previously saved value.
+    Long writeTime = null;
+    Double writeDistance = null;
+    if (force) {
+      double gpsSeconds = sum_time / 1000.0d;
+      if (intensity == DB.INTENSITY.ACTIVE) {
+        if (sum_distance > 0) writeDistance = sum_distance;
+        else if (haveOriginalDistance && originalDistance > 0) writeDistance = originalDistance;
+        if (sum_time > 0) writeTime = Math.round(gpsSeconds);
+        else if (haveOriginalTime && originalTime > 0) writeTime = originalTime;
+      } else {
+        if (havePlannedDistance) writeDistance = plannedDistance;
+        else if (sum_distance > 0) writeDistance = sum_distance;
+        else if (haveOriginalDistance && originalDistance > 0) writeDistance = originalDistance;
+        if (havePlannedTime) writeTime = plannedTime;
+        else if (sum_time > 0) writeTime = Math.round(gpsSeconds);
+        else if (haveOriginalTime && originalTime > 0) writeTime = originalTime;
+      }
+    } else {
+      boolean preserveDistance =
+          intensity != DB.INTENSITY.ACTIVE
+              || (haveOriginalDistance && originalDistance > 0);
+      boolean preserveTime =
+          intensity != DB.INTENSITY.ACTIVE || (haveOriginalTime && originalTime > 0);
+      if (!preserveDistance) writeDistance = sum_distance;
+      if (!preserveTime) writeTime = Math.round(sum_time / 1000.0d);
+    }
 
     ContentValues tmp = new ContentValues();
-    // For the last lap, always use GPS-calculated distance (it might be incomplete)
-    // For other laps, preserve original distance if it was set (from autolap), otherwise use GPS-calculated
-    if (isLastLap) {
-      tmp.put(DB.LAP.DISTANCE, sum_distance);
-      Log.i("ActivityCleaner", "Last lap " + lap + ": using GPS distance " + sum_distance + "m instead of preserved " + originalDistance + "m");
-    } else if (originalDistance > 0 && originalDistance >= 800 && originalDistance <= 1200) {
-      // Preserve autolap distance for non-last laps
-      tmp.put(DB.LAP.DISTANCE, originalDistance);
-    } else {
-      // Use GPS-calculated distance
-      tmp.put(DB.LAP.DISTANCE, sum_distance);
+    if (writeDistance != null) {
+      tmp.put(DB.LAP.DISTANCE, writeDistance);
     }
-    tmp.put(DB.LAP.TIME, Math.round(sum_time / 1000.0d));
+    if (writeTime != null) {
+      tmp.put(DB.LAP.TIME, writeTime);
+    }
     if (sum_hr > 0) {
       long hr = Math.round(sum_hr / (double) count);
       tmp.put(DB.LAP.AVG_HR, hr);
       tmp.put(DB.LAP.MAX_HR, max_hr);
     }
-    db.update(
-        DB.LAP.TABLE,
-        tmp,
-        DB.LAP.ACTIVITY + " = " + activityId + " and " + DB.LAP.LAP + " = " + lap,
-        null);
-    
-    // Restore state for next lap (though we reset it at the start of each lap anyway)
+    if (tmp.size() > 0) {
+      db.update(
+          DB.LAP.TABLE,
+          tmp,
+          DB.LAP.ACTIVITY + " = " + activityId + " and " + DB.LAP.LAP + " = " + lap,
+          null);
+    }
+
     _lastLocation = savedLastLocation;
     _isActive = savedIsActive;
   }
@@ -378,62 +569,85 @@ public class ActivityCleaner implements Constants {
 
   public void conditionalRecompute(SQLiteDatabase db) {
     try {
-      // get last activity
       long id =
           db.compileStatement("SELECT MAX(_id) FROM " + DB.ACTIVITY.TABLE).simpleQueryForLong();
 
-      // check its TIME field - recompute if it isn't set or is 0
       String[] cols = new String[] {DB.ACTIVITY.TIME};
-      Cursor c = db.query(DB.ACTIVITY.TABLE, cols, "_id = " + id, null, null, null, null);
-      if (c.moveToFirst()) {
-        if (c.isNull(0) || c.getLong(0) == 0) {
-          Log.i("ActivityCleaner", "Activity " + id + " has TIME = " + (c.isNull(0) ? "NULL" : c.getLong(0)) + ", recomputing...");
-          recompute(db, id);
-        } else {
-          // Check if the last lap needs fixing (might be incomplete)
-          long maxLap = db.compileStatement("SELECT MAX(" + DB.LAP.LAP + ") FROM " + DB.LAP.TABLE + 
-              " WHERE " + DB.LAP.ACTIVITY + " = " + id).simpleQueryForLong();
-          if (maxLap >= 0) {
-            String[] lapCols = new String[] {DB.LAP.DISTANCE};
-            Cursor lapCursor = db.query(DB.LAP.TABLE, lapCols, 
-                DB.LAP.ACTIVITY + " = " + id + " AND " + DB.LAP.LAP + " = " + maxLap, 
-                null, null, null, null);
-            boolean needsFix = false;
-            if (lapCursor.moveToFirst()) {
-              if (lapCursor.isNull(0) || lapCursor.getDouble(0) == 0) {
-                // Last lap has 0 distance - needs recompute
-                needsFix = true;
-                Log.i("ActivityCleaner", "Activity " + id + " last lap has 0 distance, recomputing...");
-              } else {
-                double lastLapDist = lapCursor.getDouble(0);
-                // Check if last lap is exactly 1000m but might be incomplete
-                // (we'll recompute to get actual GPS distance)
-                if (lastLapDist >= 800 && lastLapDist <= 1200) {
-                  needsFix = true;
-                  Log.i("ActivityCleaner", "Activity " + id + " last lap is " + lastLapDist + "m, recomputing to check if incomplete...");
-                }
-              }
-            }
-            lapCursor.close();
-            
-            if (needsFix) {
-              recompute(db, id);
-            } else {
-              Log.d("ActivityCleaner", "Activity " + id + " has TIME = " + c.getLong(0) + ", skipping recompute");
-            }
-          } else {
-            Log.d("ActivityCleaner", "Activity " + id + " has TIME = " + c.getLong(0) + ", skipping recompute");
+      try (Cursor c = db.query(DB.ACTIVITY.TABLE, cols, "_id = " + id, null, null, null, null)) {
+        if (c.moveToFirst()) {
+          if (c.isNull(0) || c.getLong(0) == 0) {
+            Log.i(
+                "ActivityCleaner",
+                "Activity "
+                    + id
+                    + " has TIME = "
+                    + (c.isNull(0) ? "NULL" : c.getLong(0))
+                    + ", recomputing...");
+            recompute(db, id);
+          } else if (lastLapNeedsRecompute(db, id)) {
+            Log.i("ActivityCleaner", "Activity " + id + " last lap incomplete, recomputing...");
+            recompute(db, id);
           }
         }
       }
-      c.close();
     } catch (IllegalStateException e) {
       Log.e(getClass().getName(), "conditionalRecompute: " + e.getMessage());
     }
   }
 
+  /**
+   * Returns true only when the last lap clearly looks unfinished (DISTANCE NULL/0 AND TIME NULL/0).
+   * The previous heuristic also treated any 800-1200 m last lap as suspect, which forced a
+   * recompute on every interval workout opening and corrupted rest laps.
+   */
+  private static boolean lastLapNeedsRecompute(SQLiteDatabase db, long activityId) {
+    long maxLap;
+    try {
+      maxLap =
+          db.compileStatement(
+                  "SELECT MAX("
+                      + DB.LAP.LAP
+                      + ") FROM "
+                      + DB.LAP.TABLE
+                      + " WHERE "
+                      + DB.LAP.ACTIVITY
+                      + " = "
+                      + activityId)
+              .simpleQueryForLong();
+    } catch (IllegalStateException e) {
+      return false;
+    }
+    if (maxLap < 0) return false;
+    String[] lapCols = new String[] {DB.LAP.DISTANCE, DB.LAP.TIME};
+    try (Cursor lapCursor =
+        db.query(
+            DB.LAP.TABLE,
+            lapCols,
+            DB.LAP.ACTIVITY + " = " + activityId + " AND " + DB.LAP.LAP + " = " + maxLap,
+            null,
+            null,
+            null,
+            null)) {
+      if (!lapCursor.moveToFirst()) return false;
+      boolean distMissing = lapCursor.isNull(0) || lapCursor.getDouble(0) <= 0;
+      boolean timeMissing = lapCursor.isNull(1) || lapCursor.getLong(1) <= 0;
+      return distMissing && timeMissing;
+    }
+  }
+
   public void recompute(SQLiteDatabase db, long activityId) {
-    // Init variables used over laps and communicating with summary
+    recompute(db, activityId, false);
+  }
+
+  /**
+   * Rebuild lap aggregates from raw GPS rows.
+   *
+   * @param force when true, GPS-derived sums always overwrite saved DISTANCE/TIME for ANY lap
+   *     intensity (only kept when GPS yields zero). Use this for an explicit user-initiated
+   *     "rebuild from raw data" action on past activities whose saved values may be stale or
+   *     corrupted.
+   */
+  public void recompute(SQLiteDatabase db, long activityId, boolean force) {
     _totalTime = 0;
     _totalDistance = 0;
     _totalSumHr = 0;
@@ -442,8 +656,34 @@ public class ActivityCleaner implements Constants {
     _lastLocation = null;
     _isActive = false;
 
-    recomputeLaps(db, activityId);
+    recomputeLaps(db, activityId, force);
     recomputeSummary(db, activityId);
+    invalidateAggregateCaches(db);
+  }
+
+  /**
+   * Invalidate every cached aggregate table that depends on activity / lap aggregates.
+   *
+   * <p>The various staleness checks ({@code BestTimesCalculator.isDataStale},
+   * {@code StatisticsCalculator.isDataStale}, ...) only fire when a <em>new</em> activity ID
+   * appears — they cannot detect that an existing activity's lap totals were rewritten by a
+   * manual recompute. After such a rewrite the cached best times / statistics / HR zones /
+   * yearly cumulative / monthly comparison rows are stale, so wipe their tracking rows here so
+   * the next view that calls {@code isDataStale} will trigger a fresh recompute.
+   */
+  private static void invalidateAggregateCaches(SQLiteDatabase db) {
+    try {
+      // best_times + statistics share computation_tracking; clearing it forces both to
+      // recompute on the next MainLayout / BestTimesFragment open.
+      db.delete(DB.COMPUTATION_TRACKING.TABLE, null, null);
+      // hr_zone_stats / yearly_cumulative / monthly_comparison track their own last_computed
+      // timestamps. Deleting all rows forces their isDataStale() check to return true.
+      db.delete(DB.HR_ZONE_STATS.TABLE, null, null);
+      db.delete(DB.YEARLY_CUMULATIVE.TABLE, null, null);
+      db.delete(DB.MONTHLY_COMPARISON.TABLE, null, null);
+    } catch (Exception e) {
+      Log.w("ActivityCleaner", "Failed to invalidate aggregate caches: " + e.getMessage());
+    }
   }
 
   /**
@@ -595,11 +835,13 @@ public class ActivityCleaner implements Constants {
         switch (type) {
           case DB.LOCATION.TYPE_START:
           case DB.LOCATION.TYPE_RESUME:
+          case DB.LOCATION.TYPE_AUTO_RESUME:
             p[0] = l;
             p[1] = null;
             break;
           case DB.LOCATION.TYPE_END:
           case DB.LOCATION.TYPE_PAUSE:
+          case DB.LOCATION.TYPE_AUTO_PAUSE:
           case DB.LOCATION.TYPE_GPS:
             if (p[0] == null) {
               p[0] = l;

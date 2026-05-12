@@ -42,6 +42,8 @@
   <string name="Interval_cooldown_distance">Cool-down distance</string>
   <string name="Interval_work_hr_zone">Work interval heart rate zone</string>
   <string name="Interval_no_hr_target">None</string>
+  <string name="Interval_work_pace">Work interval pace</string>
+  <string name="Interval_work_pace_summary">Target pace for the work portion of every interval (00:00:00 = off). Tolerance reuses the basic target pace range. Takes precedence over the HR zone target if both are set.</string>
   <string name="Interval_hr_cue_seconds">HR cue interval (seconds)</string>
   <string name="Interval_hr_cue_seconds_summary">During each work interval, how often to hear current heart rate and zone (0 = off). Independent of the pace cue interval below.</string>
   <string name="Interval_hr_cue_announcement">HR cue speaks</string>
@@ -197,7 +199,7 @@
   <string name="Target_pace_grace_seconds">Target feedback grace period (s)</string>
   <string name="Autolap_during_intervals">Autolap in workouts</string>
   <string name="Autolap_basic_summary">Autolap in basic workouts</string>
-  <string name="Autolap_during_intervals_summary">Autolap in last step and Active steps</string>
+  <string name="Autolap_during_intervals_summary">Autolap in Active, Warmup, and Cooldown steps</string>
   <string name="Add_countdown_after_step_that_ends_with_user_press">Countdown after key press</string>
   <string name="Add_countdown_after_step_that_ends_with_user_press_summary">Add a countdown Recovery or Rest step after a step ended by a key press</string>
   <string name="Step_countdown_time_s">Step countdown time (s)</string>
@@ -344,6 +346,8 @@
   <string name="channel_notification_ongoing">RunnerUp GPS and activity notifications</string>
   <string name="Lap_start">Lap start</string>
   <string name="Lap_start_summary">Cue for start of laps and Active, Warmup, and Cooldown steps</string>
+  <string name="Interval_announce_iteration">Announce interval number</string>
+  <string name="Interval_announce_iteration_summary">Say "interval N of M" at the start of each work interval inside an interval workout.</string>
   <string name="Lock_activity_buttons">Lock activity buttons</string>
   <string name="Lock_activity_buttons_message">Lock activity buttons by fast tapping the header</string>
   <string name="Speed">Speed</string>

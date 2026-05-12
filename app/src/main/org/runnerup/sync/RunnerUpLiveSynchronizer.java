@@ -150,10 +150,12 @@ public class RunnerUpLiveSynchronizer extends DefaultSynchronizer implements Wor
     switch (type) {
       case DB.LOCATION.TYPE_START:
       case DB.LOCATION.TYPE_RESUME:
+      case DB.LOCATION.TYPE_AUTO_RESUME:
         return 0;
       case DB.LOCATION.TYPE_GPS:
         return 1;
       case DB.LOCATION.TYPE_PAUSE:
+      case DB.LOCATION.TYPE_AUTO_PAUSE:
         return 2;
       case DB.LOCATION.TYPE_END:
         return 3;

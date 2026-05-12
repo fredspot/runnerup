@@ -157,9 +157,11 @@ public class RunKeeper {
           w.name("type").value("start");
         } else if (cursor.getLong(4) == DB.LOCATION.TYPE_END) {
           w.name("type").value("end");
-        } else if (cursor.getLong(4) == DB.LOCATION.TYPE_PAUSE) {
+        } else if (cursor.getLong(4) == DB.LOCATION.TYPE_PAUSE
+            || cursor.getLong(4) == DB.LOCATION.TYPE_AUTO_PAUSE) {
           w.name("type").value("pause");
-        } else if (cursor.getLong(4) == DB.LOCATION.TYPE_RESUME) {
+        } else if (cursor.getLong(4) == DB.LOCATION.TYPE_RESUME
+            || cursor.getLong(4) == DB.LOCATION.TYPE_AUTO_RESUME) {
           w.name("type").value("resume");
         } else if (cursor.getLong(4) == DB.LOCATION.TYPE_GPS) {
           w.name("type").value("gps");

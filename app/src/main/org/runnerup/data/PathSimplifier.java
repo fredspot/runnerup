@@ -199,6 +199,7 @@ public class PathSimplifier {
             locations.add(l);
 
           } else if ((lstate == Constants.DB.LOCATION.TYPE_PAUSE)
+              || (lstate == Constants.DB.LOCATION.TYPE_AUTO_PAUSE)
               || (lstate == Constants.DB.LOCATION.TYPE_END)) {
             // this is the end of a segment
 

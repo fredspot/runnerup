@@ -63,7 +63,6 @@ import androidx.core.view.WindowInsetsCompat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Map;
 import org.runnerup.BuildConfig;
 import org.runnerup.R;
@@ -518,7 +517,10 @@ deleteButtonClick.onClick(null);
               org.runnerup.common.R.string.Yes,
               (dialog, which) -> {
                 dialog.dismiss();
-                new ActivityCleaner().recompute(mDB, mID);
+                // Force-recompute from raw GPS rows: overwrite saved DISTANCE/TIME for every lap
+                // unless GPS yields zero. This is the user explicitly asking us to trust the raw
+                // data over whatever the workout / older cleaner had stored.
+                new ActivityCleaner().recompute(mDB, mID, true);
                 requery();
                 fillHeaderData();
                 finish();
@@ -862,17 +864,35 @@ deleteButtonClick.onClick(null);
             case COOLDOWN:
               lapTypeLabel = "cooling";
               break;
+            case RESTING:
+              lapTypeLabel = "rest";
+              break;
+            case REPEAT:
+              lapTypeLabel = "repeat";
+              break;
             default:
-              lapTypeLabel =
-                  String.format(
-                      Locale.getDefault(), "(%s)", getResources().getString(intensity.getTextId()));
+              lapTypeLabel = getResources().getString(intensity.getTextId());
               break;
           }
           viewHolder.tv0.setText(lapTypeLabel);
         default:
           break;
       }
-      viewHolder.tv1.setText(laps[position].getAsString("_id"));
+      // Number only the ACTIVE work laps, sequentially among themselves. Warmup, cooldown,
+      // recovery, resting and repeat rows show no number — their type label (left column) is
+      // identifier enough.
+      if (intensity == Intensity.ACTIVE) {
+        int activeIdx = 0;
+        for (int j = 0; j <= position; j++) {
+          Integer ji = laps[j].getAsInteger(DB.LAP.INTENSITY);
+          if (ji != null && ji == DB.INTENSITY.ACTIVE) {
+            activeIdx++;
+          }
+        }
+        viewHolder.tv1.setText(Integer.toString(activeIdx));
+      } else {
+        viewHolder.tv1.setText("");
+      }
       double d =
           laps[position].containsKey(DB.LAP.DISTANCE)
               ? laps[position].getAsDouble(DB.LAP.DISTANCE)
@@ -892,8 +912,9 @@ deleteButtonClick.onClick(null);
               : 0;
       if (hr > 0) {
         viewHolder.tvHr.setVisibility(View.VISIBLE);
-        // Use CUE_LONG instead of TXT_LONG to include unit
-        viewHolder.tvHr.setText(formatter.formatHeartRate(Formatter.Format.CUE_LONG, hr));
+        // Drop the "bpm" unit; the row is too narrow and "114 bpm" was being ellipsized
+        // to "114...". The column is contextually HR (header says so), so the unit is implied.
+        viewHolder.tvHr.setText(formatter.formatHeartRate(Formatter.Format.TXT_LONG, hr));
       } else if (lapHrPresent) {
         viewHolder.tvHr.setVisibility(View.INVISIBLE);
       } else {

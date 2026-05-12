@@ -123,6 +123,18 @@
             runnerup:type="distancepicker" />
 
         <org.runnerup.ui.common.widget.TitleSpinner
+            android:id="@+id/interval_target_pace"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:defaultValue="00:00:00"
+            android:inputType="time"
+            android:key="@string/pref_interval_target_pace"
+            android:prompt="@string/Type"
+            android:text="@string/Interval_work_pace"
+            runnerup:type="durationpicker" />
+
+        <org.runnerup.ui.common.widget.TitleSpinner
             android:id="@+id/interval_target_hrz"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -205,7 +205,9 @@ public class GPX {
             long time = cLocation.getLong(1);
             if (locType != DB.LOCATION.TYPE_GPS) {
               if (exportOptions.accuracyExtensions) {
-                if (segmentPoints >= 2 && locType == DB.LOCATION.TYPE_RESUME) {
+                if (segmentPoints >= 2
+                    && (locType == DB.LOCATION.TYPE_RESUME
+                        || locType == DB.LOCATION.TYPE_AUTO_RESUME)) {
                   // GPX has no standard for pauses, but segments are occasionally used,
                   // sometimes separate activities
                   mXML.endTag("", "trkseg");

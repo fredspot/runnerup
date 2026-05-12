@@ -347,6 +347,12 @@ public class Tracker extends android.app.Service implements LocationListener, Co
     // create the DB activity
     createActivity(workout.getSport());
 
+    // Phase 2: persist the workout's planned step tree so each step's _id can be referenced
+    // by the laps and locations recorded during this activity. Must run after the activity
+    // row exists and before workout.onStart() so the first lap's onStart already knows its
+    // persisted step id.
+    workout.persistSchedule(mDB, mActivityId);
+
     // do bindings
     doBind();
 
@@ -396,6 +402,15 @@ public class Tracker extends android.app.Service implements LocationListener, Co
     mLapId = mDB.insert(DB.LAP.TABLE, null, tmp);
     ContentValues key = mDBWriter.getKey();
     key.put(DB.LOCATION.LAP, tmp.getAsLong(DB.LAP.LAP));
+    // Phase 3: stamp every subsequent LOCATION row with the current workout step's persisted
+    // id (Phase 2). LAP.STEP was set by Step.onStart; we just mirror it here so the location
+    // logger picks it up via mDBWriter's shared key template.
+    Long stepId = tmp.getAsLong(DB.LAP.STEP);
+    if (stepId != null) {
+      key.put(DB.LOCATION.STEP, stepId);
+    } else {
+      key.remove(DB.LOCATION.STEP);
+    }
     mDBWriter.setKey(key);
   }
 
@@ -403,6 +418,24 @@ public class Tracker extends android.app.Service implements LocationListener, Co
     tmp.put(DB.LAP.ACTIVITY, mActivityId);
     String[] key = {Long.toString(mLapId)};
     mDB.update(DB.LAP.TABLE, tmp, "_id = ?", key);
+  }
+
+  /**
+   * Single-shot flag set by {@link org.runnerup.core.workout.AutoPauseTrigger} immediately before
+   * the workout calls into the tracker, so the next persisted PAUSE/RESUME row carries the
+   * auto-pause type. Reset to false after each pause/resume so manual pauses keep their existing
+   * meaning.
+   */
+  private boolean mNextPauseIsAuto = false;
+
+  private boolean mNextResumeIsAuto = false;
+
+  public void markNextPauseAsAuto() {
+    mNextPauseIsAuto = true;
+  }
+
+  public void markNextResumeAsAuto() {
+    mNextResumeIsAuto = true;
   }
 
   public void pause() {
@@ -421,9 +454,16 @@ public class Tracker extends android.app.Service implements LocationListener, Co
         break;
     }
     state.set(TrackerState.PAUSED);
-    setNextLocationType(DB.LOCATION.TYPE_PAUSE);
+    boolean isAuto = mNextPauseIsAuto;
+    int pauseType = isAuto ? DB.LOCATION.TYPE_AUTO_PAUSE : DB.LOCATION.TYPE_PAUSE;
+    mNextPauseIsAuto = false;
+    setNextLocationType(pauseType);
     // This saves a PAUSE location
     internalOnLocationChanged(mLastLocationStarted);
+
+    // Phase 4: log a pause event with the matching kind.
+    logEvent(
+        isAuto ? DB.EVENT_TYPE.AUTO_PAUSE : DB.EVENT_TYPE.MANUAL_PAUSE, /* payload= */ null);
 
     saveActivity(/* manualDistance= */null);
     components.onPause();
@@ -486,9 +526,15 @@ public class Tracker extends android.app.Service implements LocationListener, Co
     }
 
     state.set(TrackerState.STARTED);
-    setNextLocationType(DB.LOCATION.TYPE_RESUME);
+    boolean isAuto = mNextResumeIsAuto;
+    int resumeType = isAuto ? DB.LOCATION.TYPE_AUTO_RESUME : DB.LOCATION.TYPE_RESUME;
+    mNextResumeIsAuto = false;
+    setNextLocationType(resumeType);
     // save a resume location
     internalOnLocationChanged(mLastLocation);
+    // Phase 4: log a resume event with the matching kind.
+    logEvent(
+        isAuto ? DB.EVENT_TYPE.AUTO_RESUME : DB.EVENT_TYPE.MANUAL_RESUME, /* payload= */ null);
     components.onResume();
   }
 
@@ -629,6 +675,32 @@ public class Tracker extends android.app.Service implements LocationListener, Co
     return mActivityId;
   }
 
+  /**
+   * Phase 4: append a row to the activity_event table. Safe to call before/after the tracker
+   * has actually started (the rows just won't have a useful ELAPSED in that case). The current
+   * lap is read from the location-row template the writer maintains; the step id comes from
+   * the workout's current step, when one exists.
+   */
+  public void logEvent(int eventType, String payload) {
+    long stepId = 0;
+    if (workout != null) {
+      org.runnerup.core.workout.Step cs = workout.getCurrentStep();
+      if (cs != null) stepId = cs.getPersistedStepId();
+    }
+    long lap = -1;
+    if (mDBWriter != null) {
+      ContentValues key = mDBWriter.getKey();
+      if (key != null && key.containsKey(DB.LOCATION.LAP)) {
+        Long l = key.getAsLong(DB.LOCATION.LAP);
+        if (l != null) lap = l;
+      }
+    }
+    long ts = (state.get() == TrackerState.STARTED || state.get() == TrackerState.PAUSED)
+        ? getTimeMs()
+        : -1;
+    org.runnerup.data.ActivityEventLogger.log(mDB, mActivityId, ts, eventType, stepId, lap, payload);
+  }
+
   @Override
   public void onLocationChanged(@NonNull Location arg0) {
     // Elevation depends on GPS updates
@@ -684,24 +756,33 @@ public class Tracker extends android.app.Service implements LocationListener, Co
     }
 
     if (internal || state.get() == TrackerState.STARTED) {
+      // Phase 5: tag HR/cadence rows with where the sample came from. HR is currently always
+      // sourced from a paired HRProvider (BLE/ANT/internal optical) so anything non-null is
+      // SOURCE_BLE in practice; cadence today comes from the device's internal step sensor.
+      Integer hrSource = (hrValue != null) ? DB.SENSOR_SOURCE.BLE : null;
+      Integer cadenceSource = (cadValue != null) ? DB.SENSOR_SOURCE.INTERNAL : null;
       mDBWriter.onLocationChanged(
           arg0,
           eleValue,
           getTimeMs(),
           mElapsedDistance,
           hrValue,
+          hrSource,
           cadValue,
+          cadenceSource,
           temperatureValue,
           pressureValue);
 
       switch (mLocationType) {
         case DB.LOCATION.TYPE_START:
         case DB.LOCATION.TYPE_RESUME:
+        case DB.LOCATION.TYPE_AUTO_RESUME:
           setNextLocationType(DB.LOCATION.TYPE_GPS);
           break;
         case DB.LOCATION.TYPE_GPS:
           break;
         case DB.LOCATION.TYPE_PAUSE:
+        case DB.LOCATION.TYPE_AUTO_PAUSE:
           break;
         case DB.LOCATION.TYPE_END:
           if (!internal && BuildConfig.DEBUG) {

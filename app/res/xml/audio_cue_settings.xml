@@ -260,6 +260,14 @@
         <CheckBoxPreference
             android:defaultValue="true"
             android:persistent="true"
+            android:key="@string/pref_interval_announce_iteration"
+            android:title="@string/Interval_announce_iteration"
+            android:summary="@string/Interval_announce_iteration_summary"
+			app:iconSpaceReserved="false" />
+
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:persistent="true"
             android:key="@string/pref_cue_hrm_connection"
             android:title="@string/HRM_connection_audio_cue"
 			app:iconSpaceReserved="false" />

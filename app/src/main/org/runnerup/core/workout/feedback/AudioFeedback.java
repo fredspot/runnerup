@@ -121,6 +121,11 @@ public class AudioFeedback extends Feedback {
         Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show();
       }
       textToSpeech.speak(msg, UtterancePrio.PRIO_CUE, /* flush= */false, null);
+      // Phase 4: persist the spoken cue. Useful for replay/debug ("what did the app say at
+      // 24:13?") and for future features like cue-pattern analytics.
+      if (w != null) {
+        w.logEvent(org.runnerup.common.util.Constants.DB.EVENT_TYPE.CUE_FIRED, msg);
+      }
     }
   }
 }
