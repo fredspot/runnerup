@@ -16,7 +16,7 @@ import org.runnerup.core.workout.Dimension;
 import org.runnerup.core.workout.Feedback;
 import org.runnerup.core.workout.Workout;
 
-/** Speaks rolling recent pace during interval work (see {@link Workout#getIntervalRecentPace()}). */
+/** Speaks pace since the last interval pace cue (see {@link Workout#getIntervalRecentPace()}). */
 public final class RecentPaceAudioFeedback extends Feedback {
 
   private RUTextToSpeech textToSpeech;
@@ -49,8 +49,7 @@ public final class RecentPaceAudioFeedback extends Feedback {
     }
     String msg = formatter.format(Formatter.Format.CUE_LONG, Dimension.PACE, pace);
     textToSpeech.speak(msg, UtterancePrio.PRIO_CUE, /* flush= */ false, null);
-    if (w != null) {
-      w.logEvent(org.runnerup.common.util.Constants.DB.EVENT_TYPE.CUE_FIRED, msg);
-    }
+    w.markIntervalPaceCueEmitted();
+    w.logEvent(org.runnerup.common.util.Constants.DB.EVENT_TYPE.CUE_FIRED, msg);
   }
 }

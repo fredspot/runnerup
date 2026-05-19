@@ -91,7 +91,7 @@ public class Workout implements WorkoutComponent, WorkoutInfo {
 
   private final PendingFeedback pendingFeedback = new PendingFeedback();
 
-  private final PaceRollingAverage intervalRecentPace = new PaceRollingAverage();
+  private final IntervalSegmentPace intervalSegmentPace = new IntervalSegmentPace();
 
   Tracker tracker = null;
   private HRZones hrZones = null;
@@ -253,7 +253,6 @@ public class Workout implements WorkoutComponent, WorkoutInfo {
 
     while (currentStep != null) {
       boolean finished = currentStep.onTick(this);
-      sampleIntervalRecentPace();
       if (!finished) break;
 
       // Phase 4: this transition was triggered by the step naturally finishing (duration or
@@ -801,15 +800,23 @@ public class Workout implements WorkoutComponent, WorkoutInfo {
   }
 
   public void resetIntervalRecentPace() {
-    intervalRecentPace.reset();
+    intervalSegmentPace.reset();
   }
 
-  /** SI pace (s/m) over the rolling interval window, or 0 if not enough data. */
+  /** SI pace (s/m) since the last interval pace cue, or since the work rep started. */
   public double getIntervalRecentPace() {
-    return intervalRecentPace.getPace();
+    if (workoutType != Constants.WORKOUT_TYPE.INTERVAL) {
+      return 0;
+    }
+    Step inner = getCurrentStep();
+    if (inner == null || inner.getIntensity() != Intensity.ACTIVE) {
+      return 0;
+    }
+    return intervalSegmentPace.getPace(getTime(Scope.STEP), getDistance(Scope.STEP));
   }
 
-  private void sampleIntervalRecentPace() {
+  /** Call after a pace cue is spoken so the next cue uses pace since this moment. */
+  public void markIntervalPaceCueEmitted() {
     if (workoutType != Constants.WORKOUT_TYPE.INTERVAL) {
       return;
     }
@@ -817,6 +824,6 @@ public class Workout implements WorkoutComponent, WorkoutInfo {
     if (inner == null || inner.getIntensity() != Intensity.ACTIVE) {
       return;
     }
-    intervalRecentPace.addSample(getTime(Scope.STEP), getDistance(Scope.STEP));
+    intervalSegmentPace.markCueEmitted(getTime(Scope.STEP), getDistance(Scope.STEP));
   }
 }
