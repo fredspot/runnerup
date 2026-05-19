@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import org.runnerup.BuildConfig;
+import org.runnerup.common.util.Constants;
 import org.runnerup.common.util.Constants.DB;
 
 public class Step implements TickComponent {
@@ -203,6 +204,13 @@ public class Step implements TickComponent {
       stepStartTime = time;
       stepStartDistance = dist;
       stepStartHeartbeats = beats;
+      if (intensity == Intensity.ACTIVE
+          && s.getWorkoutType() == Constants.WORKOUT_TYPE.INTERVAL) {
+        s.resetIntervalRecentPace();
+        if (s.tracker != null) {
+          s.tracker.resetCurrentSpeed();
+        }
+      }
       if (s.isPaused()) s.tracker.pause();
       else s.tracker.resume();
     } else if (what == Scope.LAP) {

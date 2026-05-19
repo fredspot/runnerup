@@ -91,6 +91,8 @@ public class Workout implements WorkoutComponent, WorkoutInfo {
 
   private final PendingFeedback pendingFeedback = new PendingFeedback();
 
+  private final PaceRollingAverage intervalRecentPace = new PaceRollingAverage();
+
   Tracker tracker = null;
   private HRZones hrZones = null;
   private RUTextToSpeech textToSpeech = null;
@@ -251,6 +253,7 @@ public class Workout implements WorkoutComponent, WorkoutInfo {
 
     while (currentStep != null) {
       boolean finished = currentStep.onTick(this);
+      sampleIntervalRecentPace();
       if (!finished) break;
 
       // Phase 4: this transition was triggered by the step naturally finishing (duration or
@@ -795,5 +798,25 @@ public class Workout implements WorkoutComponent, WorkoutInfo {
 
   public int getWorkoutType() {
     return this.workoutType;
+  }
+
+  public void resetIntervalRecentPace() {
+    intervalRecentPace.reset();
+  }
+
+  /** SI pace (s/m) over the rolling interval window, or 0 if not enough data. */
+  public double getIntervalRecentPace() {
+    return intervalRecentPace.getPace();
+  }
+
+  private void sampleIntervalRecentPace() {
+    if (workoutType != Constants.WORKOUT_TYPE.INTERVAL) {
+      return;
+    }
+    Step inner = getCurrentStep();
+    if (inner == null || inner.getIntensity() != Intensity.ACTIVE) {
+      return;
+    }
+    intervalRecentPace.addSample(getTime(Scope.STEP), getDistance(Scope.STEP));
   }
 }

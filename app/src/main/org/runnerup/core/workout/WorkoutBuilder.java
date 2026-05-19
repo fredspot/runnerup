@@ -42,6 +42,7 @@ import org.runnerup.core.workout.feedback.LapCompletedStatsAudioFeedback;
 import org.runnerup.core.workout.feedback.CountdownFeedback;
 import org.runnerup.core.workout.feedback.HRMStateChangeFeedback;
 import org.runnerup.core.workout.feedback.IntervalCountAudioFeedback;
+import org.runnerup.core.workout.feedback.RecentPaceAudioFeedback;
 
 public class WorkoutBuilder {
 
@@ -343,6 +344,12 @@ public class WorkoutBuilder {
         boolean endOfLap = step.getIntensity() == Intensity.ACTIVE || step.getAutolap() > 0;
         ArrayList<Trigger> defaultTriggers = createDefaultTriggers(res, audioPrefs, endOfLap);
 
+        if (workoutType == Constants.WORKOUT_TYPE.INTERVAL
+            && step.getIntensity() == Intensity.ACTIVE
+            && !defaultTriggers.isEmpty()) {
+          sanitizeIntervalWorkPaceFeedback(defaultTriggers.get(0).triggerAction);
+        }
+
         step.triggers.addAll(defaultTriggers);
       }
 
@@ -493,16 +500,34 @@ public class WorkoutBuilder {
           paceCue.interval = paceCueEvery;
           paceCue.scope = Scope.STEP;
           paceCue.dimension = Dimension.TIME;
-          // Step-scoped pace = average pace over this work interval only. Avoids the
-          // Tracker.mCurrentSpeed EMA bleeding warmup/rest samples into the cue at the start
-          // of a work interval (see Tracker.java alpha=0.4 low-pass with no per-step reset).
-          paceCue.triggerAction.add(new AudioFeedback(Scope.STEP, Dimension.PACE));
+          paceCue.triggerAction.add(new RecentPaceAudioFeedback());
           paceCue.triggerSuppression.add(EndOfLapSuppression.EmptyLapSuppression);
           step.triggers.add(paceCue);
         }
       }
 
       checkDuplicateTriggers(step);
+    }
+  }
+
+  /**
+   * On interval work steps, replace lap/step/current pace cues with a single recent-pace cue so
+   * periodic distance/time triggers do not speak a different pace than the interval pace timer.
+   */
+  private static void sanitizeIntervalWorkPaceFeedback(ArrayList<Feedback> feedback) {
+    boolean hadPace = false;
+    for (int i = feedback.size() - 1; i >= 0; i--) {
+      Feedback f = feedback.get(i);
+      if (f instanceof CurrentPaceAndHrAudioFeedback) {
+        hadPace = true;
+        feedback.remove(i);
+      } else if (f instanceof AudioFeedback af && af.getDimension() == Dimension.PACE) {
+        hadPace = true;
+        feedback.remove(i);
+      }
+    }
+    if (hadPace) {
+      feedback.add(new RecentPaceAudioFeedback());
     }
   }
 

@@ -967,6 +967,11 @@ public class Tracker extends android.app.Service implements LocationListener, Co
     return mCurrentSpeed;
   }
 
+  /** Clears the GPS speed low-pass state (e.g. at the start of an interval work rep). */
+  public void resetCurrentSpeed() {
+    mCurrentSpeed = 0;
+  }
+
   public Workout getWorkout() {
     return workout;
   }

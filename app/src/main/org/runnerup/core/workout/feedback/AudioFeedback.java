@@ -84,6 +84,10 @@ public class AudioFeedback extends Feedback {
     return scope;
   }
 
+  public Dimension getDimension() {
+    return dimension;
+  }
+
   // Allow override
   String getCue(Workout w, Context ctx) {
     String msg = null;
