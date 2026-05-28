@@ -1,4 +1,4 @@
-package org.runnerup.data;
+package org.runnerup.analytics;
 
 import android.content.ContentValues;
 import android.database.Cursor;
@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.runnerup.common.util.Constants;
+import org.runnerup.data.ComputationTracker;
+import org.runnerup.data.RunningActivityReader;
 
 /**
  * Calculator for computing yearly and monthly running statistics using lap data.
@@ -28,43 +30,7 @@ public class StatisticsCalculator {
    * @return true if data is stale and needs recomputation
    */
   public static boolean isDataStale(SQLiteDatabase db) {
-    try {
-      // Get last computation info
-      String sql = "SELECT " + Constants.DB.COMPUTATION_TRACKING.LAST_ACTIVITY_ID + 
-                   " FROM " + Constants.DB.COMPUTATION_TRACKING.TABLE +
-                   " WHERE " + Constants.DB.COMPUTATION_TRACKING.COMPUTATION_TYPE + " = 'statistics'";
-      
-      try (Cursor cursor = db.rawQuery(sql, null)) {
-        if (!cursor.moveToFirst()) {
-          // No tracking record exists, data is stale
-          Log.i(TAG, "No computation tracking record found for statistics, data is stale");
-          return true;
-        }
-        
-        long lastActivityId = cursor.getLong(0);
-        
-        // Get latest activity ID
-        String latestSql = "SELECT MAX(" + Constants.DB.PRIMARY_KEY + ") FROM " + Constants.DB.ACTIVITY.TABLE +
-                          " WHERE " + Constants.DB.ACTIVITY.SPORT + " = ? AND " + Constants.DB.ACTIVITY.DELETED + " = ?";
-        
-        try (Cursor latestCursor = db.rawQuery(latestSql, new String[]{
-          String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING), "0"})) {
-          
-          if (latestCursor.moveToFirst()) {
-            long latestActivityId = latestCursor.getLong(0);
-            boolean isStale = latestActivityId > lastActivityId;
-            Log.i(TAG, "Statistics staleness check: last=" + lastActivityId + 
-                      ", latest=" + latestActivityId + ", stale=" + isStale);
-            return isStale;
-          }
-        }
-      }
-      
-      return true; // Default to stale if we can't determine
-    } catch (Exception e) {
-      Log.e(TAG, "Error checking statistics staleness: " + e.getMessage(), e);
-      return true; // Default to stale on error
-    }
+    return ComputationTracker.isStaleByLastActivityId(db, ComputationTracker.TYPE_STATISTICS);
   }
 
   /**
@@ -74,22 +40,7 @@ public class StatisticsCalculator {
    * @param lastActivityId ID of the last activity processed
    */
   public static void updateComputationTracking(SQLiteDatabase db, long lastActivityId) {
-    try {
-      long currentTime = System.currentTimeMillis() / 1000; // Unix timestamp in seconds
-      
-      ContentValues values = new ContentValues();
-      values.put(Constants.DB.COMPUTATION_TRACKING.COMPUTATION_TYPE, "statistics");
-      values.put(Constants.DB.COMPUTATION_TRACKING.LAST_COMPUTED_TIME, currentTime);
-      values.put(Constants.DB.COMPUTATION_TRACKING.LAST_ACTIVITY_ID, lastActivityId);
-      
-      // Use INSERT OR REPLACE to handle both new and existing records
-      db.replace(Constants.DB.COMPUTATION_TRACKING.TABLE, null, values);
-      
-      Log.i(TAG, "Updated computation tracking for statistics: activityId=" + lastActivityId + 
-                ", time=" + currentTime);
-    } catch (Exception e) {
-      Log.e(TAG, "Error updating computation tracking: " + e.getMessage(), e);
-    }
+    ComputationTracker.updateLastActivityId(db, ComputationTracker.TYPE_STATISTICS, lastActivityId);
   }
 
   /**
@@ -108,7 +59,7 @@ public class StatisticsCalculator {
       Log.i(TAG, "Cleared " + yearlyDeletedCount + " yearly and " + monthlyDeletedCount + " monthly statistics records");
       
       // Get all running activities
-      List<Long> activityIds = getRunningActivities(db);
+      List<Long> activityIds = RunningActivityReader.getRunningActivityIds(db);
       Log.i(TAG, "Found " + activityIds.size() + " running activities");
       
       if (activityIds.isEmpty()) {
@@ -158,26 +109,6 @@ public class StatisticsCalculator {
   }
 
   /**
-   * Gets all running activities (SPORT_RUNNING = 0).
-   */
-  private static List<Long> getRunningActivities(SQLiteDatabase db) {
-    List<Long> activityIds = new ArrayList<>();
-    
-    String[] columns = {Constants.DB.PRIMARY_KEY};
-    String selection = Constants.DB.ACTIVITY.SPORT + " = ? AND " + Constants.DB.ACTIVITY.DELETED + " = ?";
-    String[] selectionArgs = {String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING), "0"};
-    String orderBy = Constants.DB.ACTIVITY.START_TIME + " DESC";
-    
-    try (Cursor cursor = db.query(Constants.DB.ACTIVITY.TABLE, columns, selection, selectionArgs, null, null, orderBy)) {
-      while (cursor.moveToNext()) {
-        activityIds.add(cursor.getLong(0));
-      }
-    }
-    
-    return activityIds;
-  }
-
-  /**
    * Computes yearly statistics by aggregating lap data by year.
    */
   private static Map<Integer, YearlyStats> computeYearlyStats(SQLiteDatabase db, List<Long> activityIds) {
@@ -185,7 +116,8 @@ public class StatisticsCalculator {
     
     for (Long activityId : activityIds) {
       try {
-        ActivityInfo activityInfo = getActivityInfo(db, activityId);
+        RunningActivityReader.ActivityRow activityInfo =
+            RunningActivityReader.getActivity(db, activityId);
         if (activityInfo == null) {
           continue;
         }
@@ -196,7 +128,7 @@ public class StatisticsCalculator {
         int year = cal.get(Calendar.YEAR);
         
         // Get laps for this activity
-        List<LapInfo> laps = getLaps(db, activityId);
+        List<RunningActivityReader.LapRow> laps = RunningActivityReader.getLaps(db, activityId);
         if (laps.isEmpty()) {
           continue;
         }
@@ -205,7 +137,7 @@ public class StatisticsCalculator {
         double totalDistance = 0;
         long totalTime = 0;
         
-        for (LapInfo lap : laps) {
+        for (RunningActivityReader.LapRow lap : laps) {
           totalDistance += lap.distanceM;
           totalTime += lap.timeSeconds;
         }
@@ -254,7 +186,8 @@ public class StatisticsCalculator {
     
     for (Long activityId : activityIds) {
       try {
-        ActivityInfo activityInfo = getActivityInfo(db, activityId);
+        RunningActivityReader.ActivityRow activityInfo =
+            RunningActivityReader.getActivity(db, activityId);
         if (activityInfo == null) {
           continue;
         }
@@ -266,7 +199,7 @@ public class StatisticsCalculator {
         int month = cal.get(Calendar.MONTH) + 1; // Calendar.MONTH is 0-based
         
         // Get laps for this activity
-        List<LapInfo> laps = getLaps(db, activityId);
+        List<RunningActivityReader.LapRow> laps = RunningActivityReader.getLaps(db, activityId);
         if (laps.isEmpty()) {
           continue;
         }
@@ -275,7 +208,7 @@ public class StatisticsCalculator {
         double totalDistance = 0;
         long totalTime = 0;
         
-        for (LapInfo lap : laps) {
+        for (RunningActivityReader.LapRow lap : laps) {
           totalDistance += lap.distanceM;
           totalTime += lap.timeSeconds;
         }
@@ -321,62 +254,6 @@ public class StatisticsCalculator {
   }
 
   /**
-   * Gets activity info (start time, total distance, total time).
-   */
-  private static ActivityInfo getActivityInfo(SQLiteDatabase db, Long activityId) {
-    String[] columns = {
-      Constants.DB.ACTIVITY.START_TIME,
-      Constants.DB.ACTIVITY.DISTANCE,
-      Constants.DB.ACTIVITY.TIME
-    };
-    
-    try (Cursor cursor = db.query(Constants.DB.ACTIVITY.TABLE, columns, 
-        Constants.DB.PRIMARY_KEY + " = ?", 
-        new String[]{String.valueOf(activityId)}, null, null, null)) {
-      
-      if (cursor.moveToFirst()) {
-        ActivityInfo info = new ActivityInfo();
-        info.activityId = activityId;
-        info.startTime = cursor.getLong(0);
-        info.totalDistance = cursor.getDouble(1);
-        info.totalTime = cursor.getLong(2);
-        return info;
-      }
-    }
-    
-    return null;
-  }
-
-  /**
-   * Gets laps for an activity, ordered by lap number.
-   */
-  private static List<LapInfo> getLaps(SQLiteDatabase db, Long activityId) {
-    List<LapInfo> laps = new ArrayList<>();
-    
-    String[] columns = {
-      Constants.DB.LAP.LAP,
-      Constants.DB.LAP.TIME,
-      Constants.DB.LAP.DISTANCE
-    };
-    
-    String selection = Constants.DB.LAP.ACTIVITY + " = ?";
-    String[] selectionArgs = {String.valueOf(activityId)};
-    String orderBy = Constants.DB.LAP.LAP + " ASC";
-    
-    try (Cursor cursor = db.query(Constants.DB.LAP.TABLE, columns, selection, selectionArgs, null, null, orderBy)) {
-      while (cursor.moveToNext()) {
-        LapInfo lap = new LapInfo();
-        lap.lapNumber = cursor.getInt(0);
-        lap.timeSeconds = cursor.getLong(1); // Time is already in seconds
-        lap.distanceM = cursor.getDouble(2);
-        laps.add(lap);
-      }
-    }
-    
-    return laps;
-  }
-
-  /**
    * Stores yearly statistics in the database.
    */
   private static void storeYearlyStats(SQLiteDatabase db, YearlyStats stats) {
@@ -403,22 +280,6 @@ public class StatisticsCalculator {
     values.put(Constants.DB.MONTHLY_STATS.RUN_COUNT, stats.runCount);
     
     db.insert(Constants.DB.MONTHLY_STATS.TABLE, null, values);
-  }
-
-  /**
-   * Data classes for internal use.
-   */
-  private static class ActivityInfo {
-    Long activityId;
-    Long startTime;
-    Double totalDistance;
-    Long totalTime;
-  }
-
-  private static class LapInfo {
-    int lapNumber;
-    long timeSeconds; // Time in seconds
-    double distanceM;
   }
 
   private static class YearlyStats {

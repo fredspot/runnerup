@@ -64,7 +64,7 @@ public class RunKeeper {
   }
 
   private static String formatTime(long time) {
-    return new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss", Locale.US).format(new Date(time));
+    return ExportTimeFormat.runKeeper(time);
   }
 
   public void export(long activityId, Writer writer) throws IOException {

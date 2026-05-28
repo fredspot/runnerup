@@ -22,7 +22,6 @@ import static org.runnerup.core.util.Formatter.Format.TXT_SHORT;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import java.util.LinkedList;
 import java.util.ArrayList;
@@ -72,7 +71,53 @@ public class MapWrapper implements Constants {
     IMapController iMapController = mapView.getController();
     iMapController.setZoom(15.);
 
-    new LoadRoute().execute(new LoadParam(context, mDB, mID, mapView, iMapController));
+    LoadParam param = new LoadParam(context, mDB, mID, mapView, iMapController);
+    BgTasks.runDb(() -> buildRoute(param), route -> applyRoute(param, route));
+  }
+
+  private Route buildRoute(LoadParam param) {
+    Route route = new Route(param.context, param.mapView);
+    route.map.setInfoWindow(null);
+    route.map.getOutlinePaint().setStrokeWidth(10.f);
+    LocationEntity.LocationList<LocationEntity> ll =
+        new LocationEntity.LocationList<>(param.mDB, param.mID);
+    List<GeoPoint> points = new LinkedList<>();
+    int lastLap = -1;
+    for (LocationEntity loc : ll) {
+      GeoPoint point = new GeoPoint(loc.getLatitude(), loc.getLongitude());
+      points.add(point);
+
+      int lap = loc.getLap();
+      if (lastLap != lap) {
+        Marker marker = new Marker(route.mapView);
+        marker.setPosition(point);
+        String info =
+            "#"
+                + loc.getLap()
+                + " "
+                + RouteMarkerLabels.lapMarkerInfo(formatter, loc, loc.getDistance());
+        lastLap = lap;
+        marker.setTextIcon(info);
+        marker.setInfoWindow(null);
+        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+        route.markers.add(marker);
+      }
+    }
+    ll.close();
+    route.map.setPoints(points);
+    return route;
+  }
+
+  private void applyRoute(LoadParam param, Route route) {
+    if (route != null && route.map != null && route.markers != null) {
+      for (Marker marker : route.markers) {
+        route.mapView.getOverlays().add(marker);
+      }
+      route.mapView.getOverlays().add(route.map);
+    }
+    if (route != null && route.map != null && !route.map.getPoints().isEmpty()) {
+      param.iMapController.setCenter(route.map.getPoints().get(0));
+    }
   }
 
   class Route {
@@ -107,64 +152,6 @@ public class MapWrapper implements Constants {
     final long mID;
     final MapView mapView;
     final IMapController iMapController;
-  }
-
-  @SuppressLint("StaticFieldLeak")
-  private class LoadRoute extends AsyncTask<LoadParam, Void, Route> {
-    @Override
-    protected Route doInBackground(LoadParam... params) {
-      Route route = new Route(params[0].context, params[0].mapView);
-      SQLiteDatabase mDB = params[0].mDB;
-      long mID = params[0].mID;
-      IMapController iMapController = params[0].iMapController;
-
-      route.map.setInfoWindow(null);
-      route.map.getOutlinePaint().setStrokeWidth(10.f);
-      LocationEntity.LocationList<LocationEntity> ll = new LocationEntity.LocationList<>(mDB, mID);
-      List<GeoPoint> points = new LinkedList<>();
-      int lastLap = -1;
-      for (LocationEntity loc : ll) {
-        GeoPoint point = new GeoPoint(loc.getLatitude(), loc.getLongitude());
-        points.add(point);
-
-        int lap = loc.getLap();
-        if (lastLap != lap) {
-          Marker marker = new Marker(route.mapView);
-          marker.setPosition(point);
-          String info =
-                  "#" + loc.getLap() + " "
-                          + formatter.formatDistance(TXT_SHORT, loc.getDistance().longValue())
-                          + " "
-                          + formatter.formatElapsedTime(TXT_SHORT, Math.round(loc.getElapsed() / 1000.0));
-          lastLap = lap;
-          marker.setTextIcon(info);
-          marker.setInfoWindow(null);
-          marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-          route.markers.add(marker);
-        }
-      }
-      ll.close();
-      route.map.setPoints(points);
-
-      if (!points.isEmpty()) {
-        iMapController.setCenter(points.get(0));
-      }
-
-      return route;
-    }
-
-    @Override
-    protected void onPostExecute(Route route) {
-
-      if (route != null && route.map != null && route.markers != null) {
-        for (Marker marker : route.markers) {
-          route.mapView.getOverlays().add(marker);
-        }
-
-        route.mapView.getOverlays().add(route.map);
-        //Log.v(getClass().getName(), "Added " + route.markers.size() + " markers");
-      }
-    }
   }
 
   public void onResume() {

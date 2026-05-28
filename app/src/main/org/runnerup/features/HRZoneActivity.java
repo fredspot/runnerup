@@ -37,7 +37,7 @@ import androidx.core.content.ContextCompat;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
 import org.runnerup.data.DBHelper;
-import org.runnerup.data.HRZoneCalculator;
+import org.runnerup.analytics.HRZoneStatsCalculator;
 import org.runnerup.core.util.Formatter;
 import org.runnerup.core.util.ViewUtil;
 import java.util.ArrayList;
@@ -121,7 +121,7 @@ public class HRZoneActivity extends AppCompatActivity {
   private void loadHRZoneData() {
     // Force recomputation for debugging
     Log.d(TAG, "Forcing HR zone recomputation...");
-    HRZoneCalculator.computeHRZones(mDB);
+    HRZoneStatsCalculator.computeHRZones(mDB);
 
     // Load HR zone data
     zoneData.clear();
@@ -239,14 +239,8 @@ public class HRZoneActivity extends AppCompatActivity {
       if (data.avgPace > 0) {
         // avgPace is stored in seconds per km (e.g., 450 = 7:30/km)
         // Convert to seconds per meter first
-        double secondsPerMeter = data.avgPace / 1000.0;
-        Log.d(TAG, "Formatting pace for zone " + data.zoneNumber + ": avgPace=" + data.avgPace + ", secondsPerMeter=" + secondsPerMeter);
-        
-        // Convert to meters per second for formatPaceSpeed
-        double metersPerSecond = 1.0 / secondsPerMeter;
-        Log.d(TAG, "metersPerSecond=" + metersPerSecond);
-        
-        String paceStr = formatter.formatPaceSpeed(Formatter.Format.TXT_SHORT, metersPerSecond);
+        String paceStr =
+            formatter.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, data.avgPace);
         Log.d(TAG, "Formatted pace: " + paceStr);
         valueView.setText(paceStr);
       } else {

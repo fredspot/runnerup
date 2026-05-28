@@ -4,7 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.os.AsyncTask;
+import java.util.concurrent.atomic.AtomicReference;
 import android.provider.DocumentsContract;
 import android.util.Log;
 import org.runnerup.data.DBHelper;
@@ -147,125 +147,124 @@ public class DriveBackupManager {
     }
     
     public void backupDatabase(BackupCallback callback) {
-        new BackupTask(callback).execute();
+        final AtomicReference<String> errorMessage = new AtomicReference<>();
+        BgTasks.runNetworkWithProgress(
+                publisher -> runBackup(publisher, callback, errorMessage),
+                success -> {
+                    if (callback == null) {
+                        return;
+                    }
+                    if (Boolean.TRUE.equals(success)) {
+                        callback.onBackupSuccess("Backup saved to Google Drive successfully");
+                    } else {
+                        String msg = errorMessage.get();
+                        callback.onBackupError(msg != null ? msg : "Unknown error");
+                    }
+                },
+                message -> {
+                    if (callback != null && message != null) {
+                        callback.onProgress(message);
+                    }
+                });
     }
-    
-    private class BackupTask extends AsyncTask<Void, String, Boolean> {
-        private final BackupCallback callback;
-        private String errorMessage = null;
-        
-        BackupTask(BackupCallback callback) {
-            this.callback = callback;
-        }
-        
-        @Override
-        protected void onProgressUpdate(String... values) {
-            if (callback != null && values.length > 0) {
-                callback.onProgress(values[0]);
+
+    private boolean runBackup(
+            BgTasks.ProgressPublisher publisher,
+            BackupCallback callback,
+            AtomicReference<String> errorMessage) {
+        try {
+            publisher.publish("Preparing backup...");
+
+            Uri backupUri = getBackupUri(context);
+            if (backupUri == null) {
+                errorMessage.set(
+                        "Backup folder not selected. Please select a Google Drive folder first.");
+                notifyAuthRequired(callback);
+                return false;
             }
-        }
-        
-        @Override
-        protected Boolean doInBackground(Void... params) {
+
+            publisher.publish("Preparing database file...");
+            String dbPath = DBHelper.getDbPath(context);
+            File dbFile = new File(dbPath);
+            if (!dbFile.exists()) {
+                errorMessage.set("Database file not found");
+                return false;
+            }
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
+            String timestamp = sdf.format(new Date());
+            String fileName = "runnerup_backup_" + timestamp + ".db";
+
+            publisher.publish("Creating backup file...");
+
+            Uri fileUri;
             try {
-                publishProgress("Preparing backup...");
-                
-                Uri backupUri = getBackupUri(context);
-                if (backupUri == null) {
-                    errorMessage = "Backup folder not selected. Please select a Google Drive folder first.";
-                    if (callback != null) {
-                        callback.onAuthRequired(createFolderPickerIntent());
-                    }
-                    return false;
-                }
-                
-                publishProgress("Preparing database file...");
-                String dbPath = DBHelper.getDbPath(context);
-                File dbFile = new File(dbPath);
-                if (!dbFile.exists()) {
-                    errorMessage = "Database file not found";
-                    return false;
-                }
-                
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US);
-                String timestamp = sdf.format(new Date());
-                String fileName = "runnerup_backup_" + timestamp + ".db";
-                
-                publishProgress("Creating backup file...");
-                
-                Uri fileUri = null;
-                try {
-                    fileUri = DocumentsContract.createDocument(context.getContentResolver(), backupUri, 
-                        "application/x-sqlite3", fileName);
-                } catch (Exception e) {
-                    Log.w(TAG, "Failed to create document via DocumentsContract", e);
-                    errorMessage = "Cannot create file automatically. Please select the folder again.";
-                    if (callback != null) {
-                        callback.onAuthRequired(createFolderPickerIntent());
-                    }
-                    return false;
-                }
-                
-                if (fileUri == null) {
-                    errorMessage = "Failed to create backup file. Please select the folder again.";
-                    if (callback != null) {
-                        callback.onAuthRequired(createFolderPickerIntent());
-                    }
-                    return false;
-                }
-                
-                publishProgress("Saving to Google Drive...");
-                
-                try (InputStream in = new FileInputStream(dbFile);
-                     OutputStream out = context.getContentResolver().openOutputStream(fileUri, "w")) {
-                    if (out == null) {
-                        throw new IOException("Failed to open output stream for " + fileUri);
-                    }
-                    
-                    byte[] buffer = new byte[8192];
-                    int bytesRead;
-                    long totalBytes = 0;
-                    long fileSize = dbFile.length();
-                    
-                    while ((bytesRead = in.read(buffer)) != -1) {
-                        out.write(buffer, 0, bytesRead);
-                        totalBytes += bytesRead;
-                        if (fileSize > 0) {
-                            int progress = (int) ((totalBytes * 100) / fileSize);
-                            publishProgress("Uploading: " + progress + "%");
-                        }
-                    }
-                    out.flush();
-                }
-                
-                SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-                prefs.edit().putLong(PREF_LAST_BACKUP_TIME, System.currentTimeMillis()).apply();
-                
-                publishProgress("Backup completed successfully");
-                return true;
-            } catch (SecurityException e) {
-                Log.e(TAG, "SecurityException - permission not granted", e);
-                errorMessage = "Permission denied. Please select the backup folder again.";
-                if (callback != null) {
-                    callback.onAuthRequired(createFolderPickerIntent());
-                }
-                return false;
+                fileUri =
+                        DocumentsContract.createDocument(
+                                context.getContentResolver(),
+                                backupUri,
+                                "application/x-sqlite3",
+                                fileName);
             } catch (Exception e) {
-                Log.e(TAG, "Backup failed", e);
-                errorMessage = "Backup failed: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+                Log.w(TAG, "Failed to create document via DocumentsContract", e);
+                errorMessage.set("Cannot create file automatically. Please select the folder again.");
+                notifyAuthRequired(callback);
                 return false;
             }
-        }
-        
-        @Override
-        protected void onPostExecute(Boolean success) {
-            if (callback != null) {
-                if (success) {
-                    callback.onBackupSuccess("Backup saved to Google Drive successfully");
-                } else {
-                    callback.onBackupError(errorMessage != null ? errorMessage : "Unknown error");
-                }
+
+            if (fileUri == null) {
+                errorMessage.set("Failed to create backup file. Please select the folder again.");
+                notifyAuthRequired(callback);
+                return false;
             }
+
+            publisher.publish("Saving to Google Drive...");
+
+            try (InputStream in = new FileInputStream(dbFile);
+                    OutputStream out = context.getContentResolver().openOutputStream(fileUri, "w")) {
+                if (out == null) {
+                    throw new IOException("Failed to open output stream for " + fileUri);
+                }
+
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                long totalBytes = 0;
+                long fileSize = dbFile.length();
+
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                    totalBytes += bytesRead;
+                    if (fileSize > 0) {
+                        int progress = (int) ((totalBytes * 100) / fileSize);
+                        publisher.publish("Uploading: " + progress + "%");
+                    }
+                }
+                out.flush();
+            }
+
+            SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            prefs.edit().putLong(PREF_LAST_BACKUP_TIME, System.currentTimeMillis()).apply();
+
+            publisher.publish("Backup completed successfully");
+            return true;
+        } catch (SecurityException e) {
+            Log.e(TAG, "SecurityException - permission not granted", e);
+            errorMessage.set("Permission denied. Please select the backup folder again.");
+            notifyAuthRequired(callback);
+            return false;
+        } catch (Exception e) {
+            Log.e(TAG, "Backup failed", e);
+            errorMessage.set(
+                    "Backup failed: "
+                            + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+            return false;
+        }
+    }
+
+    private void notifyAuthRequired(BackupCallback callback) {
+        if (callback != null) {
+            android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+            handler.post(() -> callback.onAuthRequired(createFolderPickerIntent()));
         }
     }
 }

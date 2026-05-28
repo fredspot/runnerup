@@ -26,6 +26,7 @@
     android:background="@drawable/title_spinner_card"
     android:clickable="true"
     android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingBottom="16dp"

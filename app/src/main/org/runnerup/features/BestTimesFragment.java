@@ -35,7 +35,8 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
-import org.runnerup.data.BestTimesCalculator;
+import org.runnerup.analytics.BestTimesCalculator;
+import org.runnerup.data.BestTimesDistances;
 import org.runnerup.data.DBHelper;
 import org.runnerup.data.entities.BestTimesSummaryEntity;
 import org.runnerup.data.entities.BestTimesEntity;
@@ -54,9 +55,7 @@ public class BestTimesFragment extends Fragment
   private List<BestTimesEntity> bestTimes = new ArrayList<>(); // Rank 1 best times for each distance
   private org.runnerup.core.util.Formatter formatter;
 
-  // Target distances in meters
-  private static final int[] TARGET_DISTANCES = {1000, 5000, 10000, 15000, 20000, 21097, 30000, 40000, 42195};
-  private static final String[] DISTANCE_LABELS = {"1km", "5km", "10km", "15km", "20km", "Half Marathon", "30km", "40km", "Marathon"};
+  private static final int[] TARGET_DISTANCES = BestTimesDistances.TARGET_DISTANCES;
 
   public BestTimesFragment() {
     super(R.layout.best_times);
@@ -151,19 +150,12 @@ public class BestTimesFragment extends Fragment
     
     android.util.Log.d("BestTimesFragment", "Cleared computation tracking, triggering recomputation...");
     
-    // Trigger recomputation in background
-    new android.os.AsyncTask<Void, Void, Integer>() {
-      @Override
-      protected Integer doInBackground(Void... params) {
-        return BestTimesCalculator.computeBestTimes(mDB);
-      }
-      
-      @Override
-      protected void onPostExecute(Integer result) {
-        android.util.Log.d("BestTimesFragment", "Recomputation completed: " + result + " best times computed");
-        loadDistances(); // Refresh the list
-      }
-    }.execute();
+    org.runnerup.core.util.BgTasks.run(
+        () -> BestTimesCalculator.computeBestTimes(mDB),
+        () -> {
+          android.util.Log.d("BestTimesFragment", "Recomputation completed");
+          loadDistances();
+        });
   }
 
   @Override
@@ -253,9 +245,9 @@ public class BestTimesFragment extends Fragment
         
         // Pace
         if (bestTime.getPace() != null) {
-          double pacePerMeter = bestTime.getPace() / 1000.0;
-          paceText.setText(formatter.formatPace(
-              org.runnerup.core.util.Formatter.Format.TXT_LONG, pacePerMeter));
+          paceText.setText(
+              formatter.formatPaceFromSecPerKm(
+                  org.runnerup.core.util.Formatter.Format.TXT_LONG, bestTime.getPace()));
         } else {
           paceText.setText("-");
         }
@@ -284,12 +276,7 @@ public class BestTimesFragment extends Fragment
     }
 
     private String getDistanceLabel(int distance) {
-      for (int i = 0; i < TARGET_DISTANCES.length; i++) {
-        if (TARGET_DISTANCES[i] == distance) {
-          return DISTANCE_LABELS[i];
-        }
-      }
-      return distance + "m";
+      return BestTimesDistances.getLabel(distance);
     }
   }
 }

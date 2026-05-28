@@ -33,7 +33,9 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.annotation.NonNull;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
+import org.runnerup.data.BestTimesDistances;
 import org.runnerup.data.DBHelper;
+import org.runnerup.data.RunningActivityReader;
 import org.runnerup.core.util.Formatter;
 import org.runnerup.ui.common.widget.TitleSpinner;
 import java.util.ArrayList;
@@ -45,8 +47,7 @@ public class DistributionActivity extends AppCompatActivity {
   private SQLiteDatabase mDB = null;
   private Formatter formatter = null;
   
-  // Target distances in meters (same as BestTimesCalculator)
-  private static final int[] TARGET_DISTANCES = {1000, 5000, 10000, 15000, 20000, 21097, 30000, 40000, 42195};
+  private static final int[] TARGET_DISTANCES = BestTimesDistances.TARGET_DISTANCES;
   private TitleSpinner distanceSpinner;
   private DistributionChart chart;
   private TextView statMin, stat25th, statMean, stat75th, statMax;
@@ -126,18 +127,19 @@ public class DistributionActivity extends AppCompatActivity {
     Log.d(TAG, "Loading distribution for distance: " + targetDistance + "m");
     
     // Get all running activities
-    List<Long> activityIds = getRunningActivities();
+    List<Long> activityIds = RunningActivityReader.getRunningActivityIds(mDB);
     
     // Collect all lap times matching the distance
     List<Long> lapTimes = new ArrayList<>();
     
     for (Long activityId : activityIds) {
-      List<LapTimeData> laps = getLapsForActivity(activityId);
+      List<RunningActivityReader.LapRow> laps =
+          RunningActivityReader.getLapsWithDistance(mDB, activityId);
       
       // Find laps that match the target distance
       if (targetDistance == 1000) {
         // For 1km: find single laps close to 1km
-        for (LapTimeData lap : laps) {
+        for (RunningActivityReader.LapRow lap : laps) {
           double distanceRatio = lap.distanceM / targetDistance;
           if (distanceRatio >= 0.95 && distanceRatio <= 1.05) {
             double pacePerKm = lap.timeSeconds / (lap.distanceM / 1000.0);
@@ -154,7 +156,7 @@ public class DistributionActivity extends AppCompatActivity {
           double totalDistance = 0;
           
           for (int i = 0; i < expectedLapCount && startIdx + i < laps.size(); i++) {
-            LapTimeData lap = laps.get(startIdx + i);
+            RunningActivityReader.LapRow lap = laps.get(startIdx + i);
             totalTime += lap.timeSeconds;
             totalDistance += lap.distanceM;
           }
@@ -176,61 +178,5 @@ public class DistributionActivity extends AppCompatActivity {
     chart.setLapTimes(lapTimes);
   }
   
-  private String formatTime(long seconds) {
-    if (seconds == 0) return "--";
-    long hours = seconds / 3600;
-    long minutes = (seconds % 3600) / 60;
-    long secs = seconds % 60;
-    
-    if (hours > 0) {
-      return String.format("%d:%02d:%02d", hours, minutes, secs);
-    } else {
-      return String.format("%d:%02d", minutes, secs);
-    }
-  }
-  
-  private List<Long> getRunningActivities() {
-    List<Long> activityIds = new ArrayList<>();
-    String[] columns = {Constants.DB.PRIMARY_KEY};
-    String selection = Constants.DB.ACTIVITY.SPORT + " = ? AND " + Constants.DB.ACTIVITY.DELETED + " = ?";
-    String[] selectionArgs = {String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING), "0"};
-    
-    try (Cursor cursor = mDB.query(Constants.DB.ACTIVITY.TABLE, columns, selection, selectionArgs, null, null, null)) {
-      while (cursor.moveToNext()) {
-        activityIds.add(cursor.getLong(0));
-      }
-    }
-    
-    return activityIds;
-  }
-  
-  private List<LapTimeData> getLapsForActivity(Long activityId) {
-    List<LapTimeData> laps = new ArrayList<>();
-    String[] columns = {Constants.DB.LAP.TIME, Constants.DB.LAP.DISTANCE};
-    String selection = Constants.DB.LAP.ACTIVITY + " = ?";
-    String[] selectionArgs = {String.valueOf(activityId)};
-    
-    try (Cursor cursor = mDB.query(Constants.DB.LAP.TABLE, columns, selection, selectionArgs, null, null, Constants.DB.LAP.LAP + " ASC")) {
-      while (cursor.moveToNext()) {
-        long timeSeconds = cursor.getLong(0);
-        double distanceM = cursor.getDouble(1);
-        if (timeSeconds > 0 && distanceM > 0) {
-          laps.add(new LapTimeData(timeSeconds, distanceM));
-        }
-      }
-    }
-    
-    return laps;
-  }
-  
-  private static class LapTimeData {
-    final long timeSeconds;
-    final double distanceM;
-    
-    LapTimeData(long timeSeconds, double distanceM) {
-      this.timeSeconds = timeSeconds;
-      this.distanceM = distanceM;
-    }
-  }
 }
 

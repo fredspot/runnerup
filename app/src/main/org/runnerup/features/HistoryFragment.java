@@ -53,6 +53,7 @@ import org.runnerup.common.util.Constants;
 import org.runnerup.data.ActivityCleaner;
 import org.runnerup.data.DBHelper;
 import org.runnerup.data.entities.ActivityEntity;
+import org.runnerup.core.util.ActivitySummaryBinder;
 import org.runnerup.core.util.Formatter;
 import org.runnerup.core.util.SimpleCursorLoader;
 import org.runnerup.core.workout.Sport;
@@ -358,23 +359,25 @@ public class HistoryFragment extends Fragment
         additionalInfo.setText(null);
       }
 
-      // duration
       Long dur = ae.getTime();
       TextView durationText = view.findViewById(R.id.history_list_duration);
-      if (dur != null) {
-        durationText.setText(formatter.formatElapsedTime(Formatter.Format.TXT_SHORT, dur));
-      } else {
-        durationText.setText("");
-      }
-
-      // pace
       TextView paceText = view.findViewById(R.id.history_list_pace);
-      String paceTextContents = "";
       if (d != null && dur != null && dur != 0) {
-        paceTextContents =
-            formatter.formatVelocityByPreferredUnit(Formatter.Format.TXT_LONG, d / dur);
+        ActivitySummaryBinder.bind(
+            formatter,
+            distanceText,
+            durationText,
+            paceText,
+            d,
+            dur);
+      } else {
+        if (dur != null) {
+          durationText.setText(formatter.formatElapsedTime(Formatter.Format.TXT_SHORT, dur));
+        } else {
+          durationText.setText("");
+        }
+        paceText.setText("");
       }
-      paceText.setText(paceTextContents);
     }
 
     @Override

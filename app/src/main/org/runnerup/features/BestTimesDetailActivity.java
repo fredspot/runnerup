@@ -42,6 +42,7 @@ import java.util.Date;
 import java.util.Locale;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
+import org.runnerup.data.BestTimesDistances;
 import org.runnerup.data.DBHelper;
 import org.runnerup.data.entities.BestTimesEntity;
 import org.runnerup.core.util.Formatter;
@@ -53,9 +54,6 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
   private Formatter formatter = null;
   private BestTimesListAdapter adapter = null;
 
-  // Distance labels
-  private static final int[] TARGET_DISTANCES = {1000, 5000, 10000, 15000, 20000, 21097, 30000, 40000, 42195};
-  private static final String[] DISTANCE_LABELS = {"1km", "5km", "10km", "15km", "20km", "Half Marathon", "30km", "40km", "Marathon"};
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -140,12 +138,7 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
   }
 
   private String getDistanceLabel(int distance) {
-    for (int i = 0; i < TARGET_DISTANCES.length; i++) {
-      if (TARGET_DISTANCES[i] == distance) {
-        return DISTANCE_LABELS[i];
-      }
-    }
-    return distance + "m";
+    return BestTimesDistances.getLabel(distance);
   }
 
   /**
@@ -209,8 +202,8 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
         // Pace
         if (bestTime.getPace() != null) {
           // Convert pace from seconds per km to seconds per meter
-          double pacePerMeter = bestTime.getPace() / 1000.0;
-          paceText.setText(formatter.formatPace(Formatter.Format.TXT_LONG, pacePerMeter));
+          paceText.setText(
+              formatter.formatPaceFromSecPerKm(Formatter.Format.TXT_LONG, bestTime.getPace()));
         }
 
         // Date

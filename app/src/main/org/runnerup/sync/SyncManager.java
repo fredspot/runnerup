@@ -28,7 +28,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.os.AsyncTask;
+import org.runnerup.core.util.BgTasks;
 import android.os.Build;
 import android.os.Environment;
 import android.text.InputType;
@@ -406,28 +406,20 @@ public class SyncManager {
   private void testUserPass(final Synchronizer l, final JSONObject authConfig) {
     mSpinner.setTitle("Testing login " + l.getName());
 
-    new AsyncTask<Synchronizer, String, Synchronizer.Status>() {
-
-      final ContentValues config = new ContentValues();
-
-      @Override
-      protected Synchronizer.Status doInBackground(Synchronizer... params) {
-        config.put(DB.ACCOUNT.AUTH_CONFIG, authConfig.toString());
-        config.put("_id", l.getId());
-        l.init(config);
-        try {
-          return params[0].connect();
-        } catch (Exception ex) {
-          ex.printStackTrace();
-          return Synchronizer.Status.ERROR;
-        }
-      }
-
-      @Override
-      protected void onPostExecute(Synchronizer.Status result) {
-        handleAuthComplete(l, result);
-      }
-    }.execute(l);
+    final ContentValues config = new ContentValues();
+    BgTasks.runNetwork(
+        () -> {
+          config.put(DB.ACCOUNT.AUTH_CONFIG, authConfig.toString());
+          config.put("_id", l.getId());
+          l.init(config);
+          try {
+            return l.connect();
+          } catch (Exception ex) {
+            ex.printStackTrace();
+            return Synchronizer.Status.ERROR;
+          }
+        },
+        result -> handleAuthComplete(l, result));
   }
 
   private void askFileUrl(final Synchronizer sync) {
@@ -565,58 +557,52 @@ public class SyncManager {
     copySpinner.setMessage(
         getResources().getString(SyncMode.UPLOAD.getTextId(), synchronizer.getName()));
 
-    new AsyncTask<Synchronizer, String, Synchronizer.Status>() {
-
-      @Override
-      protected Synchronizer.Status doInBackground(Synchronizer... params) {
-        try {
-          Synchronizer.Status s2 = params[0].upload(copyDB, mID);
-          // See doUpload() for motivation
-          if (s2 == Synchronizer.Status.NEED_REFRESH) {
-            s2 = handleRefreshComplete(synchronizer, synchronizer.refreshToken());
-            if (s2 == Synchronizer.Status.OK) {
-              s2 = params[0].upload(copyDB, mID);
+    BgTasks.runNetwork(
+        () -> {
+          try {
+            Synchronizer.Status s2 = synchronizer.upload(copyDB, mID);
+            if (s2 == Synchronizer.Status.NEED_REFRESH) {
+              s2 = handleRefreshComplete(synchronizer, synchronizer.refreshToken());
+              if (s2 == Synchronizer.Status.OK) {
+                s2 = synchronizer.upload(copyDB, mID);
+              }
             }
+            return s2;
+          } catch (Exception ex) {
+            ex.printStackTrace();
+            return Synchronizer.Status.ERROR;
           }
-          return s2;
-        } catch (Exception ex) {
-          ex.printStackTrace();
-          return Synchronizer.Status.ERROR;
-        }
-      }
+        },
+        result -> {
+          switch (result) {
+            case OK:
+              syncOK(synchronizer, copySpinner, copyDB, result);
+              nextSynchronizer();
+              break;
 
-      @Override
-      protected void onPostExecute(Synchronizer.Status result) {
-        switch (result) {
-          case OK:
-            syncOK(synchronizer, copySpinner, copyDB, result);
-            nextSynchronizer();
-            break;
+            case NEED_AUTH:
+              handleAuth(
+                  (synchronizerName, status) -> {
+                    if (status == Synchronizer.Status.OK) {
+                      doUpload(synchronizer);
+                    } else {
+                      nextSynchronizer();
+                    }
+                  },
+                  synchronizer,
+                  result.authMethod);
+              return;
 
-          case NEED_AUTH:
-            handleAuth(
-                (synchronizerName, status) -> {
-                  if (status == Synchronizer.Status.OK) {
-                    doUpload(synchronizer);
-                  } else {
-                    nextSynchronizer();
-                  }
-                },
-                synchronizer,
-                result.authMethod);
-            return;
+            case CANCEL:
+              pendingSynchronizers.clear();
+              doneUploading();
+              return;
 
-          case CANCEL:
-            pendingSynchronizers.clear();
-            doneUploading();
-            return;
-
-          default:
-            nextSynchronizer();
-            break;
-        }
-      }
-    }.execute(synchronizer);
+            default:
+              nextSynchronizer();
+              break;
+          }
+        });
   }
 
   /**
@@ -632,20 +618,9 @@ public class SyncManager {
       final SQLiteDatabase copyDB,
       final Synchronizer.Status status) {
     if (status.externalIdStatus == Synchronizer.ExternalIdStatus.PENDING) {
-      new AsyncTask<Void, Void, Synchronizer.Status>() {
-
-        @Override
-        protected Synchronizer.Status doInBackground(Void... args) {
-          // Implementation must delay the call rate
-          return synchronizer.getExternalId(copyDB, status);
-        }
-
-        @Override
-        protected void onPostExecute(Synchronizer.Status result) {
-          // the external status is updated, check
-          externalIdCompleted(synchronizer, copyDB, result);
-        }
-      }.execute();
+      BgTasks.runNetwork(
+          () -> synchronizer.getExternalId(copyDB, status),
+          result -> externalIdCompleted(synchronizer, copyDB, result));
     }
   }
 
@@ -750,18 +725,13 @@ public class SyncManager {
             .getString(org.runnerup.common.R.string.Fetching_activities_from_1s, synchronizerName));
     mSpinner.show();
 
-    new AsyncTask<Synchronizer, String, Status>() {
-      @Override
-      protected Synchronizer.Status doInBackground(Synchronizer... params) {
-        return params[0].listActivities(items);
-      }
-
-      @Override
-      protected void onPostExecute(Synchronizer.Status result) {
-        callback.run(synchronizerName, result);
-        mSpinner.dismiss();
-      }
-    }.execute(synchronizers.get(synchronizerName));
+    final Synchronizer sync = synchronizers.get(synchronizerName);
+    BgTasks.runNetwork(
+        () -> sync.listActivities(items),
+        result -> {
+          callback.run(synchronizerName, result);
+          mSpinner.dismiss();
+        });
   }
 
   public static class WorkoutRef {
@@ -816,55 +786,49 @@ public class SyncManager {
     copySpinner.setMessage("Listing from " + synchronizer.getName());
     final ArrayList<Pair<String, String>> list = new ArrayList<>();
 
-    new AsyncTask<Synchronizer, String, Synchronizer.Status>() {
-
-      @Override
-      protected Synchronizer.Status doInBackground(Synchronizer... params) {
-        try {
-          Synchronizer.Status s2 = params[0].listWorkouts(list);
-          // See doUpload() for motivation
-          if (s2 == Synchronizer.Status.NEED_REFRESH) {
-            s2 = handleRefreshComplete(synchronizer, synchronizer.refreshToken());
-            if (s2 == Synchronizer.Status.OK) {
-              s2 = params[0].listWorkouts(list);
+    BgTasks.runNetwork(
+        () -> {
+          try {
+            Synchronizer.Status s2 = synchronizer.listWorkouts(list);
+            if (s2 == Synchronizer.Status.NEED_REFRESH) {
+              s2 = handleRefreshComplete(synchronizer, synchronizer.refreshToken());
+              if (s2 == Synchronizer.Status.OK) {
+                s2 = synchronizer.listWorkouts(list);
+              }
             }
+            return s2;
+          } catch (Exception ex) {
+            ex.printStackTrace();
+            return Synchronizer.Status.ERROR;
           }
-          return s2;
-        } catch (Exception ex) {
-          ex.printStackTrace();
-          return Synchronizer.Status.ERROR;
-        }
-      }
+        },
+        result -> {
+          switch (result) {
+            case OK:
+              for (Pair<String, String> w : list) {
+                workoutRef.add(new WorkoutRef(synchronizer.getName(), w.first, w.second));
+              }
+              nextListWorkout();
+              break;
 
-      @Override
-      protected void onPostExecute(Synchronizer.Status result) {
-        switch (result) {
-          case OK:
-            for (Pair<String, String> w : list) {
-              workoutRef.add(new WorkoutRef(synchronizer.getName(), w.first, w.second));
-            }
-            nextListWorkout();
-            break;
+            case NEED_AUTH:
+              handleAuth(
+                  (synchronizerName, status) -> {
+                    if (status == Synchronizer.Status.OK) {
+                      doListWorkout(synchronizer);
+                    } else {
+                      nextListWorkout();
+                    }
+                  },
+                  synchronizer,
+                  result.authMethod);
+              return;
 
-          case NEED_AUTH:
-            handleAuth(
-                (synchronizerName, status) -> {
-                  if (status == Synchronizer.Status.OK) {
-                    doListWorkout(synchronizer);
-                  } else { // Unexpected result, nothing to do
-                    nextListWorkout();
-                  }
-                },
-                synchronizer,
-                result.authMethod);
-            return;
-
-          default:
-            nextListWorkout();
-            break;
-        }
-      }
-    }.execute(synchronizer);
+            default:
+              nextListWorkout();
+              break;
+          }
+        });
   }
 
   private void doneListing() {
@@ -879,56 +843,47 @@ public class SyncManager {
     int cnt = pendingWorkouts.size();
     mSpinner.setTitle("Downloading workouts (" + cnt + ")");
     mSpinner.show();
-    new AsyncTask<String, String, Synchronizer.Status>() {
-
-      @Override
-      protected void onProgressUpdate(String... values) {
-        mSpinner.setMessage("Loading " + values[0] + " from " + values[1]);
-      }
-
-      @Override
-      protected Synchronizer.Status doInBackground(String... params0) {
-        for (WorkoutRef ref : pendingWorkouts) {
-          publishProgress(ref.workoutName, ref.synchronizer);
-          Synchronizer synchronizer = synchronizers.get(ref.synchronizer);
-          File f = WorkoutSerializer.getFile(mContext, ref.workoutName);
-          File w = f;
-          if (f.exists()) {
-            w = WorkoutSerializer.getFile(mContext, ref.workoutName + ".tmp");
-          }
-          try {
-            synchronizer.downloadWorkout(w, ref.workoutKey);
-            if (w != f) {
-              if (!compareFiles(w, f)) {
-                Log.e(getClass().getName(), "overwriting " + f.getPath() + " with " + w.getPath());
-                // TODO dialog
-                //noinspection ResultOfMethodCallIgnored
-                f.delete();
-                //noinspection ResultOfMethodCallIgnored
-                w.renameTo(f);
-              } else {
-                Log.e(getClass().getName(), "file identical...deleting temporary " + w.getPath());
-                //noinspection ResultOfMethodCallIgnored
-                w.delete();
-              }
+    BgTasks.runNetworkWithProgress(
+        publisher -> {
+          for (WorkoutRef ref : pendingWorkouts) {
+            publisher.publish("Loading " + ref.workoutName + " from " + ref.synchronizer);
+            Synchronizer synchronizer = synchronizers.get(ref.synchronizer);
+            File f = WorkoutSerializer.getFile(mContext, ref.workoutName);
+            File w = f;
+            if (f.exists()) {
+              w = WorkoutSerializer.getFile(mContext, ref.workoutName + ".tmp");
             }
-          } catch (Exception e) {
-            e.printStackTrace();
-            //noinspection ResultOfMethodCallIgnored
-            w.delete();
+            try {
+              synchronizer.downloadWorkout(w, ref.workoutKey);
+              if (w != f) {
+                if (!compareFiles(w, f)) {
+                  Log.e(getClass().getName(), "overwriting " + f.getPath() + " with " + w.getPath());
+                  //noinspection ResultOfMethodCallIgnored
+                  f.delete();
+                  //noinspection ResultOfMethodCallIgnored
+                  w.renameTo(f);
+                } else {
+                  Log.e(
+                      getClass().getName(), "file identical...deleting temporary " + w.getPath());
+                  //noinspection ResultOfMethodCallIgnored
+                  w.delete();
+                }
+              }
+            } catch (Exception e) {
+              e.printStackTrace();
+              //noinspection ResultOfMethodCallIgnored
+              w.delete();
+            }
           }
-        }
-        return Synchronizer.Status.OK;
-      }
-
-      @Override
-      protected void onPostExecute(Synchronizer.Status result) {
-        mSpinner.dismiss();
-        if (callback != null) {
-          callback.run(null, Synchronizer.Status.OK);
-        }
-      }
-    }.execute("string");
+          return Synchronizer.Status.OK;
+        },
+        result -> {
+          mSpinner.dismiss();
+          if (callback != null) {
+            callback.run(null, Synchronizer.Status.OK);
+          }
+        },
+        message -> mSpinner.setMessage(message));
   }
 
   @SuppressWarnings("BooleanMethodIsAlwaysInverted")
@@ -1104,78 +1059,71 @@ public class SyncManager {
     final SQLiteDatabase copyDB = DBHelper.getWritableDatabase(mContext);
 
     copySpinner.setMessage(Long.toString(1 + syncActivitiesList.size()) + " remaining");
-    new AsyncTask<Synchronizer, String, Status>() {
-
-      @Override
-      protected Synchronizer.Status doInBackground(Synchronizer... params) {
-        try {
-          Synchronizer.Status s2;
-          switch (mode) {
-            case UPLOAD:
-              s2 = synchronizer.upload(copyDB, activityItem.getId());
-              break;
-            case DOWNLOAD:
-              s2 = synchronizer.download(copyDB, activityItem);
-              break;
-            default:
-              s2 = Synchronizer.Status.INCORRECT_USAGE;
-          }
-          // See doUpload() for motivation
-          if (s2 == Synchronizer.Status.NEED_REFRESH) {
-            s2 = handleRefreshComplete(synchronizer, synchronizer.refreshToken());
-            if (s2 == Synchronizer.Status.OK) {
-              switch (mode) {
-                case UPLOAD:
-                  s2 = synchronizer.upload(copyDB, activityItem.getId());
-                  break;
-                case DOWNLOAD:
-                  s2 = synchronizer.download(copyDB, activityItem);
-                  break;
-                default:
-                  s2 = Synchronizer.Status.INCORRECT_USAGE;
+    BgTasks.runNetwork(
+        () -> {
+          try {
+            Synchronizer.Status s2;
+            switch (mode) {
+              case UPLOAD:
+                s2 = synchronizer.upload(copyDB, activityItem.getId());
+                break;
+              case DOWNLOAD:
+                s2 = synchronizer.download(copyDB, activityItem);
+                break;
+              default:
+                s2 = Synchronizer.Status.INCORRECT_USAGE;
+            }
+            if (s2 == Synchronizer.Status.NEED_REFRESH) {
+              s2 = handleRefreshComplete(synchronizer, synchronizer.refreshToken());
+              if (s2 == Synchronizer.Status.OK) {
+                switch (mode) {
+                  case UPLOAD:
+                    s2 = synchronizer.upload(copyDB, activityItem.getId());
+                    break;
+                  case DOWNLOAD:
+                    s2 = synchronizer.download(copyDB, activityItem);
+                    break;
+                  default:
+                    s2 = Synchronizer.Status.INCORRECT_USAGE;
+                }
               }
             }
+            return s2;
+          } catch (Exception ex) {
+            ex.printStackTrace();
+            return Synchronizer.Status.ERROR;
           }
-          return s2;
-        } catch (Exception ex) {
-          ex.printStackTrace();
-          return Synchronizer.Status.ERROR;
-        }
-      }
+        },
+        result -> {
+          switch (result) {
+            case OK:
+              syncOK(synchronizer, copySpinner, copyDB, result);
+              syncNextActivity(synchronizer, mode);
+              break;
 
-      @Override
-      protected void onPostExecute(Synchronizer.Status result) {
-        switch (result) {
-          case OK:
-            syncOK(synchronizer, copySpinner, copyDB, result);
-            syncNextActivity(synchronizer, mode);
-            break;
+            case NEED_AUTH:
+              handleAuth(
+                  (synchronizerName, s2) -> {
+                    if (s2 == Synchronizer.Status.OK) {
+                      doSyncMulti(synchronizer, mode, activityItem);
+                    } else {
+                      syncNextActivity(synchronizer, mode);
+                    }
+                  },
+                  synchronizer,
+                  result.authMethod);
+              return;
 
-          // TODO Handling of NEED_AUTH and CANCEL hangs the app
-          case NEED_AUTH:
-            handleAuth(
-                (synchronizerName, s2) -> {
-                  if (s2 == Synchronizer.Status.OK) {
-                    doSyncMulti(synchronizer, mode, activityItem);
-                  } else { // Unexpected result, nothing to do
-                    syncNextActivity(synchronizer, mode);
-                  }
-                },
-                synchronizer,
-                result.authMethod);
-            return;
+            case CANCEL:
+              syncActivitiesList.clear();
+              syncNextActivity(synchronizer, mode);
+              break;
 
-          case CANCEL:
-            syncActivitiesList.clear();
-            syncNextActivity(synchronizer, mode);
-            break;
-
-          default:
-            syncNextActivity(synchronizer, mode);
-            break;
-        }
-      }
-    }.execute(synchronizer);
+            default:
+              syncNextActivity(synchronizer, mode);
+              break;
+          }
+        });
   }
 
   public void loadLiveLoggers(List<WorkoutObserver> liveLoggers) {

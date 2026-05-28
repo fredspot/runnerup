@@ -31,7 +31,6 @@ import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -58,14 +57,14 @@ import org.runnerup.BuildConfig;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants.DB;
 import org.runnerup.data.ActivityCleaner;
-import org.runnerup.data.BestTimesCalculator;
+import org.runnerup.analytics.AutoComputeRunner;
+import org.runnerup.data.ComputationTracker;
 import org.runnerup.data.DBHelper;
-import org.runnerup.data.HRZoneCalculator;
-import org.runnerup.data.MonthlyComparisonCalculator;
-import org.runnerup.data.StatisticsCalculator;
-import org.runnerup.data.YearlyCumulativeCalculator;
+import org.runnerup.analytics.MonthlyComparisonCalculator;
+import org.runnerup.core.util.BgTasks;
 import org.runnerup.core.util.FileUtil;
 import org.runnerup.core.util.Formatter;
+import org.runnerup.core.util.HRZones;
 import org.runnerup.core.util.GoogleApiHelper;
 import org.runnerup.core.util.ViewUtil;
 
@@ -216,7 +215,7 @@ public class MainLayout extends AppCompatActivity {
     getOnBackPressedDispatcher().addCallback(this, onBackPressed);
 
     // Start auto-computation of statistics and best times
-    new AutoComputeTask().execute();
+    runAutoComputeInBackground();
   }
 
     @Override
@@ -474,132 +473,76 @@ public class MainLayout extends AppCompatActivity {
     wv.loadUrl("file:///android_asset/changes.html");
   }
 
-  /**
-   * AsyncTask to automatically compute statistics and best times on app startup.
-   */
-  private class AutoComputeTask extends AsyncTask<Void, Void, Void> {
-    private static final String TAG = "AutoComputeTask";
+  private static final String PREF_ACTIVITY_BULK_STAMP = "activity_bulk_recompute_stamp";
+  private static final int BULK_RECOMPUTE_DATA_REVISION = 2;
 
-    /**
-     * Persisted stamp so bulk recompute runs again when the APK {@link BuildConfig#VERSION_CODE}
-     * changes or when {@link #BULK_RECOMPUTE_DATA_REVISION} is bumped (HR/summary logic fixes).
-     */
-    private static final String PREF_ACTIVITY_BULK_STAMP = "activity_bulk_recompute_stamp";
-
-    private static final int BULK_RECOMPUTE_DATA_REVISION = 2;
-
-    @Override
-    protected Void doInBackground(Void... params) {
-      autoComputeBulkRecomputeJustRan = false;
-      SQLiteDatabase db = DBHelper.getWritableDatabase(MainLayout.this);
-      
-      try {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(MainLayout.this);
-        long requiredStamp =
-            (long) BuildConfig.VERSION_CODE * 1000L + BULK_RECOMPUTE_DATA_REVISION;
-        long appliedStamp = prefs.getLong(PREF_ACTIVITY_BULK_STAMP, 0L);
-        if (appliedStamp < requiredStamp) {
-          Log.i(
-              TAG,
-              "Bulk activity recompute (apk version "
-                  + BuildConfig.VERSION_CODE
-                  + ", data revision "
-                  + BULK_RECOMPUTE_DATA_REVISION
-                  + ", last stamp "
-                  + appliedStamp
-                  + ")...");
-          ActivityCleaner cleaner = new ActivityCleaner();
-          int n = 0;
-          try (Cursor c =
-              db.query(
-                  DB.ACTIVITY.TABLE,
-                  new String[] {DB.PRIMARY_KEY},
-                  DB.ACTIVITY.DELETED + " = ?",
-                  new String[] {"0"},
-                  null,
-                  null,
-                  DB.PRIMARY_KEY + " ASC")) {
-            while (c.moveToNext()) {
-              long id = c.getLong(0);
-              try {
-                cleaner.recompute(db, id);
-                n++;
-                if (n % 50 == 0) {
-                  Log.i(TAG, "Bulk recompute progress: " + n + " activities...");
+  private void runAutoComputeInBackground() {
+    BgTasks.run(
+        () -> {
+          autoComputeBulkRecomputeJustRan = false;
+          SQLiteDatabase db = null;
+          try {
+            db = DBHelper.getWritableDatabase(MainLayout.this);
+            SharedPreferences prefs =
+                PreferenceManager.getDefaultSharedPreferences(MainLayout.this);
+            long requiredStamp =
+                (long) BuildConfig.VERSION_CODE * 1000L + BULK_RECOMPUTE_DATA_REVISION;
+            long appliedStamp = prefs.getLong(PREF_ACTIVITY_BULK_STAMP, 0L);
+            if (appliedStamp < requiredStamp) {
+              Log.i(
+                  getClass().getSimpleName(),
+                  "Bulk activity recompute (apk "
+                      + BuildConfig.VERSION_CODE
+                      + ", revision "
+                      + BULK_RECOMPUTE_DATA_REVISION
+                      + ")");
+              ActivityCleaner cleaner = new ActivityCleaner();
+              int n = 0;
+              try (Cursor c =
+                  db.query(
+                      DB.ACTIVITY.TABLE,
+                      new String[] {DB.PRIMARY_KEY},
+                      DB.ACTIVITY.DELETED + " = ?",
+                      new String[] {"0"},
+                      null,
+                      null,
+                      DB.PRIMARY_KEY + " ASC")) {
+                while (c.moveToNext()) {
+                  long id = c.getLong(0);
+                  try {
+                    cleaner.recompute(db, id);
+                    n++;
+                  } catch (Exception e) {
+                    Log.w(getClass().getSimpleName(), "Recompute failed for activity " + id, e);
+                  }
                 }
-              } catch (Exception e) {
-                Log.w(TAG, "Recompute failed for activity " + id, e);
               }
+              ComputationTracker.deleteTracking(
+                  db, ComputationTracker.TYPE_BEST_TIMES, ComputationTracker.TYPE_STATISTICS);
+              prefs.edit().putLong(PREF_ACTIVITY_BULK_STAMP, requiredStamp).apply();
+              autoComputeBulkRecomputeJustRan = true;
+            }
+            AutoComputeRunner.runAll(db, getMonthlyComparisonZoneBounds(MainLayout.this));
+          } catch (Exception e) {
+            Log.e(getClass().getSimpleName(), "Error during auto-computation: " + e.getMessage(), e);
+          } finally {
+            if (db != null) {
+              DBHelper.closeDB(db);
             }
           }
-          Log.i(TAG, "Bulk activity recompute finished for " + n + " activities");
-          db.delete(
-              DB.COMPUTATION_TRACKING.TABLE,
-              DB.COMPUTATION_TRACKING.COMPUTATION_TYPE + " IN (?, ?)",
-              new String[] {"best_times", "statistics"});
-          prefs.edit().putLong(PREF_ACTIVITY_BULK_STAMP, requiredStamp).apply();
-          autoComputeBulkRecomputeJustRan = true;
-        }
+        },
+        () -> {
+          if (autoComputeBulkRecomputeJustRan) {
+            Toast.makeText(
+                    MainLayout.this,
+                    R.string.activity_bulk_recompute_done,
+                    Toast.LENGTH_LONG)
+                .show();
+          }
+        });
+  }
 
-        // Check and compute Best Times if stale
-        if (BestTimesCalculator.isDataStale(db)) {
-          Log.i(TAG, "Best times data is stale, computing...");
-          int computed = BestTimesCalculator.computeBestTimes(db);
-          Log.i(TAG, "Computed " + computed + " best times");
-        } else {
-          Log.i(TAG, "Best times data is fresh, skipping computation");
-        }
-        
-        // Check and compute Statistics if stale
-        if (StatisticsCalculator.isDataStale(db)) {
-          Log.i(TAG, "Statistics data is stale, computing...");
-          int computed = StatisticsCalculator.computeStatistics(db);
-          Log.i(TAG, "Computed " + computed + " statistics records");
-        } else {
-          Log.i(TAG, "Statistics data is fresh, skipping computation");
-        }
-        
-        // Always compute Monthly Comparison (computes every time at startup)
-        Log.i(TAG, "Computing monthly comparison...");
-        int monthlyComputed = MonthlyComparisonCalculator.computeComparison(db);
-        Log.i(TAG, "Computed " + monthlyComputed + " monthly comparison records");
-        
-        // Check and compute HR Zones if stale
-        if (HRZoneCalculator.isDataStale(db)) {
-          Log.i(TAG, "HR zone data is stale, computing...");
-          int hrComputed = HRZoneCalculator.computeHRZones(db);
-          Log.i(TAG, "Computed " + hrComputed + " HR zone records");
-        } else {
-          Log.i(TAG, "HR zone data is fresh, skipping computation");
-        }
-        
-        // Check and compute Yearly Cumulative if stale
-        if (YearlyCumulativeCalculator.isDataStale(db)) {
-          Log.i(TAG, "Yearly cumulative data is stale, computing...");
-          int cumulativeComputed = YearlyCumulativeCalculator.computeCumulative(db);
-          Log.i(TAG, "Computed " + cumulativeComputed + " yearly cumulative records");
-        } else {
-          Log.i(TAG, "Yearly cumulative data is fresh, skipping computation");
-        }
-        
-      } catch (Exception e) {
-        Log.e(TAG, "Error during auto-computation: " + e.getMessage(), e);
-      } finally {
-        DBHelper.closeDB(db);
-      }
-      
-      return null;
-    }
-
-    @Override
-    protected void onPostExecute(Void result) {
-      if (autoComputeBulkRecomputeJustRan) {
-        Toast.makeText(
-                MainLayout.this,
-                R.string.activity_bulk_recompute_done,
-                Toast.LENGTH_LONG)
-            .show();
-      }
-    }
+  static int[] getMonthlyComparisonZoneBounds(android.content.Context context) {
+    return MonthlyComparisonCalculator.resolveZoneBounds(new HRZones(context));
   }
 }

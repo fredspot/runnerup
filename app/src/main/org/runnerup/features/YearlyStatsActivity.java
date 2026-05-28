@@ -170,7 +170,8 @@ public class YearlyStatsActivity extends AppCompatActivity implements Constants,
       // Summary stats
       if (stats.getTotalDistance() != null && stats.getAvgPace() != null && stats.getRunCount() != null) {
         String distanceStr = formatter.formatDistance(Formatter.Format.TXT_SHORT, stats.getTotalDistance().longValue());
-        String paceStr = formatter.formatPace(Formatter.Format.TXT_SHORT, stats.getAvgPace() / 1000.0); // Convert to seconds per meter
+        String paceStr =
+            formatter.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, stats.getAvgPace());
         String summary = distanceStr + " • " + paceStr + " • " + stats.getRunCount() + " runs";
         statsSummaryText.setText(summary);
       } else {

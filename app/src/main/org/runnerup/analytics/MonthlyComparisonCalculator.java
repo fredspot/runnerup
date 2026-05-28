@@ -15,26 +15,137 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.runnerup.data;
+package org.runnerup.analytics;
 
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
+import android.util.Pair;
 import java.util.Calendar;
 import java.util.Locale;
 import org.runnerup.common.util.Constants;
+import org.runnerup.core.util.HRZones;
+import org.runnerup.data.ComputationTracker;
+import org.runnerup.data.RunningPaceBounds;
 
 public class MonthlyComparisonCalculator implements Constants {
 
   private static final String TAG = "MonthlyComparisonCalc";
 
+  /** Minimum monthly volume to include a month in zone-pace metrics. */
+  private static final double MIN_MONTH_DISTANCE_M = 50_000;
+
+  private static final int MIN_MONTH_RUN_COUNT = 2;
+  private static final double MIN_ACTIVITY_DISTANCE_M = 2_000;
+  private static final double MIN_LAP_DISTANCE_M = 400;
+  private static final double MIN_PACE_SEC_PER_KM = RunningPaceBounds.MONTHLY_MIN_SEC_PER_KM;
+  private static final double MAX_PACE_SEC_PER_KM = RunningPaceBounds.MONTHLY_MAX_SEC_PER_KM;
+
+  private static final String[] CURRENT_AVG_PACE_ZONE_COLUMNS = {
+    Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_1,
+    Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_2,
+    Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_3,
+    Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_4
+  };
+  private static final String[] OTHER_AVG_PACE_ZONE_COLUMNS = {
+    Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_PACE_ZONE_1,
+    Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_PACE_ZONE_2,
+    Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_PACE_ZONE_3,
+    Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_PACE_ZONE_4
+  };
+  private static final String[] BEST_AVG_PACE_ZONE_COLUMNS = {
+    Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_1,
+    Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_2,
+    Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_3,
+    Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_4
+  };
+  private static final String[] BEST_AVG_PACE_ZONE_MONTH_COLUMNS = {
+    Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_1_MONTH,
+    Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_2_MONTH,
+    Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_3_MONTH,
+    Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_4_MONTH
+  };
+
   /**
    * Computes monthly comparison statistics.
-   * 
+   *
    * @param db Database instance
    * @return number of records computed
    */
   public static int computeComparison(SQLiteDatabase db) {
+    return computeComparison(db, resolveZoneBounds(null));
+  }
+
+  public static int computeComparison(SQLiteDatabase db, int[] zoneBounds) {
+    return computeComparison(
+        db,
+        zoneBounds[0],
+        zoneBounds[1],
+        zoneBounds[2],
+        zoneBounds[3],
+        zoneBounds[4],
+        zoneBounds[5],
+        zoneBounds[6],
+        zoneBounds[7]);
+  }
+
+  /**
+   * Resolves HR bounds for zones 1–4: user-configured zones when set, otherwise defaults (MHR 186).
+   *
+   * @return int[8] as z1Min, z1Max, z2Min, z2Max, z3Min, z3Max, z4Min, z4Max
+   */
+  public static int[] resolveZoneBounds(HRZones hrZones) {
+    int[] bounds = new int[8];
+    boolean anyConfigured = false;
+    if (hrZones != null && hrZones.isConfigured()) {
+      for (int zone = 1; zone <= 4; zone++) {
+        Pair<Integer, Integer> range = hrZones.getHRValues(zone);
+        if (range != null && range.second > range.first) {
+          bounds[(zone - 1) * 2] = range.first;
+          bounds[(zone - 1) * 2 + 1] = range.second;
+          anyConfigured = true;
+        }
+      }
+    }
+    if (!anyConfigured) {
+      return defaultZoneBounds();
+    }
+    return bounds;
+  }
+
+  private static int[] defaultZoneBounds() {
+    return new int[] {
+      Constants.DB.HR_ZONES.ZONE1_MIN,
+      Constants.DB.HR_ZONES.ZONE1_MAX,
+      Constants.DB.HR_ZONES.ZONE2_MIN,
+      Constants.DB.HR_ZONES.ZONE2_MAX,
+      Constants.DB.HR_ZONES.ZONE3_MIN,
+      Constants.DB.HR_ZONES.ZONE3_MAX,
+      Constants.DB.HR_ZONES.ZONE4_MIN,
+      Constants.DB.HR_ZONES.ZONE4_MAX
+    };
+  }
+
+  /**
+   * @param z1Min inclusive min HR for zone 1 (0 if zone not configured)
+   * @param z1Max exclusive max HR for zone 1
+   * @param z2Min inclusive min HR for zone 2
+   * @param z2Max exclusive max HR for zone 2
+   * @param z3Min inclusive min HR for zone 3
+   * @param z3Max exclusive max HR for zone 3
+   * @param z4Min inclusive min HR for zone 4
+   * @param z4Max exclusive max HR for zone 4
+   */
+  public static int computeComparison(
+      SQLiteDatabase db,
+      int z1Min,
+      int z1Max,
+      int z2Min,
+      int z2Max,
+      int z3Min,
+      int z3Max,
+      int z4Min,
+      int z4Max) {
     Log.i(TAG, "=== Starting monthly comparison computation ===");
 
     // Clear existing data
@@ -47,18 +158,28 @@ public class MonthlyComparisonCalculator implements Constants {
 
     String currentMonthYear = String.format(Locale.US, "%04d-%02d", currentYear, currentMonth);
 
+    int[][] zoneBounds = {
+      {z1Min, z1Max},
+      {z2Min, z2Max},
+      {z3Min, z3Max},
+      {z4Min, z4Max}
+    };
+
     // Get current month stats from monthly_stats table
     MonthlyStats currentStats = getMonthlyStats(db, currentYear, currentMonth);
-    Log.d(TAG, "Current month stats: pace=" + currentStats.avgPace + ", km=" + currentStats.totalKm + 
-              ", bpm=" + currentStats.avgBpm + ", pbs=" + currentStats.pbCount);
+    fillCurrentZonePace(db, currentStats, currentYear, currentMonth, zoneBounds);
+    Log.d(TAG, "Current month stats: pace=" + currentStats.avgPace + ", km=" + currentStats.totalKm
+        + ", bpm=" + currentStats.avgBpm + ", pbs=" + currentStats.pbCount);
 
     // Compute other months stats (average of all other months)
-    MonthlyStats otherStats = computeOtherMonthsStats(db, currentYear, currentMonth);
+    MonthlyStats otherStats =
+        computeOtherMonthsStats(db, currentYear, currentMonth, zoneBounds);
     Log.d(TAG, "Other months stats: pace=" + otherStats.avgPace + ", km=" + otherStats.totalKm + 
               ", bpm=" + otherStats.avgBpm + ", pbs=" + otherStats.pbCount);
 
-    // Compute best month stats (best value across all months)
-    BestMonthStats bestStats = computeBestMonthStats(db);
+    // Compute best month stats (completed months only)
+    BestMonthStats bestStats =
+        computeBestMonthStats(db, currentYear, currentMonth, zoneBounds);
     Log.d(TAG, "Best month stats computed");
 
     // Store result
@@ -76,8 +197,7 @@ public class MonthlyComparisonCalculator implements Constants {
     values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_PB_COUNT, otherStats.pbCount);
     values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_DISTANCE_PER_RUN, otherStats.avgDistancePerRun);
     values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_TOP25_COUNT, otherStats.top25Count);
-    values.put(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_BPM_5MIN_KM, currentStats.avgBpm5MinKm);
-    values.put(Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_BPM_5MIN_KM, otherStats.avgBpm5MinKm);
+    putZonePaceValues(values, currentStats, otherStats, bestStats);
     // Best month values
     values.put(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE, bestStats.bestAvgPace);
     values.put(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_PACE_MONTH, bestStats.bestAvgPaceMonth);
@@ -91,8 +211,6 @@ public class MonthlyComparisonCalculator implements Constants {
     values.put(Constants.DB.MONTHLY_COMPARISON.BEST_PB_COUNT_MONTH, bestStats.bestPbCountMonth);
     values.put(Constants.DB.MONTHLY_COMPARISON.BEST_TOP25_COUNT, bestStats.bestTop25Count);
     values.put(Constants.DB.MONTHLY_COMPARISON.BEST_TOP25_COUNT_MONTH, bestStats.bestTop25CountMonth);
-    values.put(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_BPM_5MIN_KM, bestStats.bestAvgBpm5MinKm);
-    values.put(Constants.DB.MONTHLY_COMPARISON.BEST_AVG_BPM_5MIN_KM_MONTH, bestStats.bestAvgBpm5MinKmMonth);
     values.put(Constants.DB.MONTHLY_COMPARISON.LAST_COMPUTED, System.currentTimeMillis());
 
     db.insert(Constants.DB.MONTHLY_COMPARISON.TABLE, null, values);
@@ -108,7 +226,8 @@ public class MonthlyComparisonCalculator implements Constants {
     double pbCount; // Changed to double for decimal precision
     double avgDistancePerRun; // in meters
     double top25Count; // Changed to double for decimal precision
-    int avgBpm5MinKm; // average BPM for laps run at ~5min/km pace (4:50-5:10)
+    /** Index 1–4: average pace (s/km) in each HR zone. */
+    final double[] avgPaceZone = new double[5];
   }
 
   private static class BestMonthStats {
@@ -124,8 +243,8 @@ public class MonthlyComparisonCalculator implements Constants {
     String bestPbCountMonth;
     int bestTop25Count;
     String bestTop25CountMonth;
-    int bestAvgBpm5MinKm;
-    String bestAvgBpm5MinKmMonth;
+    final double[] bestAvgPaceZone = new double[5];
+    final String[] bestAvgPaceZoneMonth = new String[5];
   }
 
   private static MonthlyStats getMonthlyStats(SQLiteDatabase db, int year, int month) {
@@ -321,44 +440,11 @@ public class MonthlyComparisonCalculator implements Constants {
       }
     }
 
-    // Calculate average BPM for laps run at 5min/km pace (between 4:50 and 5:10)
-    // Pace = time (ms) / distance (m) * 1000 = seconds per km
-    // Target: 290-310 seconds per km (4:50-5:10)
-    Log.i(TAG, "=== Calculating BPM @ 5min/km for current month ===");
-    Log.i(TAG, "Month start: " + monthStartSeconds + ", Month end: " + monthEndSeconds);
-    String bpm5MinKmSql = "SELECT AVG(l." + Constants.DB.LAP.AVG_HR + ")" +
-                          " FROM " + Constants.DB.LAP.TABLE + " l" +
-                          " WHERE l." + Constants.DB.LAP.ACTIVITY + " IN (" +
-                          "SELECT _id FROM " + Constants.DB.ACTIVITY.TABLE +
-                          " WHERE " + Constants.DB.ACTIVITY.SPORT + " = ? AND " +
-                          Constants.DB.ACTIVITY.DELETED + " = 0 AND " +
-                          Constants.DB.ACTIVITY.START_TIME + " >= ? AND " + Constants.DB.ACTIVITY.START_TIME + " <= ?)" +
-                          " AND l." + Constants.DB.LAP.DISTANCE + " > 0" +
-                          " AND l." + Constants.DB.LAP.TIME + " > 0" +
-                          " AND l." + Constants.DB.LAP.AVG_HR + " > 0" +
-                          " AND ((l." + Constants.DB.LAP.TIME + " / 1000.0 / l." + Constants.DB.LAP.DISTANCE + " * 1000.0) >= 290.0)" +
-                          " AND ((l." + Constants.DB.LAP.TIME + " / 1000.0 / l." + Constants.DB.LAP.DISTANCE + " * 1000.0) <= 310.0)";
-    
-    try (Cursor bpm5MinKmCursor = db.rawQuery(bpm5MinKmSql, new String[]{
-      String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING),
-      String.valueOf(monthStartSeconds),
-      String.valueOf(monthEndSeconds)})) {
-      Log.i(TAG, "Query executed, cursor row count: " + bpm5MinKmCursor.getCount());
-      if (bpm5MinKmCursor.moveToFirst() && !bpm5MinKmCursor.isNull(0)) {
-        double avgBpm = bpm5MinKmCursor.getDouble(0);
-        stats.avgBpm5MinKm = (int) Math.round(avgBpm);
-        Log.i(TAG, "*** SUCCESS: Current month BPM @ 5min/km: " + stats.avgBpm5MinKm + " (from " + avgBpm + ") ***");
-      } else {
-        Log.i(TAG, "*** No laps found at 5min/km pace for current month (cursor empty or null) ***");
-      }
-    } catch (Exception e) {
-      Log.e(TAG, "*** ERROR calculating BPM @ 5min/km for current month: " + e.getMessage(), e);
-    }
-
     return stats;
   }
 
-  private static MonthlyStats computeOtherMonthsStats(SQLiteDatabase db, int currentYear, int currentMonth) {
+  private static MonthlyStats computeOtherMonthsStats(
+      SQLiteDatabase db, int currentYear, int currentMonth, int[][] zoneBounds) {
     MonthlyStats stats = new MonthlyStats();
 
     // Get all monthly stats except current month
@@ -516,35 +602,10 @@ public class MonthlyComparisonCalculator implements Constants {
       stats.top25Count = 0;
     }
 
-    // Calculate average BPM for laps run at 5min/km pace (between 4:50 and 5:10)
-    // Pace = time (ms) / distance (m) * 1000 = seconds per km
-    // Target: 290-310 seconds per km (4:50-5:10)
-    String bpm5MinKmSql = "SELECT AVG(l." + Constants.DB.LAP.AVG_HR + ")" +
-                          " FROM " + Constants.DB.LAP.TABLE + " l" +
-                          " WHERE l." + Constants.DB.LAP.ACTIVITY + " IN (" +
-                          "SELECT _id FROM " + Constants.DB.ACTIVITY.TABLE +
-                          " WHERE " + Constants.DB.ACTIVITY.SPORT + " = ? AND " +
-                          Constants.DB.ACTIVITY.DELETED + " = 0 AND " +
-                          "(" + Constants.DB.ACTIVITY.START_TIME + " < ? OR " + Constants.DB.ACTIVITY.START_TIME + " > ?))" +
-                          " AND l." + Constants.DB.LAP.DISTANCE + " > 0" +
-                          " AND l." + Constants.DB.LAP.TIME + " > 0" +
-                          " AND l." + Constants.DB.LAP.AVG_HR + " > 0" +
-                          " AND ((l." + Constants.DB.LAP.TIME + " / 1000.0 / l." + Constants.DB.LAP.DISTANCE + " * 1000.0) >= 290.0)" +
-                          " AND ((l." + Constants.DB.LAP.TIME + " / 1000.0 / l." + Constants.DB.LAP.DISTANCE + " * 1000.0) <= 310.0)";
-    
-    try (Cursor bpm5MinKmCursor = db.rawQuery(bpm5MinKmSql, new String[]{
-      String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING),
-      String.valueOf(monthStartSeconds),
-      String.valueOf(monthEndSeconds)})) {
-      if (bpm5MinKmCursor.moveToFirst() && !bpm5MinKmCursor.isNull(0)) {
-        double avgBpm = bpm5MinKmCursor.getDouble(0);
-        stats.avgBpm5MinKm = (int) Math.round(avgBpm);
-        Log.i(TAG, "*** SUCCESS: Other months BPM @ 5min/km: " + stats.avgBpm5MinKm + " (from " + avgBpm + ") ***");
-      } else {
-        Log.i(TAG, "*** No laps found at 5min/km pace for other months (cursor empty or null) ***");
-      }
-    } catch (Exception e) {
-      Log.e(TAG, "*** ERROR calculating BPM @ 5min/km for other months: " + e.getMessage(), e);
+    for (int zone = 1; zone <= 4; zone++) {
+      stats.avgPaceZone[zone] =
+          computeAvgPaceInZoneForOtherMonths(
+              db, currentYear, currentMonth, zoneBounds[zone - 1][0], zoneBounds[zone - 1][1]);
     }
 
     return stats;
@@ -553,7 +614,8 @@ public class MonthlyComparisonCalculator implements Constants {
   /**
    * Computes best month statistics (best value for each metric across all months).
    */
-  private static BestMonthStats computeBestMonthStats(SQLiteDatabase db) {
+  private static BestMonthStats computeBestMonthStats(
+      SQLiteDatabase db, int currentYear, int currentMonth, int[][] zoneBounds) {
     BestMonthStats best = new BestMonthStats();
     
     // Get all monthly stats to find best values
@@ -572,12 +634,17 @@ public class MonthlyComparisonCalculator implements Constants {
     best.bestAvgBpm = Integer.MAX_VALUE; // Lower is better (assuming lower HR is better)
     best.bestPbCount = 0; // Higher is better
     best.bestTop25Count = 0; // Higher is better
-    best.bestAvgBpm5MinKm = Integer.MAX_VALUE; // Lower is better
+    for (int zone = 1; zone <= 4; zone++) {
+      best.bestAvgPaceZone[zone] = Double.MAX_VALUE;
+    }
     
     try (Cursor cursor = db.rawQuery(sql, null)) {
       while (cursor.moveToNext()) {
         int year = cursor.getInt(0);
         int month = cursor.getInt(1);
+        if (year == currentYear && month == currentMonth) {
+          continue;
+        }
         double avgPace = cursor.getDouble(2);
         double totalDistance = cursor.getDouble(3);
         double avgRunLength = cursor.getDouble(4);
@@ -607,12 +674,7 @@ public class MonthlyComparisonCalculator implements Constants {
       }
     }
     
-    // Get best BPM, PB count, Top25 count, and BPM@5min/km by querying per month
-    // We need to compute these per month since they're not in monthly_stats
-    Calendar cal = Calendar.getInstance();
-    int currentYear = cal.get(Calendar.YEAR);
-    int currentMonth = cal.get(Calendar.MONTH) + 1;
-    
+    // Get best BPM, PB count, Top25 count, and zone pace by querying per month
     // Get all unique year/month combinations from activities
     String monthSql = "SELECT DISTINCT " +
                       "  strftime('%Y', datetime(" + Constants.DB.ACTIVITY.START_TIME + ", 'unixepoch')) as year, " +
@@ -626,6 +688,9 @@ public class MonthlyComparisonCalculator implements Constants {
       while (monthCursor.moveToNext()) {
         int year = Integer.parseInt(monthCursor.getString(0));
         int month = Integer.parseInt(monthCursor.getString(1));
+        if (year == currentYear && month == currentMonth) {
+          continue;
+        }
         String monthYear = formatMonthYear(year, month);
         
         // Calculate month start/end
@@ -699,43 +764,14 @@ public class MonthlyComparisonCalculator implements Constants {
           }
         }
         
-        // Get BPM@5min/km for this month
-        // Use same query structure as "All Others" calculation for consistency
-        // TIME is in milliseconds, so: (time_ms / distance_m) * 1000 = seconds/km
-        String bpm5MinKmSql = "SELECT CAST(ROUND(AVG(l." + Constants.DB.LAP.AVG_HR + ")) AS INT)" +
-                              " FROM " + Constants.DB.LAP.TABLE + " l" +
-                              " JOIN " + Constants.DB.ACTIVITY.TABLE + " a ON a." + Constants.DB.PRIMARY_KEY + " = l." + Constants.DB.LAP.ACTIVITY +
-                              " WHERE a." + Constants.DB.ACTIVITY.SPORT + " = ? AND " +
-                              " a." + Constants.DB.ACTIVITY.DELETED + " = 0 AND " +
-                              " a." + Constants.DB.ACTIVITY.START_TIME + " >= ? AND " +
-                              " a." + Constants.DB.ACTIVITY.START_TIME + " < ? AND " +
-                              " l." + Constants.DB.LAP.DISTANCE + " > 0 AND " +
-                              " l." + Constants.DB.LAP.TIME + " > 0 AND " +
-                              " l." + Constants.DB.LAP.AVG_HR + " > 0 AND " +
-                              " ((l." + Constants.DB.LAP.TIME + " * 1.0) / l." + Constants.DB.LAP.DISTANCE + " * 1000.0 BETWEEN 290.0 AND 310.0)";
-        
-        // Calculate next month start for proper range (using < instead of <=)
-        Calendar nextMonthCal = (Calendar) monthCal.clone();
-        nextMonthCal.add(Calendar.MONTH, 1);
-        long nextMonthStartSeconds = nextMonthCal.getTimeInMillis() / 1000;
-        
-        try (Cursor bpm5MinKmCursor = db.rawQuery(bpm5MinKmSql, new String[]{
-          String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING),
-          String.valueOf(monthStartSeconds),
-          String.valueOf(nextMonthStartSeconds)})) {
-          if (bpm5MinKmCursor.moveToFirst() && !bpm5MinKmCursor.isNull(0)) {
-            int avgBpm = bpm5MinKmCursor.getInt(0);
-            Log.d(TAG, "BPM@5min/km for " + monthYear + ": " + avgBpm + " (current best: " + best.bestAvgBpm5MinKm + ")");
-            if (avgBpm > 0 && avgBpm < best.bestAvgBpm5MinKm) {
-              best.bestAvgBpm5MinKm = avgBpm;
-              best.bestAvgBpm5MinKmMonth = monthYear;
-              Log.d(TAG, "New best BPM@5min/km: " + avgBpm + " in " + monthYear);
-            }
-          } else {
-            Log.d(TAG, "No BPM@5min/km data for " + monthYear);
+        for (int zone = 1; zone <= 4; zone++) {
+          int hrMin = zoneBounds[zone - 1][0];
+          int hrMax = zoneBounds[zone - 1][1];
+          double paceZone = computeAvgPaceInZoneForMonth(db, year, month, hrMin, hrMax);
+          if (paceZone > 0 && paceZone < best.bestAvgPaceZone[zone]) {
+            best.bestAvgPaceZone[zone] = paceZone;
+            best.bestAvgPaceZoneMonth[zone] = monthYear;
           }
-        } catch (Exception e) {
-          Log.e(TAG, "Error calculating BPM@5min/km for " + monthYear + ": " + e.getMessage(), e);
         }
       }
     }
@@ -743,9 +779,232 @@ public class MonthlyComparisonCalculator implements Constants {
     // Reset to 0 if no valid values found
     if (best.bestAvgPace == Double.MAX_VALUE) best.bestAvgPace = 0;
     if (best.bestAvgBpm == Integer.MAX_VALUE) best.bestAvgBpm = 0;
-    if (best.bestAvgBpm5MinKm == Integer.MAX_VALUE) best.bestAvgBpm5MinKm = 0;
+    for (int zone = 1; zone <= 4; zone++) {
+      if (best.bestAvgPaceZone[zone] == Double.MAX_VALUE) {
+        best.bestAvgPaceZone[zone] = 0;
+      }
+    }
     
     return best;
+  }
+
+  private static void fillCurrentZonePace(
+      SQLiteDatabase db,
+      MonthlyStats stats,
+      int year,
+      int month,
+      int[][] zoneBounds) {
+    for (int zone = 1; zone <= 4; zone++) {
+      stats.avgPaceZone[zone] =
+          computeAvgPaceInZoneForMonth(
+              db, year, month, zoneBounds[zone - 1][0], zoneBounds[zone - 1][1]);
+    }
+  }
+
+  private static void putZonePaceValues(
+      android.content.ContentValues values,
+      MonthlyStats current,
+      MonthlyStats other,
+      BestMonthStats best) {
+    for (int zone = 1; zone <= 4; zone++) {
+      int i = zone - 1;
+      values.put(CURRENT_AVG_PACE_ZONE_COLUMNS[i], current.avgPaceZone[zone]);
+      values.put(OTHER_AVG_PACE_ZONE_COLUMNS[i], other.avgPaceZone[zone]);
+      values.put(BEST_AVG_PACE_ZONE_COLUMNS[i], best.bestAvgPaceZone[zone]);
+      values.put(BEST_AVG_PACE_ZONE_MONTH_COLUMNS[i], best.bestAvgPaceZoneMonth[zone]);
+    }
+  }
+
+  private static boolean isZoneConfigured(int hrMin, int hrMax) {
+    return hrMax > hrMin && hrMin >= 0;
+  }
+
+  private static boolean isMonthEligibleForZonePace(SQLiteDatabase db, int year, int month) {
+    String sql =
+        "SELECT "
+            + Constants.DB.MONTHLY_STATS.TOTAL_DISTANCE
+            + ", "
+            + Constants.DB.MONTHLY_STATS.RUN_COUNT
+            + " FROM "
+            + Constants.DB.MONTHLY_STATS.TABLE
+            + " WHERE "
+            + Constants.DB.MONTHLY_STATS.YEAR
+            + " = ? AND "
+            + Constants.DB.MONTHLY_STATS.MONTH
+            + " = ?";
+    try (Cursor cursor =
+        db.rawQuery(sql, new String[] {String.valueOf(year), String.valueOf(month)})) {
+      if (cursor.moveToFirst()) {
+        return cursor.getDouble(0) >= MIN_MONTH_DISTANCE_M
+            && cursor.getInt(1) >= MIN_MONTH_RUN_COUNT;
+      }
+    }
+    return isMonthEligibleFromActivities(db, year, month);
+  }
+
+  private static boolean isMonthEligibleFromActivities(SQLiteDatabase db, int year, int month) {
+    Calendar monthCal = Calendar.getInstance();
+    monthCal.set(year, month - 1, 1, 0, 0, 0);
+    monthCal.set(Calendar.MILLISECOND, 0);
+    long monthStartSeconds = monthCal.getTimeInMillis() / 1000;
+    monthCal.add(Calendar.MONTH, 1);
+    long nextMonthStartSeconds = monthCal.getTimeInMillis() / 1000;
+    String sql =
+        "SELECT SUM("
+            + Constants.DB.ACTIVITY.DISTANCE
+            + "), COUNT(*) FROM "
+            + Constants.DB.ACTIVITY.TABLE
+            + " WHERE "
+            + Constants.DB.ACTIVITY.SPORT
+            + " = ? AND "
+            + Constants.DB.ACTIVITY.DELETED
+            + " = 0 AND "
+            + Constants.DB.ACTIVITY.START_TIME
+            + " >= ? AND "
+            + Constants.DB.ACTIVITY.START_TIME
+            + " < ?";
+    try (Cursor cursor =
+        db.rawQuery(
+            sql,
+            new String[] {
+              String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING),
+              String.valueOf(monthStartSeconds),
+              String.valueOf(nextMonthStartSeconds)
+            })) {
+      if (cursor.moveToFirst() && !cursor.isNull(0)) {
+        return cursor.getDouble(0) >= MIN_MONTH_DISTANCE_M && cursor.getInt(1) >= MIN_MONTH_RUN_COUNT;
+      }
+    }
+    return false;
+  }
+
+  private static double computeAvgPaceInZoneForMonth(
+      SQLiteDatabase db, int year, int month, int hrMin, int hrMax) {
+    if (!isZoneConfigured(hrMin, hrMax) || !isMonthEligibleForZonePace(db, year, month)) {
+      return 0;
+    }
+    Calendar monthCal = Calendar.getInstance();
+    monthCal.set(year, month - 1, 1, 0, 0, 0);
+    monthCal.set(Calendar.MILLISECOND, 0);
+    long monthStartSeconds = monthCal.getTimeInMillis() / 1000;
+    monthCal.add(Calendar.MONTH, 1);
+    long nextMonthStartSeconds = monthCal.getTimeInMillis() / 1000;
+    return queryAvgPaceInZone(db, monthStartSeconds, nextMonthStartSeconds, hrMin, hrMax);
+  }
+
+  private static double computeAvgPaceInZoneForOtherMonths(
+      SQLiteDatabase db, int currentYear, int currentMonth, int hrMin, int hrMax) {
+    if (!isZoneConfigured(hrMin, hrMax)) {
+      return 0;
+    }
+    String sql =
+        "SELECT "
+            + Constants.DB.MONTHLY_STATS.YEAR
+            + ", "
+            + Constants.DB.MONTHLY_STATS.MONTH
+            + " FROM "
+            + Constants.DB.MONTHLY_STATS.TABLE
+            + " WHERE NOT ("
+            + Constants.DB.MONTHLY_STATS.YEAR
+            + " = ? AND "
+            + Constants.DB.MONTHLY_STATS.MONTH
+            + " = ?)";
+    double sum = 0;
+    int count = 0;
+    try (Cursor cursor =
+        db.rawQuery(
+            sql,
+            new String[] {String.valueOf(currentYear), String.valueOf(currentMonth)})) {
+      while (cursor.moveToNext()) {
+        int year = cursor.getInt(0);
+        int month = cursor.getInt(1);
+        double pace = computeAvgPaceInZoneForMonth(db, year, month, hrMin, hrMax);
+        if (pace > 0) {
+          sum += pace;
+          count++;
+        }
+      }
+    }
+    return count > 0 ? sum / count : 0;
+  }
+
+  private static String lapPaceSecPerKmExpression() {
+    return "(l." + Constants.DB.LAP.TIME + " * 1000.0 / l." + Constants.DB.LAP.DISTANCE + ")";
+  }
+
+  /** Lap HR from lap row (location fallback applied in Java when lap HR is missing). */
+  private static String effectiveLapHrExpression() {
+    return "l." + Constants.DB.LAP.AVG_HR;
+  }
+
+  private static double queryAvgPaceInZone(
+      SQLiteDatabase db, long monthStartSeconds, long nextMonthStartSeconds, int hrMin, int hrMax) {
+    String paceExpr = lapPaceSecPerKmExpression();
+    String hrExpr = effectiveLapHrExpression();
+    // Numeric filters are inlined: Android SQLite mishandles ? on repeated expressions (hr/pace).
+    String sql =
+        "SELECT AVG("
+            + paceExpr
+            + ")"
+            + " FROM "
+            + Constants.DB.LAP.TABLE
+            + " l JOIN "
+            + Constants.DB.ACTIVITY.TABLE
+            + " a ON a."
+            + Constants.DB.PRIMARY_KEY
+            + " = l."
+            + Constants.DB.LAP.ACTIVITY
+            + " WHERE a."
+            + Constants.DB.ACTIVITY.SPORT
+            + " = ? AND a."
+            + Constants.DB.ACTIVITY.DELETED
+            + " = 0 AND a."
+            + Constants.DB.ACTIVITY.START_TIME
+            + " >= ? AND a."
+            + Constants.DB.ACTIVITY.START_TIME
+            + " < ? AND a."
+            + Constants.DB.ACTIVITY.DISTANCE
+            + " >= "
+            + (long) MIN_ACTIVITY_DISTANCE_M
+            + " AND l."
+            + Constants.DB.LAP.DISTANCE
+            + " >= "
+            + (long) MIN_LAP_DISTANCE_M
+            + " AND l."
+            + Constants.DB.LAP.TIME
+            + " > 0 AND "
+            + hrExpr
+            + " > 0 AND "
+            + hrExpr
+            + " >= "
+            + hrMin
+            + " AND "
+            + hrExpr
+            + " < "
+            + hrMax
+            + " AND "
+            + paceExpr
+            + " >= "
+            + (long) MIN_PACE_SEC_PER_KM
+            + " AND "
+            + paceExpr
+            + " <= "
+            + (long) MAX_PACE_SEC_PER_KM;
+    try (Cursor cursor =
+        db.rawQuery(
+            sql,
+            new String[] {
+              String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING),
+              String.valueOf(monthStartSeconds),
+              String.valueOf(nextMonthStartSeconds)
+            })) {
+      if (cursor.moveToFirst() && !cursor.isNull(0)) {
+        return cursor.getDouble(0);
+      }
+    } catch (Exception e) {
+      Log.e(TAG, "Zone pace query failed: " + e.getMessage(), e);
+    }
+    return 0;
   }
 
   /**
@@ -766,38 +1025,25 @@ public class MonthlyComparisonCalculator implements Constants {
    */
   public static boolean isDataStale(SQLiteDatabase db) {
     try {
-      // Get last computation info
-      String sql = "SELECT " + Constants.DB.MONTHLY_COMPARISON.LAST_COMPUTED + 
-                   " FROM " + Constants.DB.MONTHLY_COMPARISON.TABLE +
-                   " LIMIT 1";
-      
+      String sql =
+          "SELECT "
+              + Constants.DB.MONTHLY_COMPARISON.LAST_COMPUTED
+              + " FROM "
+              + Constants.DB.MONTHLY_COMPARISON.TABLE
+              + " LIMIT 1";
+
       try (Cursor cursor = db.rawQuery(sql, null)) {
         if (!cursor.moveToFirst()) {
-          // No tracking record exists, data is stale
           Log.i(TAG, "No monthly comparison record found, data is stale");
           return true;
         }
-        
-        long lastComputed = cursor.getLong(0);
-        
-        // Check if we're in a new month since last computation
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(lastComputed);
-        int lastComputedMonth = cal.get(Calendar.MONTH);
-        int lastComputedYear = cal.get(Calendar.YEAR);
-        
-        cal.setTimeInMillis(System.currentTimeMillis());
-        int currentMonth = cal.get(Calendar.MONTH);
-        int currentYear = cal.get(Calendar.YEAR);
-        
-        boolean isStale = (currentMonth != lastComputedMonth || currentYear != lastComputedYear);
-        Log.i(TAG, "Monthly comparison staleness check: last=" + lastComputedMonth + "/" + lastComputedYear + 
-                  ", current=" + currentMonth + "/" + currentYear + ", stale=" + isStale);
+        boolean isStale = ComputationTracker.isStaleByCalendarMonth(cursor.getLong(0));
+        Log.i(TAG, "Monthly comparison staleness: stale=" + isStale);
         return isStale;
       }
     } catch (Exception e) {
       Log.e(TAG, "Error checking monthly comparison staleness: " + e.getMessage(), e);
-      return true; // Default to stale on error
+      return true;
     }
   }
 }

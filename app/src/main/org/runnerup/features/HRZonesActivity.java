@@ -40,7 +40,7 @@ import java.util.Locale;
 import java.util.Vector;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
-import org.runnerup.core.util.HRZoneCalculator;
+import org.runnerup.core.util.HRZoneBounds;
 import org.runnerup.core.util.HRZones;
 import org.runnerup.core.util.SafeParse;
 import org.runnerup.core.util.ViewUtil;
@@ -53,7 +53,7 @@ public class HRZonesActivity extends AppCompatActivity implements Constants {
   private TitleSpinner sexSpinner;
   private TitleSpinner maxHRSpinner;
   private HRZones hrZones;
-  private HRZoneCalculator hrZoneCalculator;
+  private HRZoneBounds hrZoneCalculator;
 
   private final Vector<EditText> zones = new Vector<>();
   private boolean skipSave = false;
@@ -177,7 +177,7 @@ public class HRZonesActivity extends AppCompatActivity implements Constants {
     }
 
     hrZones = new HRZones(this);
-    hrZoneCalculator = new HRZoneCalculator(this);
+    hrZoneCalculator = new HRZoneBounds(this);
     ageSpinner = findViewById(R.id.hrz_age);
     sexSpinner = findViewById(R.id.hrz_sex);
     maxHRSpinner = findViewById(R.id.hrz_mhr);
@@ -271,7 +271,7 @@ public class HRZonesActivity extends AppCompatActivity implements Constants {
               try {
                 int age = SafeParse.parseInt(ageSpinner.getValue().toString(), 21);
                 int maxHR =
-                    HRZoneCalculator.computeMaxHR(age, "Male".contentEquals(sexSpinner.getValue()));
+                    HRZoneBounds.computeMaxHR(age, "Male".contentEquals(sexSpinner.getValue()));
                 maxHRSpinner.setValue(Integer.toString(maxHR));
                 recomputeZones();
               } catch (NumberFormatException ex) {

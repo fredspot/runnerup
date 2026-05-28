@@ -338,8 +338,8 @@ public class MonthWeekBreakdownActivity extends AppCompatActivity {
           formatter.formatDistance(Formatter.Format.TXT_SHORT, (long) row.totalDistanceM));
 
       if (row.totalDistanceM > 0 && row.avgPaceSecPerKm > 0) {
-        double pacePerMeter = row.avgPaceSecPerKm / 1000.0;
-        avgPaceText.setText(formatter.formatPace(Formatter.Format.TXT_SHORT, pacePerMeter));
+        avgPaceText.setText(
+            formatter.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, row.avgPaceSecPerKm));
       } else {
         avgPaceText.setText("-");
       }

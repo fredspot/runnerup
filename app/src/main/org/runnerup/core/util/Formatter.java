@@ -491,6 +491,28 @@ public class Formatter implements OnSharedPreferenceChangeListener {
     return formatPaceSpeed(target, meters_per_second);
   }
 
+  /** Formats pace when the input is seconds per kilometer (stored DB pace unit). */
+  public String formatPaceFromSecPerKm(Format target, double secondsPerKm) {
+    if (secondsPerKm <= 0 || Double.isNaN(secondsPerKm)) {
+      return formatPace(target, Double.NaN);
+    }
+    return formatPace(target, secondsPerKm / 1000.0);
+  }
+
+  /** Elapsed time as H:MM:SS or M:SS; returns {@code "--"} for zero. */
+  public static String formatElapsedTimeHms(long seconds) {
+    if (seconds == 0) {
+      return "--";
+    }
+    long hours = seconds / 3600;
+    long minutes = (seconds % 3600) / 60;
+    long secs = seconds % 60;
+    if (hours > 0) {
+      return String.format("%d:%02d:%02d", hours, minutes, secs);
+    }
+    return String.format("%d:%02d", minutes, secs);
+  }
+
   /**
    * Returns either a formatted value in minutes per kilometer or kilometer per hour depending on
    * the user's preference

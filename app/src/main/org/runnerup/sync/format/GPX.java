@@ -52,7 +52,7 @@ public class GPX {
   }
 
   private String formatTime(long time) {
-    return simpleDateFormat.format(new Date(time));
+    return ExportTimeFormat.iso8601Utc(time);
   }
 
   /**

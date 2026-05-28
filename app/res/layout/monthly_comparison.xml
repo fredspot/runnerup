@@ -92,10 +92,10 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Best Month"
+                    android:text="@string/monthly_comparison_best_column"
                     android:textColor="@color/colorText"
                     android:textStyle="bold"
-                    android:textSize="18sp"
+                    android:textSize="16sp"
                     android:textAlignment="center"/>
 
             </LinearLayout>
@@ -143,24 +143,37 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="horizontal"
-                    android:gravity="center">
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="4dp">
                     <TextView
                         android:id="@+id/best_month_avg_pace"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="--"
                         android:textColor="@color/colorTextSecondary"
                         android:textSize="16sp"
+                        android:maxLines="1"
+                        android:ellipsize="none"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeMaxTextSize="16sp"
                         android:textAlignment="center"/>
                     <TextView
                         android:id="@+id/best_month_avg_pace_label"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
                         android:text=""
                         android:textColor="@color/colorTextSecondary"
-                        android:textSize="10sp"
+                        android:textSize="9sp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="7sp"
+                        app:autoSizeMaxTextSize="9sp"
                         android:textAlignment="center"/>
                 </LinearLayout>
 
@@ -209,24 +222,37 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="horizontal"
-                    android:gravity="center">
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="4dp">
                     <TextView
                         android:id="@+id/best_month_total_km"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="--"
                         android:textColor="@color/colorTextSecondary"
                         android:textSize="14sp"
+                        android:maxLines="1"
+                        android:ellipsize="none"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeMaxTextSize="14sp"
                         android:textAlignment="center"/>
                     <TextView
                         android:id="@+id/best_month_total_km_label"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
                         android:text=""
                         android:textColor="@color/colorTextSecondary"
-                        android:textSize="10sp"
+                        android:textSize="9sp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="7sp"
+                        app:autoSizeMaxTextSize="9sp"
                         android:textAlignment="center"/>
                 </LinearLayout>
 
@@ -275,24 +301,37 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="horizontal"
-                    android:gravity="center">
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="4dp">
                     <TextView
                         android:id="@+id/best_month_avg_distance_per_run"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="--"
                         android:textColor="@color/colorTextSecondary"
                         android:textSize="16sp"
+                        android:maxLines="1"
+                        android:ellipsize="none"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeMaxTextSize="16sp"
                         android:textAlignment="center"/>
                     <TextView
                         android:id="@+id/best_month_avg_distance_per_run_label"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
                         android:text=""
                         android:textColor="@color/colorTextSecondary"
-                        android:textSize="10sp"
+                        android:textSize="9sp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="7sp"
+                        app:autoSizeMaxTextSize="9sp"
                         android:textAlignment="center"/>
                 </LinearLayout>
 
@@ -341,24 +380,37 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="horizontal"
-                    android:gravity="center">
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="4dp">
                     <TextView
                         android:id="@+id/best_month_avg_bpm"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="--"
                         android:textColor="@color/colorTextSecondary"
                         android:textSize="16sp"
+                        android:maxLines="1"
+                        android:ellipsize="none"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeMaxTextSize="16sp"
                         android:textAlignment="center"/>
                     <TextView
                         android:id="@+id/best_month_avg_bpm_label"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
                         android:text=""
                         android:textColor="@color/colorTextSecondary"
-                        android:textSize="10sp"
+                        android:textSize="9sp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="7sp"
+                        app:autoSizeMaxTextSize="9sp"
                         android:textAlignment="center"/>
                 </LinearLayout>
 
@@ -407,24 +459,37 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="horizontal"
-                    android:gravity="center">
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="4dp">
                     <TextView
                         android:id="@+id/best_month_pb_count"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="--"
                         android:textColor="@color/colorTextSecondary"
                         android:textSize="16sp"
+                        android:maxLines="1"
+                        android:ellipsize="none"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeMaxTextSize="16sp"
                         android:textAlignment="center"/>
                     <TextView
                         android:id="@+id/best_month_pb_count_label"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
                         android:text=""
                         android:textColor="@color/colorTextSecondary"
-                        android:textSize="10sp"
+                        android:textSize="9sp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="7sp"
+                        app:autoSizeMaxTextSize="9sp"
                         android:textAlignment="center"/>
                 </LinearLayout>
 
@@ -473,49 +538,122 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="horizontal"
-                    android:gravity="center">
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="4dp">
                     <TextView
                         android:id="@+id/best_month_top25_count"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="--"
                         android:textColor="@color/colorTextSecondary"
                         android:textSize="16sp"
+                        android:maxLines="1"
+                        android:ellipsize="none"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeMaxTextSize="16sp"
                         android:textAlignment="center"/>
                     <TextView
                         android:id="@+id/best_month_top25_count_label"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
                         android:text=""
                         android:textColor="@color/colorTextSecondary"
-                        android:textSize="10sp"
+                        android:textSize="9sp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="7sp"
+                        app:autoSizeMaxTextSize="9sp"
                         android:textAlignment="center"/>
                 </LinearLayout>
 
             </LinearLayout>
 
-            <!-- Avg BPM @ 5min/km Row -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="4dp"
+                android:text="@string/monthly_comparison_zone_section_title"
+                android:textColor="@color/colorText"
+                android:textSize="17sp"
+                android:textStyle="bold"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="4"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="4dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text=""
+                    android:textSize="12sp"/>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/this_month"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/monthly_comparison_zone_column_change"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/monthly_comparison_best_column"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textAlignment="center"/>
+            </LinearLayout>
+
+            <!-- Z3 aerobic pace -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="4"
                 android:background="@drawable/modern_card_background"
-                android:padding="16dp"
-                android:layout_marginBottom="8dp">
+                android:padding="12dp"
+                android:layout_marginBottom="8dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
 
                 <TextView
+                    android:id="@+id/metric_avg_pace_zone_3"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Avg BPM @ 5pace"
+                    android:text="@string/monthly_comparison_zone_pace_metric_unconfigured"
                     android:textColor="@color/colorText"
-                    android:textSize="16sp"/>
+                    android:textSize="14sp"/>
 
                 <TextView
-                    android:id="@+id/this_month_avg_bpm_5min_km"
+                    android:id="@+id/this_month_avg_pace_zone_3"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -523,44 +661,179 @@
                     android:textColor="@color/colorAccent"
                     android:textSize="16sp"
                     android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="none"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="2dp"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="11sp"
+                    app:autoSizeMaxTextSize="16sp"
                     android:textAlignment="center"/>
 
                 <TextView
-                    android:id="@+id/other_months_avg_bpm_5min_km"
+                    android:id="@+id/other_months_avg_pace_zone_3"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="--"
                     android:textColor="@color/colorTextSecondary"
                     android:textSize="16sp"
+                    android:maxLines="1"
+                    android:ellipsize="none"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="2dp"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="11sp"
+                    app:autoSizeMaxTextSize="16sp"
                     android:textAlignment="center"/>
 
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="horizontal"
-                    android:gravity="center">
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="4dp">
                     <TextView
-                        android:id="@+id/best_month_avg_bpm_5min_km"
-                        android:layout_width="wrap_content"
+                        android:id="@+id/best_month_avg_pace_zone_3"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="--"
                         android:textColor="@color/colorTextSecondary"
                         android:textSize="16sp"
+                        android:maxLines="1"
+                        android:ellipsize="none"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeMaxTextSize="16sp"
                         android:textAlignment="center"/>
                     <TextView
-                        android:id="@+id/best_month_avg_bpm_5min_km_label"
-                        android:layout_width="wrap_content"
+                        android:id="@+id/best_month_avg_pace_zone_3_label"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
                         android:text=""
                         android:textColor="@color/colorTextSecondary"
-                        android:textSize="10sp"
+                        android:textSize="9sp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="7sp"
+                        app:autoSizeMaxTextSize="9sp"
                         android:textAlignment="center"/>
                 </LinearLayout>
 
             </LinearLayout>
+
+            <!-- Easy pace Z1–Z2 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="4"
+                android:background="@drawable/modern_card_background"
+                android:padding="12dp"
+                android:layout_marginBottom="8dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <TextView
+                    android:id="@+id/metric_easy_pace"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/monthly_comparison_zone_easy_metric"
+                    android:textColor="@color/colorText"
+                    android:textSize="14sp"/>
+
+                <TextView
+                    android:id="@+id/this_month_easy_pace"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorAccent"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="none"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="2dp"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="11sp"
+                    app:autoSizeMaxTextSize="16sp"
+                    android:textAlignment="center"/>
+
+                <TextView
+                    android:id="@+id/other_months_easy_pace"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="--"
+                    android:textColor="@color/colorTextSecondary"
+                    android:textSize="16sp"
+                    android:maxLines="1"
+                    android:ellipsize="none"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="2dp"
+                    app:autoSizeTextType="uniform"
+                    app:autoSizeMinTextSize="11sp"
+                    app:autoSizeMaxTextSize="16sp"
+                    android:textAlignment="center"/>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="4dp">
+                    <TextView
+                        android:id="@+id/best_month_easy_pace"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="16sp"
+                        android:maxLines="1"
+                        android:ellipsize="none"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="11sp"
+                        app:autoSizeMaxTextSize="16sp"
+                        android:textAlignment="center"/>
+                    <TextView
+                        android:id="@+id/best_month_easy_pace_label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text=""
+                        android:textColor="@color/colorTextSecondary"
+                        android:textSize="9sp"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        app:autoSizeTextType="uniform"
+                        app:autoSizeMinTextSize="7sp"
+                        app:autoSizeMaxTextSize="9sp"
+                        android:textAlignment="center"/>
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/monthly_comparison_zone_pace_footnote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:text="@string/monthly_comparison_zone_pace_footnote"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="12sp"
+                android:lineSpacingExtra="2dp"/>
 
         </LinearLayout>
 

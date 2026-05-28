@@ -24,7 +24,7 @@ import android.content.DialogInterface;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.os.AsyncTask;
+import org.runnerup.core.util.BgTasks;
 import android.util.Log;
 import androidx.appcompat.app.AlertDialog;
 import java.io.File;
@@ -49,7 +49,7 @@ import org.runnerup.core.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 46;
+  private static final int DBVERSION = 49;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -451,6 +451,10 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
 
   @Override
   public void onUpgrade(SQLiteDatabase arg0, int oldVersion, int newVersion) {
+    SchemaMigrations.upgrade(this, arg0, oldVersion, newVersion);
+  }
+
+  void applySchemaUpgrade(SQLiteDatabase arg0, int oldVersion, int newVersion) {
     Log.e(
         getClass().getName(),
         "onUpgrade: oldVersion: " + oldVersion + ", newVersion: " + newVersion);
@@ -682,6 +686,110 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
               + ") where "
               + DB.LOCATION.STEP
               + " is null");
+    }
+    if (oldVersion < 47) {
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_3
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.OTHER_AVG_PACE_ZONE_3
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_4
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.OTHER_AVG_PACE_ZONE_4
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_3
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_3_MONTH
+              + " text");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_4
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_4_MONTH
+              + " text");
+    }
+    if (oldVersion < 49) {
+      // Legacy bug: avg_hr stored peak BPM and max_hr stored average BPM.
+      ActivityCleaner.repairSwappedActivityHeartRates(arg0);
+    }
+    if (oldVersion < 48) {
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_1
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.OTHER_AVG_PACE_ZONE_1
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_2
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.OTHER_AVG_PACE_ZONE_2
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_1
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_1_MONTH
+              + " text");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_2
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.MONTHLY_COMPARISON.TABLE
+              + " ADD COLUMN "
+              + DB.MONTHLY_COMPARISON.BEST_AVG_PACE_ZONE_2_MONTH
+              + " text");
     }
     if (oldVersion < 39) {
       // Add best month columns to monthly_comparison table
@@ -1012,30 +1120,21 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     c.close();
 
     if (list.size() > 0) {
-      new AsyncTask<Long, Void, Void>() {
-
-        @Override
-        protected void onPreExecute() {
-          dialog.setMax(list.size());
-          super.onPreExecute();
-        }
-
-        @Override
-        protected Void doInBackground(Long... args) {
-          for (Long id : list) {
-            deleteActivity(db, id);
-            dialog.incrementProgressBy(1);
-          }
-          return null;
-        }
-
-        @Override
-        protected void onPostExecute(Void aVoid) {
-          db.close();
-          mDBHelper.close();
-          if (onComplete != null) onComplete.run();
-        }
-      }.execute((long) 2);
+      dialog.setMax(list.size());
+      BgTasks.runDbWithProgress(
+          publisher -> {
+            for (Long id : list) {
+              deleteActivity(db, id);
+              publisher.publish(null);
+            }
+            return null;
+          },
+          aVoid -> {
+            db.close();
+            mDBHelper.close();
+            if (onComplete != null) onComplete.run();
+          },
+          msg -> dialog.incrementProgressBy(1));
     } else {
       db.close();
       mDBHelper.close();

@@ -70,10 +70,12 @@ import org.runnerup.common.util.Constants;
 import org.runnerup.core.content.ActivityProvider;
 import org.runnerup.data.ActivityCleaner;
 import org.runnerup.data.DBHelper;
+import org.runnerup.data.WorkoutStepGrouper;
 import org.runnerup.data.PathSimplifier;
 import org.runnerup.sync.SyncManager;
 import org.runnerup.sync.Synchronizer;
 import org.runnerup.sync.Synchronizer.Feature;
+import org.runnerup.core.util.ActivitySummaryBinder;
 import org.runnerup.core.util.Bitfield;
 import org.runnerup.core.util.FileNameHelper;
 import org.runnerup.core.util.Formatter;
@@ -90,12 +92,48 @@ public class DetailActivity extends AppCompatActivity implements Constants {
 
   private long mID = 0;
   private SQLiteDatabase mDB = null;
-  private final HashSet<String> pendingSynchronizers = new HashSet<>();
-  private final HashSet<String> alreadySynched = new HashSet<>();
-  private final Map<String, String> synchedExternalId = new HashMap<>();
+  private final DetailSyncController syncController = new DetailSyncController();
+  private final DetailGraphController graphController = new DetailGraphController();
+  private final DetailLapListController.Host lapListHost =
+      new DetailLapListController.Host() {
+        @Override
+        public String labelForIntensity(int intensity) {
+          switch (intensity) {
+            case DB.INTENSITY.WARMUP:
+              return getString(R.string.lap_list_warmup_total);
+            case DB.INTENSITY.COOLDOWN:
+              return getString(R.string.lap_list_cooldown_total);
+            case DB.INTENSITY.ACTIVE:
+              return getString(R.string.lap_list_interval_total);
+            default:
+              return getString(R.string.lap_list_step_total);
+          }
+        }
+
+        @Override
+        public Formatter getFormatter() {
+          return formatter;
+        }
+
+        @Override
+        public boolean isLapHrPresent() {
+          return lapHrPresent;
+        }
+
+        @Override
+        public WorkoutStepGrouper.LapDisplayEntry[] getLapDisplayEntries() {
+          return lapDisplayEntries;
+        }
+
+        @Override
+        public void setLapDisplayEntries(WorkoutStepGrouper.LapDisplayEntry[] entries) {
+          lapDisplayEntries = entries;
+        }
+      };
 
   private boolean lapHrPresent = false;
   private ContentValues[] laps = null;
+  private WorkoutStepGrouper.LapDisplayEntry[] lapDisplayEntries = null;
   private final ArrayList<ContentValues> reports = new ArrayList<>();
   private final ArrayList<BaseAdapter> adapters = new ArrayList<>(2);
 
@@ -130,7 +168,6 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   private View graphTab;
 
   private MapWrapper mapWrapper = null;
-  private GraphWrapper graphWrapper = null;
 
   private SyncManager syncManager = null;
   private Formatter formatter = null;
@@ -242,7 +279,18 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     }
 
     saveButton.setOnClickListener(saveButtonClick);
-    uploadButton.setOnClickListener(uploadButtonClick);
+    clearUploadClick =
+        syncController.createClearUploadListener(this, syncManager, mID, this::requery);
+    onSendChecked =
+        syncController.createSendCheckedListener(
+            () -> {
+              if (mode == MODE_DETAILS) {
+                setUploadVisibility();
+              }
+            });
+    uploadButton.setOnClickListener(
+        syncController.createUploadListener(
+            syncManager, mID, uploading -> DetailActivity.this.uploading = uploading, this::requery));
     if (injuryButton != null) {
       injuryButton.setOnClickListener(v -> openInjuryEditor());
     }
@@ -304,9 +352,9 @@ public class DetailActivity extends AppCompatActivity implements Constants {
 
     {
       ListView lv = findViewById(R.id.laplist);
-      LapListAdapter adapter = new LapListAdapter();
-      adapters.add(adapter);
-      lv.setAdapter(adapter);
+      BaseAdapter lapAdapter = DetailLapListController.createAdapter(this, lapListHost);
+      adapters.add(lapAdapter);
+      lv.setAdapter(lapAdapter);
     }
     // Upload tab removed - no longer initialize report list
     // {
@@ -377,9 +425,14 @@ public class DetailActivity extends AppCompatActivity implements Constants {
 
     LinearLayout graphTabLayout = findViewById(R.id.tab_graph);
     LinearLayout hrzonesBarLayout = findViewById(R.id.hrzonesBarLayout);
-    boolean use_distance_as_x = !Sport.isWithoutGps(sport.getValueInt());
-    graphWrapper = new GraphWrapper(this, graphTabLayout, hrzonesBarLayout,
-                                    formatter, mDB, mID, use_distance_as_x);
+    graphController.attach(
+        this,
+        graphTabLayout,
+        hrzonesBarLayout,
+        formatter,
+        mDB,
+        mID,
+        sport.getValueInt());
 
     if (this.mode == MODE_SAVE) {
       // Hide buttons (they will be removed from UI)
@@ -447,14 +500,11 @@ public class DetailActivity extends AppCompatActivity implements Constants {
         mapTab.setVisibility(View.VISIBLE);
       }
     }
-    if (graphWrapper != null) {
-      boolean use_distance_as_x = !Sport.isWithoutGps(sportValue);
-      graphWrapper.setUseDistanceAsX(use_distance_as_x);
-    }
+    graphController.updateForSport(sportValue);
   }
 
   private void setUploadVisibility() {
-    boolean enabled = !pendingSynchronizers.isEmpty();
+    boolean enabled = !syncController.pendingSynchronizers.isEmpty();
     if (enabled) {
       uploadButton.setVisibility(View.VISIBLE);
     } else {
@@ -626,7 +676,8 @@ deleteButtonClick.onClick(null);
             DB.LAP.PLANNED_TIME,
             DB.LAP.PLANNED_DISTANCE,
             DB.LAP.PLANNED_PACE,
-            DB.LAP.AVG_HR
+            DB.LAP.AVG_HR,
+            DB.LAP.STEP
           };
 
       Cursor c =
@@ -642,6 +693,7 @@ deleteButtonClick.onClick(null);
           break;
         }
       }
+      buildLapDisplayEntries();
     }
 
     {
@@ -666,9 +718,9 @@ deleteButtonClick.onClick(null);
               + ("     AND rep." + DB.EXPORT.ACTIVITY + " = " + mID + " )");
 
       Cursor c = mDB.rawQuery(sql, null);
-      alreadySynched.clear();
-      synchedExternalId.clear();
-      pendingSynchronizers.clear();
+      syncController.alreadySynched.clear();
+      syncController.synchedExternalId.clear();
+      syncController.pendingSynchronizers.clear();
       reports.clear();
       if (c.moveToFirst()) {
         do {
@@ -685,21 +737,21 @@ deleteButtonClick.onClick(null);
           String name = tmp.getAsString(DB.ACCOUNT.NAME);
           reports.add(tmp);
           if (tmp.containsKey("repid")) {
-            alreadySynched.add(name);
+            syncController.alreadySynched.add(name);
             if (tmp.containsKey(DB.EXPORT.STATUS)
                 && tmp.getAsInteger(DB.EXPORT.STATUS)
                     == Synchronizer.ExternalIdStatus.getInt(Synchronizer.ExternalIdStatus.OK)) {
               String url =
                   syncManager
                       .getSynchronizerByName(name)
-                      .getActivityUrl(synchedExternalId.get(name));
+                      .getActivityUrl(syncController.synchedExternalId.get(name));
               if (url != null) {
-                synchedExternalId.put(name, tmp.getAsString(DB.EXPORT.EXTERNAL_ID));
+                syncController.synchedExternalId.put(name, tmp.getAsString(DB.EXPORT.EXTERNAL_ID));
               }
             }
           } else if (tmp.containsKey(DB.ACCOUNT.FLAGS)
               && Bitfield.test(tmp.getAsLong(DB.ACCOUNT.FLAGS), DB.ACCOUNT.FLAG_UPLOAD)) {
-            pendingSynchronizers.add(name);
+            syncController.pendingSynchronizers.add(name);
           }
         } while (c.moveToNext());
       }
@@ -747,182 +799,20 @@ deleteButtonClick.onClick(null);
   }
 
   private void updateHeader(ContentValues data, boolean fromManualDistance) {
-    double d = 0;
-    if (data.containsKey(DB.ACTIVITY.DISTANCE)) {
-      d = data.getAsDouble(DB.ACTIVITY.DISTANCE);
-      String s = formatter.formatDistance(Formatter.Format.TXT_SHORT, (long) d);
-      activityDistance.setText(s);
-      if (!fromManualDistance) {
-        /**
-         * IF !fromManualDistance (e.g. from database)
-         *   update the manual distance field in case (if it might be needed)
-         * ELSE
-         *   fromManualDistance=true
-         *   e.g. from spinner, don't update or else it will recurse
-         */
-        int distance = (int)d;
-        manualDistance.setValue(Long.toString(distance));
-        manualDistance.setValue(distance);
-      }
-    } else {
-      activityDistance.setText("");
-    }
-
-    long t = 0;
-    if (data.containsKey(DB.ACTIVITY.TIME)) {
-      t = data.getAsInteger(DB.ACTIVITY.TIME);
-      android.util.Log.d("DetailActivity", "Activity ID " + mID + ": TIME from database = " + t + " seconds");
-      activityTime.setText(formatter.formatElapsedTime(Formatter.Format.TXT_SHORT, t));
-    } else {
-      android.util.Log.w("DetailActivity", "Activity ID " + mID + ": TIME field is missing in database!");
-      activityTime.setText("");
-    }
-
-    android.util.Log.d("DetailActivity", "Activity ID " + mID + ": distance = " + d + "m, time = " + t + "s");
-
-    if (t != 0) {
-      activityPace.setVisibility(View.VISIBLE);
-      activityPaceSeparator.setVisibility(View.VISIBLE);
-      activityPace.setText(
-          formatter.formatVelocityByPreferredUnit(Formatter.Format.TXT_LONG, d / t));
-    } else {
-      android.util.Log.w("DetailActivity", "Activity ID " + mID + ": time is 0, hiding pace");
-      activityPace.setVisibility(View.GONE);
-      activityPaceSeparator.setVisibility(View.GONE);
-    }
-
-    if (data.containsKey(DB.ACTIVITY.SPORT)) {
-      sport.setValue(data.getAsInteger(DB.ACTIVITY.SPORT));
-    }
+    DetailHeaderBinder.bind(
+        formatter,
+        activityDistance,
+        activityTime,
+        activityPace,
+        activityPaceSeparator,
+        manualDistance,
+        sport,
+        data,
+        fromManualDistance);
   }
 
-  private class ViewHolderLapList {
-    private TextView tv0;
-    private TextView tv1;
-    private TextView tv2;
-    private TextView tv3;
-    private TextView tv4;
-    private TextView tvHr;
-  }
-
-  private class LapListAdapter extends BaseAdapter {
-
-    @Override
-    public int getCount() {
-      return laps.length;
-    }
-
-    @Override
-    public Object getItem(int position) {
-      return laps[position];
-    }
-
-    @Override
-    public long getItemId(int position) {
-      return laps[position].getAsLong("_id");
-    }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-      View view = convertView;
-      ViewHolderLapList viewHolder;
-
-      if (view == null) {
-        viewHolder = new ViewHolderLapList();
-        LayoutInflater inflater = LayoutInflater.from(DetailActivity.this);
-        view = inflater.inflate(R.layout.laplist_row, parent, false);
-        viewHolder.tv0 = view.findViewById(R.id.lap_list_type);
-        viewHolder.tv1 = view.findViewById(R.id.lap_list_id);
-        viewHolder.tv2 = view.findViewById(R.id.lap_list_distance);
-        viewHolder.tv3 = view.findViewById(R.id.lap_list_time);
-        viewHolder.tv4 = view.findViewById(R.id.lap_list_pace);
-        viewHolder.tvHr = view.findViewById(R.id.lap_list_hr);
-
-        view.setTag(viewHolder);
-      } else {
-        viewHolder = (ViewHolderLapList) view.getTag();
-      }
-      int i = laps[position].getAsInteger(DB.LAP.INTENSITY);
-      Intensity intensity = Intensity.values()[i];
-      switch (intensity) {
-        case ACTIVE:
-          viewHolder.tv0.setText("");
-          break;
-        case COOLDOWN:
-        case RESTING:
-        case RECOVERY:
-        case WARMUP:
-        case REPEAT:
-          String lapTypeLabel;
-          switch (intensity) {
-            case RECOVERY:
-              lapTypeLabel = "recover";
-              break;
-            case WARMUP:
-              lapTypeLabel = "warmup";
-              break;
-            case COOLDOWN:
-              lapTypeLabel = "cooling";
-              break;
-            case RESTING:
-              lapTypeLabel = "rest";
-              break;
-            case REPEAT:
-              lapTypeLabel = "repeat";
-              break;
-            default:
-              lapTypeLabel = getResources().getString(intensity.getTextId());
-              break;
-          }
-          viewHolder.tv0.setText(lapTypeLabel);
-        default:
-          break;
-      }
-      // Number only the ACTIVE work laps, sequentially among themselves. Warmup, cooldown,
-      // recovery, resting and repeat rows show no number — their type label (left column) is
-      // identifier enough.
-      if (intensity == Intensity.ACTIVE) {
-        int activeIdx = 0;
-        for (int j = 0; j <= position; j++) {
-          Integer ji = laps[j].getAsInteger(DB.LAP.INTENSITY);
-          if (ji != null && ji == DB.INTENSITY.ACTIVE) {
-            activeIdx++;
-          }
-        }
-        viewHolder.tv1.setText(Integer.toString(activeIdx));
-      } else {
-        viewHolder.tv1.setText("");
-      }
-      double d =
-          laps[position].containsKey(DB.LAP.DISTANCE)
-              ? laps[position].getAsDouble(DB.LAP.DISTANCE)
-              : 0;
-      viewHolder.tv2.setText(formatter.formatDistance(Formatter.Format.TXT_LONG, (long) d));
-      long t = laps[position].containsKey(DB.LAP.TIME) ? laps[position].getAsLong(DB.LAP.TIME) : 0;
-      viewHolder.tv3.setText(formatter.formatElapsedTime(Formatter.Format.TXT_SHORT, t));
-      if (t != 0) {
-        viewHolder.tv4.setText(
-            formatter.formatVelocityByPreferredUnit(Formatter.Format.TXT_LONG, d / t));
-      } else {
-        viewHolder.tv4.setText("");
-      }
-      int hr =
-          laps[position].containsKey(DB.LAP.AVG_HR)
-              ? laps[position].getAsInteger(DB.LAP.AVG_HR)
-              : 0;
-      if (hr > 0) {
-        viewHolder.tvHr.setVisibility(View.VISIBLE);
-        // Drop the "bpm" unit; the row is too narrow and "114 bpm" was being ellipsized
-        // to "114...". The column is contextually HR (header says so), so the unit is implied.
-        viewHolder.tvHr.setText(formatter.formatHeartRate(Formatter.Format.TXT_LONG, hr));
-      } else if (lapHrPresent) {
-        viewHolder.tvHr.setVisibility(View.INVISIBLE);
-      } else {
-        viewHolder.tvHr.setVisibility(View.GONE);
-      }
-
-      return view;
-    }
+  private void buildLapDisplayEntries() {
+    lapDisplayEntries = DetailLapListController.buildDisplayEntries(laps, lapListHost);
   }
 
   private class ReportListAdapter extends BaseAdapter {
@@ -994,16 +884,16 @@ deleteButtonClick.onClick(null);
       viewHolder.cb.setTag(name);
       viewHolder.tv1.setTag(name);
       viewHolder.tv1.setTextColor(viewHolder.cb.getTextColors());
-      if (alreadySynched.contains(name)) {
+      if (syncController.alreadySynched.contains(name)) {
         viewHolder.cb.setChecked(true);
-        if (synchedExternalId.containsKey(name)) {
+        if (syncController.synchedExternalId.containsKey(name)) {
           // Indicate Clickable label
           viewHolder.tv1.setTextColor(Color.BLUE);
         }
         viewHolder.cb.setText(org.runnerup.common.R.string.Uploaded);
         viewHolder.cb.setOnLongClickListener(clearUploadClick);
       } else {
-        viewHolder.cb.setChecked(pendingSynchronizers.contains(name));
+        viewHolder.cb.setChecked(syncController.pendingSynchronizers.contains(name));
         viewHolder.cb.setText(org.runnerup.common.R.string.Upload);
         viewHolder.cb.setOnLongClickListener(null);
       }
@@ -1051,38 +941,12 @@ deleteButtonClick.onClick(null);
     org.runnerup.core.util.AutomaticBackupManager.createBackupIfNeeded(this);
   }
 
-  private final OnLongClickListener clearUploadClick =
-      arg0 -> {
-        final String name = (String) arg0.getTag();
-        new AlertDialog.Builder(DetailActivity.this)
-            .setTitle("Clear upload for " + name)
-            .setMessage(org.runnerup.common.R.string.Are_you_sure)
-            .setPositiveButton(
-                org.runnerup.common.R.string.Yes,
-                (dialog, which) -> {
-                  dialog.dismiss();
-                  syncManager.clearUpload(name, mID);
-                  requery();
-                })
-            .setNegativeButton(
-                org.runnerup.common.R.string.No,
-                // Do nothing but close the dialog
-                (dialog, which) -> dialog.dismiss())
-            .show();
-        return false;
-      };
+  private OnLongClickListener clearUploadClick;
+  private OnCheckedChangeListener onSendChecked;
 
   // Note: onClick set in reportlist_row.xml
   public void onClickAccountName(View arg0) {
-    final String name = (String) arg0.getTag();
-    if (synchedExternalId.containsKey(name) && !TextUtils.isEmpty(synchedExternalId.get(name))) {
-      String url =
-          syncManager.getSynchronizerByName(name).getActivityUrl(synchedExternalId.get(name));
-      if (url != null) {
-        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        startActivity(browserIntent);
-      }
-    }
+    syncController.openAccountUrl(this, syncManager, (String) arg0.getTag());
   }
 
   private final OnClickListener saveButtonClick =
@@ -1107,7 +971,7 @@ deleteButtonClick.onClick(null);
                 DetailActivity.this.setResult(RESULT_OK, returnIntent);
                 DetailActivity.this.finish();
               },
-              pendingSynchronizers,
+              syncController.pendingSynchronizers,
               mID);
         }
       };
@@ -1134,41 +998,6 @@ deleteButtonClick.onClick(null);
       v -> {
         DetailActivity.this.setResult(RESULT_FIRST_USER);
         DetailActivity.this.finish();
-      };
-
-  private final OnClickListener uploadButtonClick =
-      v -> {
-        uploading = true;
-        syncManager.startUploading(
-            (synchronizerName, status) -> {
-              uploading = false;
-              requery();
-            },
-            pendingSynchronizers,
-            mID);
-      };
-
-  private final OnCheckedChangeListener onSendChecked =
-      new OnCheckedChangeListener() {
-
-        @Override
-        public void onCheckedChanged(CompoundButton arg0, boolean arg1) {
-          final String name = (String) arg0.getTag();
-          if (alreadySynched.contains(name)) {
-            // Only accept long clicks
-            arg0.setChecked(true);
-          } else {
-            if (arg1) {
-              pendingSynchronizers.add((String) arg0.getTag());
-            } else {
-              //noinspection SuspiciousMethodCalls
-              pendingSynchronizers.remove(arg0.getTag());
-            }
-            if (mode == MODE_DETAILS) {
-              setUploadVisibility();
-            }
-          }
-        }
       };
 
   private final OnClickListener deleteButtonClick =
@@ -1313,6 +1142,8 @@ deleteButtonClick.onClick(null);
       if (pain < 0) continue; // no icon if nothing selected
       android.widget.ImageView iv = new android.widget.ImageView(this);
       iv.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+      iv.setFocusable(false);
+      iv.setClickable(false);
       iv.setImageResource(icons[z]);
       int color = injuryColorForPain(pain);
       iv.setColorFilter(color);

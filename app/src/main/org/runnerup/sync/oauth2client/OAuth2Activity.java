@@ -22,7 +22,7 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
-import android.os.AsyncTask;
+import org.runnerup.core.util.BgTasks;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -198,60 +198,56 @@ public class OAuth2Activity extends AppCompatActivity {
 
               final Intent res = new Intent().putExtra("url", token_url);
 
-              new AsyncTask<String, String, Integer>() {
-                @Override
-                protected Integer doInBackground(String... params) {
-                  int resultCode = AppCompatActivity.RESULT_CANCELED;
-                  HttpURLConnection conn = null;
-
-                  try {
-                    URL newUrl = new URL(token_url);
-                    conn = (HttpURLConnection) newUrl.openConnection();
-                    conn.setDoOutput(true);
-                    conn.setRequestMethod(Synchronizer.RequestMethod.POST.name());
-                    conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                    SyncHelper.postData(conn, fv);
-                    StringBuilder obj = new StringBuilder();
-                    int responseCode = conn.getResponseCode();
-                    String amsg = conn.getResponseMessage();
+              BgTasks.runNetwork(
+                  () -> {
+                    int resultCode = AppCompatActivity.RESULT_CANCELED;
+                    HttpURLConnection conn = null;
 
                     try {
-                      BufferedReader in =
-                          new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                      char[] buf = new char[1024];
-                      int len;
-                      while ((len = in.read(buf)) != -1) {
-                        obj.append(buf, 0, len);
+                      URL newUrl = new URL(token_url);
+                      conn = (HttpURLConnection) newUrl.openConnection();
+                      conn.setDoOutput(true);
+                      conn.setRequestMethod(Synchronizer.RequestMethod.POST.name());
+                      conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                      SyncHelper.postData(conn, fv);
+                      StringBuilder obj = new StringBuilder();
+                      int responseCode = conn.getResponseCode();
+                      String amsg = conn.getResponseMessage();
+
+                      try {
+                        BufferedReader in =
+                            new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                        char[] buf = new char[1024];
+                        int len;
+                        while ((len = in.read(buf)) != -1) {
+                          obj.append(buf, 0, len);
+                        }
+
+                        res.putExtra(DB.ACCOUNT.AUTH_CONFIG, obj.toString());
+                        if (responseCode >= HttpURLConnection.HTTP_OK
+                            && responseCode < HttpURLConnection.HTTP_MULT_CHOICE) {
+                          resultCode = AppCompatActivity.RESULT_OK;
+                        }
+                      } catch (IOException ioEx) {
+                        InputStream inS = conn.getErrorStream();
+                        String msg = inS == null ? "" : SyncHelper.readInputStream(inS);
+                        Log.w("oath2", "Error stream: " + responseCode + " " + amsg + "; " + msg);
                       }
-
-                      res.putExtra(DB.ACCOUNT.AUTH_CONFIG, obj.toString());
-                      if (responseCode >= HttpURLConnection.HTTP_OK
-                          && responseCode < HttpURLConnection.HTTP_MULT_CHOICE) {
-                        resultCode = AppCompatActivity.RESULT_OK;
+                    } catch (Exception ex) {
+                      ex.printStackTrace(System.err);
+                      res.putExtra("ex", ex.toString());
+                    } finally {
+                      if (conn != null) {
+                        conn.disconnect();
                       }
-                    } catch (IOException e) {
-                      InputStream inS = conn.getErrorStream();
-                      String msg = inS == null ? "" : SyncHelper.readInputStream(inS);
-                      Log.w("oath2", "Error stream: " + responseCode + " " + amsg + "; " + msg);
                     }
-                  } catch (Exception ex) {
-                    ex.printStackTrace(System.err);
-                    res.putExtra("ex", ex.toString());
-                  } finally {
-                    if (conn != null) {
-                      conn.disconnect();
-                    }
-                  }
 
-                  return resultCode;
-                }
-
-                @Override
-                protected void onPostExecute(Integer resultCode) {
-                  setResult(resultCode, res);
-                  finish();
-                }
-              }.execute();
+                    return resultCode;
+                  },
+                  resultCode -> {
+                    setResult(resultCode, res);
+                    finish();
+                  });
             }
           }
 

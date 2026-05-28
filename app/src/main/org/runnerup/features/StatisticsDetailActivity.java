@@ -215,8 +215,8 @@ public class StatisticsDetailActivity extends AppCompatActivity implements Const
         // Average pace
         if (stats.getAvgPace() != null) {
           // Convert pace from seconds per km to seconds per meter
-          double pacePerMeter = stats.getAvgPace() / 1000.0;
-          avgPaceText.setText(formatter.formatPace(Formatter.Format.TXT_SHORT, pacePerMeter));
+          avgPaceText.setText(
+              formatter.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, stats.getAvgPace()));
         } else {
           avgPaceText.setText("-");
         }

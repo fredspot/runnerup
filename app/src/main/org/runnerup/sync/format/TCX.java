@@ -61,7 +61,7 @@ public class TCX {
   }
 
   private String formatTime(long time) {
-    return simpleDateFormat.format(new Date(time));
+    return ExportTimeFormat.iso8601Utc(time);
   }
 
   public String export(long activityId, Writer writer) throws IOException {

@@ -15,7 +15,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.runnerup.data;
+package org.runnerup.analytics;
 
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import org.runnerup.common.util.Constants;
+import org.runnerup.data.ComputationTracker;
 
 public class YearlyCumulativeCalculator implements Constants {
 
@@ -151,45 +152,26 @@ public class YearlyCumulativeCalculator implements Constants {
    */
   public static boolean isDataStale(SQLiteDatabase db) {
     try {
-      // Get last computation info
-      String sql = "SELECT " + Constants.DB.YEARLY_CUMULATIVE.LAST_COMPUTED + 
-                   " FROM " + Constants.DB.YEARLY_CUMULATIVE.TABLE +
-                   " LIMIT 1";
-      
+      String sql =
+          "SELECT "
+              + Constants.DB.YEARLY_CUMULATIVE.LAST_COMPUTED
+              + " FROM "
+              + Constants.DB.YEARLY_CUMULATIVE.TABLE
+              + " LIMIT 1";
+
       try (Cursor cursor = db.rawQuery(sql, null)) {
         if (!cursor.moveToFirst()) {
-          // No tracking record exists, data is stale
           Log.i(TAG, "No yearly cumulative record found, data is stale");
           return true;
         }
-        
         long lastComputed = cursor.getLong(0);
-        
-        // Get latest activity ID
-        String latestSql = "SELECT MAX(" + Constants.DB.PRIMARY_KEY + ") FROM " + Constants.DB.ACTIVITY.TABLE +
-                          " WHERE " + Constants.DB.ACTIVITY.SPORT + " = ? AND " + Constants.DB.ACTIVITY.DELETED + " = ?";
-        
-        try (Cursor latestCursor = db.rawQuery(latestSql, new String[]{
-          String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING), "0"})) {
-          
-          if (latestCursor.moveToFirst()) {
-            long latestActivityId = latestCursor.getLong(0);
-            
-            // Check if last computation was more than 1 hour ago
-            long oneHourAgo = System.currentTimeMillis() - (60 * 60 * 1000);
-            boolean isStale = lastComputed < oneHourAgo;
-            
-            Log.i(TAG, "Yearly cumulative staleness check: last=" + lastComputed + 
-                      ", current=" + System.currentTimeMillis() + ", stale=" + isStale);
-            return isStale;
-          }
-        }
+        boolean isStale = ComputationTracker.isStaleOlderThanOneHour(lastComputed);
+        Log.i(TAG, "Yearly cumulative staleness: last=" + lastComputed + ", stale=" + isStale);
+        return isStale;
       }
-      
-      return true; // Default to stale if we can't determine
     } catch (Exception e) {
       Log.e(TAG, "Error checking yearly cumulative staleness: " + e.getMessage(), e);
-      return true; // Default to stale on error
+      return true;
     }
   }
 }

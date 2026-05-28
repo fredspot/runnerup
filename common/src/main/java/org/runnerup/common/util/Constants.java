@@ -23,6 +23,11 @@ public interface Constants {
 
   String LOG = "org.runnerup";
 
+  /**
+   * SQLite table and column names. Columns added only in {@link org.runnerup.data.DBHelper} schema
+   * upgrades are documented in migration version blocks there and in {@link
+   * org.runnerup.data.SchemaMigrations}.
+   */
   interface DB {
 
     String PRIMARY_KEY = "_id";
@@ -41,12 +46,8 @@ public interface Constants {
       String NAME = "name";
       String COMMENT = "comment";
       String SPORT = "type";
-      // Note that the texts for MAX_HR and AVG_HR are confusing. It does not matter as the SW
-      // uses the constants, not the value.
-      // If the database need to be upgraded for other reasons, the values could be migrated too,
-      // but there is no reason to migrate just for this.
-      String MAX_HR = "avg_hr";
-      String AVG_HR = "max_hr";
+      String AVG_HR = "avg_hr";
+      String MAX_HR = "max_hr";
       String AVG_CADENCE = "avg_cadence";
       String META_DATA = "meta_data";
       String DELETED = "deleted";
@@ -335,8 +336,19 @@ public interface Constants {
       String OTHER_PB_COUNT = "other_pb_count";         // int
       String OTHER_AVG_DISTANCE_PER_RUN = "other_avg_distance_per_run"; // meters
       String OTHER_TOP25_COUNT = "other_top25_count"; // int
-      String CURRENT_AVG_BPM_5MIN_KM = "current_avg_bpm_5min_km"; // int
-      String OTHER_AVG_BPM_5MIN_KM = "other_avg_bpm_5min_km"; // int
+      // Legacy column names (pre-v47); kept for database migrations only
+      String CURRENT_AVG_BPM_5MIN_KM = "current_avg_bpm_5min_km";
+      String OTHER_AVG_BPM_5MIN_KM = "other_avg_bpm_5min_km";
+      String BEST_AVG_BPM_5MIN_KM = "best_avg_bpm_5min_km";
+      String BEST_AVG_BPM_5MIN_KM_MONTH = "best_avg_bpm_5min_km_month";
+      String CURRENT_AVG_PACE_ZONE_1 = "current_avg_pace_zone_1"; // seconds per km
+      String OTHER_AVG_PACE_ZONE_1 = "other_avg_pace_zone_1"; // seconds per km
+      String CURRENT_AVG_PACE_ZONE_2 = "current_avg_pace_zone_2"; // seconds per km
+      String OTHER_AVG_PACE_ZONE_2 = "other_avg_pace_zone_2"; // seconds per km
+      String CURRENT_AVG_PACE_ZONE_3 = "current_avg_pace_zone_3"; // seconds per km
+      String OTHER_AVG_PACE_ZONE_3 = "other_avg_pace_zone_3"; // seconds per km
+      String CURRENT_AVG_PACE_ZONE_4 = "current_avg_pace_zone_4"; // seconds per km
+      String OTHER_AVG_PACE_ZONE_4 = "other_avg_pace_zone_4"; // seconds per km
       // Best month columns (value and month/year)
       String BEST_AVG_PACE = "best_avg_pace";           // seconds per km (lower is better)
       String BEST_AVG_PACE_MONTH = "best_avg_pace_month"; // e.g., "Sep2024"
@@ -350,8 +362,14 @@ public interface Constants {
       String BEST_PB_COUNT_MONTH = "best_pb_count_month"; // e.g., "Sep2024"
       String BEST_TOP25_COUNT = "best_top25_count";     // int (higher is better)
       String BEST_TOP25_COUNT_MONTH = "best_top25_count_month"; // e.g., "Sep2024"
-      String BEST_AVG_BPM_5MIN_KM = "best_avg_bpm_5min_km"; // int (lower is better)
-      String BEST_AVG_BPM_5MIN_KM_MONTH = "best_avg_bpm_5min_km_month"; // e.g., "Sep2024"
+      String BEST_AVG_PACE_ZONE_1 = "best_avg_pace_zone_1"; // seconds per km (lower is better)
+      String BEST_AVG_PACE_ZONE_1_MONTH = "best_avg_pace_zone_1_month"; // e.g., "Sep24"
+      String BEST_AVG_PACE_ZONE_2 = "best_avg_pace_zone_2"; // seconds per km (lower is better)
+      String BEST_AVG_PACE_ZONE_2_MONTH = "best_avg_pace_zone_2_month"; // e.g., "Sep24"
+      String BEST_AVG_PACE_ZONE_3 = "best_avg_pace_zone_3"; // seconds per km (lower is better)
+      String BEST_AVG_PACE_ZONE_3_MONTH = "best_avg_pace_zone_3_month"; // e.g., "Sep24"
+      String BEST_AVG_PACE_ZONE_4 = "best_avg_pace_zone_4"; // seconds per km (lower is better)
+      String BEST_AVG_PACE_ZONE_4_MONTH = "best_avg_pace_zone_4_month"; // e.g., "Sep24"
       String LAST_COMPUTED = "last_computed";          // timestamp
     }
 
@@ -489,5 +507,12 @@ public interface Constants {
     interface TrackerState {
       String STATE = "state";
     }
+  }
+
+  /** Preference keys; prefer {@link PreferenceKeys} in new code. */
+  interface Prefs {
+    String PREF_START_GPS = PreferenceKeys.PREF_START_GPS;
+    String PREF_HRZ_VALUES = PreferenceKeys.PREF_HRZ_VALUES;
+    String PREF_RUNNERUP_LIVE_ACTIVE = PreferenceKeys.PREF_RUNNERUP_LIVE_ACTIVE;
   }
 }

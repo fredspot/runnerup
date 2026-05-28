@@ -119,24 +119,23 @@ public final class SyncHelper {
   }
 
   public static JSONObject parse(String in) throws JSONException {
-    final Scanner s = new Scanner(in);
-    final JSONObject o = new JSONObject(s.useDelimiter("\\A").next());
-    s.close();
-    return o;
+    return parse(new Scanner(in));
   }
 
   public static JSONObject parse(InputStream in) throws JSONException {
-    final Scanner s = new Scanner(in);
-    final JSONObject o = new JSONObject(s.useDelimiter("\\A").next());
-    s.close();
-    return o;
+    return parse(new Scanner(in));
   }
 
   public static JSONObject parse(Reader in) throws JSONException {
-    final Scanner s = new Scanner(in);
-    final JSONObject o = new JSONObject(s.useDelimiter("\\A").next());
-    s.close();
-    return o;
+    return parse(new Scanner(in));
+  }
+
+  private static JSONObject parse(Scanner scanner) throws JSONException {
+    try {
+      return new JSONObject(scanner.useDelimiter("\\A").next());
+    } finally {
+      scanner.close();
+    }
   }
 
   public static JSONObject parse(HttpURLConnection conn, String name)

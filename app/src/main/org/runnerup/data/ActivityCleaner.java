@@ -24,6 +24,7 @@ import android.location.Location;
 import android.text.TextUtils;
 import android.util.Log;
 import java.util.ArrayList;
+import java.util.List;
 import org.runnerup.common.util.Constants;
 
 public class ActivityCleaner implements Constants {
@@ -86,9 +87,11 @@ public class ActivityCleaner implements Constants {
   }
 
   /**
-   * Force-mode variant: when {@code force} is true, GPS-derived sums always overwrite saved
-   * DISTANCE/TIME for ANY intensity, EXCEPT when GPS yields zero (e.g. a paused-rest lap with no
-   * location rows). In that case we keep the saved value to avoid dropping useful data.
+   * Force-mode variant: when {@code force} is true, GPS-derived sums overwrite saved
+   * DISTANCE/TIME for ACTIVE laps. For non-ACTIVE laps, distance prefers live-tracker GPS when
+   * present so autolapped warm-up / cool-down (multiple 1 km laps sharing one planned 2 km step)
+   * keep per-lap distances; {@code PLANNED_DISTANCE} is only used when GPS has no distance on
+   * that lap. Timed rest/recovery still prefers {@code PLANNED_TIME} when set.
    */
   void recomputeLap(SQLiteDatabase db, long activityId, long lap, boolean force) {
     Location savedLastLocation = _lastLocation;
@@ -348,10 +351,12 @@ public class ActivityCleaner implements Constants {
     // Force mode (user-initiated "rebuild from raw data"):
     //   ACTIVE laps   -> trust GPS sums (a 1.00 km work interval becomes the actual ~0.99 km).
     //                    Only fall back to the saved value if GPS yielded nothing.
-    //   non-ACTIVE   -> the workout's intent is authoritative for warmup/cooldown/rest/recovery
-    //                    (e.g. "rest 60 s" is what the runner asked for; GPS-active-time during a
-    //                    paused rest is meaningless). Use PLANNED_* when present, otherwise GPS,
-    //                    otherwise the previously saved value.
+    //   non-ACTIVE   -> distance: prefer GPS when the lap has any measured distance (correct for
+    //                    autolap splits where PLANNED_DISTANCE is often the *whole* step, not
+    //                    each 1 km slice). If GPS distance is zero, use PLANNED_DISTANCE, then
+    //                    saved. Time: timed REST/RECOVERY prefer PLANNED_TIME when set; warm-up /
+    //                    cool-down prefer measured active time when present so split laps keep
+    //                    sensible durations.
     Long writeTime = null;
     Double writeDistance = null;
     if (force) {
@@ -362,12 +367,18 @@ public class ActivityCleaner implements Constants {
         if (sum_time > 0) writeTime = Math.round(gpsSeconds);
         else if (haveOriginalTime && originalTime > 0) writeTime = originalTime;
       } else {
-        if (havePlannedDistance) writeDistance = plannedDistance;
-        else if (sum_distance > 0) writeDistance = sum_distance;
+        if (sum_distance > 0) writeDistance = sum_distance;
+        else if (havePlannedDistance) writeDistance = plannedDistance;
         else if (haveOriginalDistance && originalDistance > 0) writeDistance = originalDistance;
-        if (havePlannedTime) writeTime = plannedTime;
-        else if (sum_time > 0) writeTime = Math.round(gpsSeconds);
-        else if (haveOriginalTime && originalTime > 0) writeTime = originalTime;
+        if (intensity == DB.INTENSITY.RESTING || intensity == DB.INTENSITY.RECOVERY) {
+          if (havePlannedTime) writeTime = plannedTime;
+          else if (sum_time > 0) writeTime = Math.round(gpsSeconds);
+          else if (haveOriginalTime && originalTime > 0) writeTime = originalTime;
+        } else {
+          if (sum_time > 0) writeTime = Math.round(gpsSeconds);
+          else if (havePlannedTime) writeTime = plannedTime;
+          else if (haveOriginalTime && originalTime > 0) writeTime = originalTime;
+        }
       }
     } else {
       boolean preserveDistance =
@@ -425,6 +436,15 @@ public class ActivityCleaner implements Constants {
       }
     }
     return 0;
+  }
+
+  /**
+   * Fix activity rows where {@code avg_hr} holds peak BPM and {@code max_hr} holds average BPM
+   * (legacy swapped-column bug). Safe to run repeatedly: only updates rows with {@code avg_hr >
+   * max_hr}.
+   */
+  public static void repairSwappedActivityHeartRates(SQLiteDatabase db) {
+    ActivityHrRepair.repairSwappedActivityHeartRates(db);
   }
 
   /** recompute an activity summary based on laps */
@@ -642,10 +662,10 @@ public class ActivityCleaner implements Constants {
   /**
    * Rebuild lap aggregates from raw GPS rows.
    *
-   * @param force when true, GPS-derived sums always overwrite saved DISTANCE/TIME for ANY lap
-   *     intensity (only kept when GPS yields zero). Use this for an explicit user-initiated
-   *     "rebuild from raw data" action on past activities whose saved values may be stale or
-   *     corrupted.
+   * @param force when true, GPS-derived sums overwrite ACTIVE laps; non-ACTIVE laps use GPS
+   *     distance/time when samples exist (so autolapped phases stay per-lap correct), fall back to
+   *     planned values when a lap has no GPS distance (e.g. paused rest). After a force pass,
+   *     tiny straggler laps are merged into the previous lap when they share the same intensity.
    */
   public void recompute(SQLiteDatabase db, long activityId, boolean force) {
     _totalTime = 0;
@@ -657,8 +677,119 @@ public class ActivityCleaner implements Constants {
     _isActive = false;
 
     recomputeLaps(db, activityId, force);
+    if (force) {
+      mergeDustLapsAfterForceRecompute(db, activityId);
+    }
     recomputeSummary(db, activityId);
     invalidateAggregateCaches(db);
+  }
+
+  /**
+   * After a force-recompute, fold tiny "straggler" laps (a few metres and seconds of GPS residue
+   * between autolap boundaries) into the previous lap so interval counts match the workout. Only
+   * merges when the two laps share the same intensity; re-assigns LOCATION rows and decrements
+   * higher lap indices. Then re-runs {@link #recomputeLap} on the receiving lap from raw samples.
+   */
+  private static void mergeDustLapsAfterForceRecompute(SQLiteDatabase db, long activityId) {
+    final double maxDustDistanceM = 100.0;
+    final long maxDustTimeSec = 45L;
+    final int lapOffset = 1_000_000;
+    ActivityCleaner cleaner = new ActivityCleaner();
+    boolean mergedOne;
+    do {
+      mergedOne = false;
+      List<LapRow> laps = loadLapsOrdered(db, activityId);
+      for (int i = 1; i < laps.size(); i++) {
+        LapRow dust = laps.get(i);
+        LapRow prev = laps.get(i - 1);
+        if (dust.type != prev.type) {
+          continue;
+        }
+        if (!isDustLap(dust, maxDustDistanceM, maxDustTimeSec)) {
+          continue;
+        }
+        db.beginTransaction();
+        try {
+          double newDist = prev.distance + dust.distance;
+          long newTime = prev.time + dust.time;
+          ContentValues merged = new ContentValues();
+          merged.put(DB.LAP.DISTANCE, newDist);
+          merged.put(DB.LAP.TIME, newTime);
+          db.update(
+              DB.LAP.TABLE,
+              merged,
+              DB.PRIMARY_KEY + " = ?",
+              new String[] {String.valueOf(prev.rowId)});
+
+          ContentValues loc = new ContentValues();
+          loc.put(DB.LOCATION.LAP, prev.lapIndex);
+          db.update(
+              DB.LOCATION.TABLE,
+              loc,
+              DB.LOCATION.ACTIVITY + " = ? AND " + DB.LOCATION.LAP + " = ?",
+              new String[] {String.valueOf(activityId), String.valueOf(dust.lapIndex)});
+
+          db.delete(DB.LAP.TABLE, DB.PRIMARY_KEY + " = ?", new String[] {String.valueOf(dust.rowId)});
+
+          LapIndexRenumberer.renumberLapsAfterDeletingIndex(db, activityId, dust.lapIndex, lapOffset);
+
+          db.setTransactionSuccessful();
+        } finally {
+          db.endTransaction();
+        }
+
+        cleaner.recomputeLap(db, activityId, prev.lapIndex, true);
+        mergedOne = true;
+        break;
+      }
+    } while (mergedOne);
+  }
+
+  private static boolean isDustLap(LapRow lap, double maxDistM, long maxTimeSec) {
+    if (lap.distance < 0 || lap.time < 0) {
+      return false;
+    }
+    if (lap.distance == 0 && lap.time == 0) {
+      return false;
+    }
+    return lap.distance < maxDistM && lap.time < maxTimeSec;
+  }
+
+  private static List<LapRow> loadLapsOrdered(SQLiteDatabase db, long activityId) {
+    List<LapRow> out = new ArrayList<>();
+    String[] cols =
+        new String[] {
+          DB.PRIMARY_KEY, DB.LAP.LAP, DB.LAP.INTENSITY, DB.LAP.DISTANCE, DB.LAP.TIME,
+        };
+    try (Cursor c =
+        db.query(
+            DB.LAP.TABLE,
+            cols,
+            DB.LAP.ACTIVITY + " = ?",
+            new String[] {String.valueOf(activityId)},
+            null,
+            null,
+            DB.LAP.LAP + " ASC",
+            null)) {
+      while (c.moveToNext()) {
+        LapRow r = new LapRow();
+        r.rowId = c.getLong(0);
+        r.lapIndex = c.getInt(1);
+        r.type = c.getInt(2);
+        r.distance = c.isNull(3) ? 0.0 : c.getDouble(3);
+        r.time = c.isNull(4) ? 0L : c.getLong(4);
+        out.add(r);
+      }
+    }
+    return out;
+  }
+
+  private static final class LapRow {
+    long rowId;
+    int lapIndex;
+    int type;
+    double distance;
+    long time;
   }
 
   /**

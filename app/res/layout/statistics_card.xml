@@ -22,6 +22,7 @@
     android:orientation="vertical"
     android:gravity="center"
     android:background="@drawable/modern_card_background"
+    android:foreground="?attr/selectableItemBackground"
     android:paddingStart="16dp"
     android:paddingEnd="16dp"
     android:paddingTop="18dp"
@@ -34,7 +35,10 @@
         android:layout_height="56dp"
         android:scaleType="fitCenter"
         android:tint="@color/colorAccent"
-        android:layout_gravity="center_horizontal"/>
+        android:layout_gravity="center_horizontal"
+        android:focusable="false"
+        android:clickable="false"
+        android:duplicateParentState="true"/>
 
     <TextView
         android:id="@+id/statistics_card_label"

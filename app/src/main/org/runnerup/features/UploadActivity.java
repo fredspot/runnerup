@@ -49,6 +49,7 @@ import org.runnerup.sync.FileSynchronizer;
 import org.runnerup.sync.SyncManager;
 import org.runnerup.sync.Synchronizer;
 import org.runnerup.sync.Synchronizer.Status;
+import org.runnerup.core.util.ActivitySummaryBinder;
 import org.runnerup.core.util.Formatter;
 import org.runnerup.core.util.SyncActivityItem;
 import org.runnerup.core.util.ViewUtil;
@@ -361,23 +362,19 @@ public class UploadActivity extends AppCompatActivity implements Constants {
         viewHolder.tvStartTime.setText("");
       }
 
-      if (d != null) {
-        viewHolder.tvDistance.setText(
-            formatter.formatDistance(Formatter.Format.TXT_SHORT, d.longValue()));
+      if (d != null && t != null) {
+        ActivitySummaryBinder.bind(
+            formatter,
+            viewHolder.tvDistance,
+            viewHolder.tvTime,
+            viewHolder.tvPace,
+            Formatter.Format.TXT_SHORT,
+            Formatter.Format.TXT_LONG,
+            d,
+            t);
       } else {
         viewHolder.tvDistance.setText("");
-      }
-
-      if (t != null) {
-        viewHolder.tvTime.setText(formatter.formatElapsedTime(Formatter.Format.TXT_SHORT, t));
-      } else {
         viewHolder.tvTime.setText("");
-      }
-
-      if (d != null && t != null && t != 0) {
-        viewHolder.tvPace.setText(
-            formatter.formatVelocityByPreferredUnit(Formatter.Format.TXT_LONG, d / t));
-      } else {
         viewHolder.tvPace.setText("");
       }
 

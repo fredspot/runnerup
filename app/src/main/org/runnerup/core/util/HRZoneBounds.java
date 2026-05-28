@@ -24,7 +24,7 @@ import android.util.Pair;
 import androidx.preference.PreferenceManager;
 import org.runnerup.R;
 
-public class HRZoneCalculator {
+public class HRZoneBounds {
 
   public static int computeMaxHR(int age, boolean male) {
     if (male) {
@@ -34,11 +34,11 @@ public class HRZoneCalculator {
     }
   }
 
-  public HRZoneCalculator(Context ctx) {
+  public HRZoneBounds(Context ctx) {
     this(ctx.getResources(), PreferenceManager.getDefaultSharedPreferences(ctx));
   }
 
-  private HRZoneCalculator(Resources res, SharedPreferences prefs) {
+  private HRZoneBounds(Resources res, SharedPreferences prefs) {
     final String pct = res.getString(R.string.pref_hrz_thresholds);
     if (prefs.contains(pct)) {
       int[] limits = SafeParse.parseIntList(prefs.getString(pct, ""));

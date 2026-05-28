@@ -25,7 +25,6 @@ import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.ViewTreeObserver;
@@ -98,7 +97,8 @@ public class MapWrapper implements Constants {
                 lineManager = new LineManager(mapView, mapboxMap, mapStyle);
                 symbolManager = new SymbolManager(mapView, mapboxMap, mapStyle);
                 // Map is set up and the style has loaded
-                new LoadRoute().execute(new LoadParam(context, mDB, mID, mapboxMap));
+                LoadParam loadParam = new LoadParam(context, mDB, mID, mapboxMap);
+                BgTasks.runDb(() -> buildRoute(loadParam), route -> applyRoute(loadParam, route));
               });
         });
   }
@@ -163,14 +163,10 @@ public class MapWrapper implements Constants {
     final MapboxMap map;
   }
 
-  @SuppressLint("StaticFieldLeak")
-  private class LoadRoute extends AsyncTask<LoadParam, Void, Route> {
-    @Override
-    protected Route doInBackground(LoadParam... params) {
-
-      Route route = new Route(params[0].context, params[0].map);
+  private Route buildRoute(LoadParam params) {
+      Route route = new Route(params.context, params.map);
       LocationEntity.LocationList<LocationEntity> ll =
-          new LocationEntity.LocationList<>(params[0].mDB, params[0].mID);
+          new LocationEntity.LocationList<>(params.mDB, params.mID);
       int lastLap = 0;
       for (LocationEntity loc : ll) {
         LatLng point = new LatLng(loc.getLatitude(), loc.getLongitude());
@@ -211,11 +207,16 @@ public class MapWrapper implements Constants {
           if (type == DB.LOCATION.TYPE_START) {
             info = null;
           } else {
-            info =
-                (iconImage.equals("lap") ? "#" + loc.getLap() + "\n" : "")
-                    + formatter.formatDistance(TXT_SHORT, loc.getDistance().longValue())
-                    + "\n"
-                    + formatter.formatElapsedTime(TXT_SHORT, Math.round(loc.getElapsed() / 1000.0));
+            if (iconImage.equals("lap")) {
+              info =
+                  "#"
+                      + loc.getLap()
+                      + "\n"
+                      + org.runnerup.core.util.RouteMarkerLabels.lapMarkerInfo(
+                          formatter, loc, loc.getDistance());
+            } else {
+              info = null;
+            }
           }
 
           SymbolOptions m =
@@ -249,12 +250,9 @@ public class MapWrapper implements Constants {
       }
 
       return route;
-    }
+  }
 
-    @SuppressLint("ObsoleteSdkInt")
-    @Override
-    protected void onPostExecute(Route route) {
-
+  private void applyRoute(LoadParam loadParam, Route route) {
       if (route != null && route.map != null) {
 
         ScaleBarPlugin scaleBarPlugin = new ScaleBarPlugin(mapView, route.map);
@@ -351,6 +349,5 @@ public class MapWrapper implements Constants {
         }
         Log.v(getClass().getName(), "Added " + route.markers.size() + " markers");
       }
-    }
   }
 }

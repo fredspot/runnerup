@@ -48,6 +48,8 @@
         android:horizontalSpacing="16dp"
         android:padding="16dp"
         android:stretchMode="columnWidth"
+        android:listSelector="@android:color/transparent"
+        android:drawSelectorOnTop="false"
         app:layout_constraintTop_toBottomOf="@id/statistics_actionbar"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"

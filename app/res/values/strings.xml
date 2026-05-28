@@ -46,10 +46,24 @@
   
   <!-- Monthly Comparison -->
   <string name="monthly_comparison_title">Month Comparison</string>
+  <string name="monthly_comparison_avg_pace_zone_3">Avg pace Z3</string>
+  <string name="monthly_comparison_avg_pace_zone_4">Avg pace Z4</string>
+  <string name="monthly_comparison_best_column">Best</string>
+  <string name="monthly_comparison_zone_section_title">Aerobic pace by HR zone</string>
+  <string name="monthly_comparison_zone_column_change">vs others</string>
+  <string name="monthly_comparison_zone_aerobic_metric">Z%1$d aerobic (%2$d–%3$d bpm)</string>
+  <string name="monthly_comparison_zone_easy_metric">Easy Z1–Z2 (%1$d–%2$d bpm)</string>
+  <string name="monthly_comparison_zone_pace_metric_unconfigured">Z%1$d pace</string>
+  <string name="monthly_comparison_zone_pace_same">on par</string>
+  <string name="monthly_comparison_zone_pace_footnote">Shows steady Z3 pace and combined easy Z1–Z2 pace. “vs others” is the gap to your historical monthly average (negative = faster). Only completed months with 50+ km and 2+ runs; laps 400 m+ from runs 2 km+, pace 2:30–15:00 min/km.</string>
   <string name="this_month">This Month</string>
   <string name="all_other_months">All Others</string>
   <string name="personal_bests">Personal Bests</string>
   <string name="average_bpm">Average BPM</string>
+  <string name="lap_list_step_total">total</string>
+  <string name="lap_list_interval_total">interval</string>
+  <string name="lap_list_warmup_total">warmup</string>
+  <string name="lap_list_cooldown_total">cooldown</string>
   
   <!-- HR Zones -->
   <string name="hr_zones_title">Heart Rate Zones</string>

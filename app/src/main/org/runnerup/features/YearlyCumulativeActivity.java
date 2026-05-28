@@ -41,7 +41,7 @@ import com.jjoe64.graphview.series.LineGraphSeries;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
 import org.runnerup.data.DBHelper;
-import org.runnerup.data.YearlyCumulativeCalculator;
+import org.runnerup.analytics.YearlyCumulativeCalculator;
 import org.runnerup.core.util.ViewUtil;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;

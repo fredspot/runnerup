@@ -24,6 +24,7 @@ import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.view.View;
 import org.runnerup.R;
+import org.runnerup.core.util.Formatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -174,19 +175,19 @@ public class DistributionChart extends View {
       java.util.ArrayList<StatLabel> labels = new java.util.ArrayList<>();
 
       if (minTime > 0) {
-        labels.add(new StatLabel(formatTime(minTime), getYForTimeReversed(minTime, totalHeight), statPaint));
+        labels.add(new StatLabel(Formatter.formatElapsedTimeHms(minTime), getYForTimeReversed(minTime, totalHeight), statPaint));
       }
       if (percentile25 > 0) {
-        labels.add(new StatLabel(formatTime(percentile25), getYForTimeReversed(percentile25, totalHeight), statPaint));
+        labels.add(new StatLabel(Formatter.formatElapsedTimeHms(percentile25), getYForTimeReversed(percentile25, totalHeight), statPaint));
       }
       if (meanTime > 0) {
-        labels.add(new StatLabel(formatTime(meanTime), getYForTimeReversed(meanTime, totalHeight), statMeanPaint));
+        labels.add(new StatLabel(Formatter.formatElapsedTimeHms(meanTime), getYForTimeReversed(meanTime, totalHeight), statMeanPaint));
       }
       if (percentile75 > 0) {
-        labels.add(new StatLabel(formatTime(percentile75), getYForTimeReversed(percentile75, totalHeight), statPaint));
+        labels.add(new StatLabel(Formatter.formatElapsedTimeHms(percentile75), getYForTimeReversed(percentile75, totalHeight), statPaint));
       }
       if (maxTime > 0) {
-        labels.add(new StatLabel(formatTime(maxTime), getYForTimeReversed(maxTime, totalHeight), statPaint));
+        labels.add(new StatLabel(Formatter.formatElapsedTimeHms(maxTime), getYForTimeReversed(maxTime, totalHeight), statPaint));
       }
 
       // Resolve overlaps by nudging labels so they don't collide, preserving ordering by baseY
@@ -246,19 +247,6 @@ public class DistributionChart extends View {
 
   private float sp(int sp) {
     return sp * getResources().getDisplayMetrics().scaledDensity;
-  }
-  
-  private String formatTime(long seconds) {
-    if (seconds == 0) return "--";
-    long hours = seconds / 3600;
-    long minutes = (seconds % 3600) / 60;
-    long secs = seconds % 60;
-    
-    if (hours > 0) {
-      return String.format("%d:%02d:%02d", hours, minutes, secs);
-    } else {
-      return String.format("%d:%02d", minutes, secs);
-    }
   }
   
   public long getMinTime() { return minTime; }
