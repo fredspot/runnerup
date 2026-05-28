@@ -1,0 +1,439 @@
+/*
+ * Copyright (C) 2013 jonas.oreland@gmail.com
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package org.runnerup.features
+
+import android.annotation.SuppressLint
+import android.content.Intent
+import android.database.sqlite.SQLiteDatabase
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.BaseAdapter
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.CompoundButton
+import android.widget.ImageView
+import android.widget.ListView
+import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
+import java.util.Locale
+import org.runnerup.R
+import org.runnerup.common.util.Constants
+import org.runnerup.common.util.Constants.DB
+import org.runnerup.core.util.ActivitySummaryBinder
+import org.runnerup.core.util.Formatter
+import org.runnerup.core.util.SyncActivityItem
+import org.runnerup.core.util.ViewUtil
+import org.runnerup.core.workout.Sport
+import org.runnerup.data.DBHelper
+import org.runnerup.data.entities.ActivityEntity
+import org.runnerup.sync.FileSynchronizer
+import org.runnerup.sync.SyncManager
+import org.runnerup.sync.Synchronizer
+
+class UploadActivity : AppCompatActivity() {
+
+  private var synchronizerName: String? = null
+  private var syncMode = SyncManager.SyncMode.UPLOAD
+  private var syncManager: SyncManager? = null
+  private var listView: ListView? = null
+
+  private var db: SQLiteDatabase? = null
+  private var formatter: Formatter? = null
+  private val allSyncActivities = ArrayList<SyncActivityItem>()
+
+  private var syncCount = 0
+  private var actionButton: Button? = null
+  private var actionButtonText: CharSequence? = null
+
+  private var fetching = false
+  private val cancelSync = StringBuffer()
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    setContentView(R.layout.upload)
+
+    val intent = intent
+    synchronizerName = intent.getStringExtra("synchronizer")
+    syncMode = SyncManager.SyncMode.valueOf(intent.getStringExtra("mode")!!)
+
+    db = DBHelper.getReadableDatabase(this)
+    formatter = Formatter(this)
+    syncManager = SyncManager(this)
+
+    listView = findViewById(R.id.upload_view)
+    listView?.dividerHeight = 1
+    listView?.adapter = UploadListAdapter()
+
+    findViewById<Button>(R.id.upload_account_set_all).setOnClickListener(setAllButtonClick)
+    findViewById<Button>(R.id.upload_account_clear_all).setOnClickListener(clearAllButtonClick)
+
+    val downloadBtn = findViewById<Button>(R.id.upload_account_download_button)
+    val uploadBtn = findViewById<Button>(R.id.upload_account_button)
+    if (syncMode == SyncManager.SyncMode.DOWNLOAD) {
+      downloadBtn.setOnClickListener(downloadButtonClick)
+      actionButton = downloadBtn
+      actionButtonText = downloadBtn.text
+      uploadBtn.visibility = View.GONE
+    } else {
+      uploadBtn.setOnClickListener(uploadButtonClick)
+      actionButton = uploadBtn
+      actionButtonText = uploadBtn.text
+      downloadBtn.visibility = View.GONE
+    }
+
+    ViewUtil.Insets(findViewById(R.id.upload_rootview), true)
+
+    fillData()
+    val synchronizer = syncManager?.getSynchronizerByName(synchronizerName)
+    val nameView = findViewById<TextView>(R.id.upload_account_list_name)
+    val iconView = findViewById<ImageView>(R.id.upload_account_list_icon)
+    if (synchronizer == null || synchronizer.iconId == 0) {
+      iconView.visibility = View.GONE
+      nameView.text = synchronizerName
+      nameView.visibility = View.VISIBLE
+    } else {
+      iconView.visibility = View.VISIBLE
+      nameView.visibility = View.GONE
+      iconView.setImageDrawable(AppCompatResources.getDrawable(this, synchronizer.iconId))
+    }
+
+    onBackPressedDispatcher.addCallback(
+        this,
+        object : OnBackPressedCallback(true) {
+          override fun handleOnBackPressed() {
+            if (fetching) {
+              cancelSync.append("1")
+              return
+            }
+            finish()
+          }
+        },
+    )
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    DBHelper.closeDB(db)
+    syncManager?.close()
+  }
+
+  private fun fillData() {
+    val database = db ?: return
+    val name = synchronizerName ?: return
+    val manager = syncManager ?: return
+    if (syncMode == SyncManager.SyncMode.DOWNLOAD) {
+      manager.load(name)
+      manager.loadActivityList(allSyncActivities, name) { _, _ ->
+        filterAlreadyPresentActivities()
+        requery()
+      }
+    } else {
+      val from =
+          arrayOf(
+              DB.PRIMARY_KEY,
+              DB.ACTIVITY.START_TIME,
+              DB.ACTIVITY.DISTANCE,
+              DB.ACTIVITY.TIME,
+              DB.ACTIVITY.SPORT,
+          )
+      val args = arrayOf(name)
+      val w =
+          "NOT EXISTS (SELECT 1 FROM " +
+              DB.EXPORT.TABLE +
+              " r," +
+              DB.ACCOUNT.TABLE +
+              " a WHERE " +
+              "r." +
+              DB.EXPORT.ACTIVITY +
+              " = " +
+              DB.ACTIVITY.TABLE +
+              "._id " +
+              " AND r." +
+              DB.EXPORT.ACCOUNT +
+              " = a." +
+              "_id" +
+              " AND a." +
+              DB.ACCOUNT.NAME +
+              " = ?)"
+      database
+          .query(DB.ACTIVITY.TABLE, from, " deleted == 0 AND $w", args, null, null, "_id desc", null)
+          .use { cursor ->
+            allSyncActivities.clear()
+            var i = 0
+            val maxUpload = 10
+            if (cursor.moveToFirst()) {
+              do {
+                val ac = ActivityEntity(cursor)
+                val ai = SyncActivityItem(ac)
+                if (name != FileSynchronizer.NAME && i++ >= maxUpload) {
+                  ai.setSkipFlag(true)
+                }
+                allSyncActivities.add(ai)
+              } while (cursor.moveToNext())
+            }
+          }
+      syncCount = allSyncActivities.size
+      requery()
+    }
+  }
+
+  private fun filterAlreadyPresentActivities() {
+    val database = db ?: return
+    val from =
+        arrayOf(
+            DB.PRIMARY_KEY,
+            DB.ACTIVITY.START_TIME,
+            DB.ACTIVITY.DISTANCE,
+            DB.ACTIVITY.TIME,
+            DB.ACTIVITY.SPORT,
+        )
+    val presentActivities = ArrayList<SyncActivityItem>()
+    database.query(DB.ACTIVITY.TABLE, from, " deleted = 0", null, null, null, "_id desc", null).use {
+        cursor ->
+      if (cursor.moveToFirst()) {
+        do {
+          val av = ActivityEntity(cursor)
+          presentActivities.add(SyncActivityItem(av))
+        } while (cursor.moveToNext())
+      }
+    }
+    for (toDown in allSyncActivities) {
+      for (present in presentActivities) {
+        if (toDown.isSimilarTo(present)) {
+          toDown.setPresentFlag(true)
+          toDown.setSkipFlag(false)
+          break
+        }
+      }
+    }
+    updateSyncCount()
+  }
+
+  private fun updateSyncCount() {
+    syncCount = 0
+    for (ai in allSyncActivities) {
+      if (ai.synchronize(syncMode)) {
+        syncCount++
+      }
+    }
+  }
+
+  private fun requery() {
+    (listView?.adapter as? BaseAdapter)?.notifyDataSetChanged()
+    val button = actionButton ?: return
+    val label = actionButtonText ?: return
+    if (syncCount > 0) {
+      button.text = String.format(Locale.getDefault(), "%s (%d)", label, syncCount)
+      button.isEnabled = true
+    } else {
+      button.text = label
+      button.isEnabled = false
+    }
+  }
+
+  private val onActivityClick =
+      View.OnClickListener { view ->
+        val holder = view.tag as ViewHolderUploadActivity
+        val intent = Intent(this@UploadActivity, DetailActivity::class.java)
+        intent.putExtra("ID", holder.activityId)
+        intent.putExtra("mode", "details")
+        @Suppress("DEPRECATION") startActivityForResult(intent, 100)
+      }
+
+  private inner class UploadListAdapter : BaseAdapter() {
+    private val inflater: LayoutInflater = LayoutInflater.from(this@UploadActivity)
+
+    override fun getCount(): Int = allSyncActivities.size
+
+    override fun getItem(position: Int): Any = allSyncActivities[position]
+
+    override fun getItemId(position: Int): Long = allSyncActivities[position].id
+
+    @SuppressLint("ObsoleteSdkInt")
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+      val view: View
+      val viewHolder: ViewHolderUploadActivity
+      if (convertView == null) {
+        viewHolder = ViewHolderUploadActivity()
+        view = inflater.inflate(R.layout.upload_row, parent, false)
+        viewHolder.tvStartTime = view.findViewById(R.id.upload_list_start_time)
+        viewHolder.tvDistance = view.findViewById(R.id.upload_list_distance)
+        viewHolder.tvTime = view.findViewById(R.id.upload_list_time)
+        viewHolder.tvPace = view.findViewById(R.id.upload_list_pace)
+        viewHolder.tvSport = view.findViewById(R.id.upload_list_sport)
+        viewHolder.cb = view.findViewById(R.id.upload_list_check)
+        view.tag = viewHolder
+      } else {
+        view = convertView
+        viewHolder = view.tag as ViewHolderUploadActivity
+      }
+      viewHolder.activityId = getItemId(position)
+      val ai = allSyncActivities[position]
+      val fmt = formatter ?: return view
+      val d = ai.distance
+      val t = ai.duration
+      val startTime = ai.startTime
+      viewHolder.tvStartTime.text =
+          if (startTime != null) fmt.formatDateTime(startTime) else ""
+      if (d != null && t != null) {
+        ActivitySummaryBinder.bind(
+            fmt,
+            viewHolder.tvDistance,
+            viewHolder.tvTime,
+            viewHolder.tvPace,
+            Formatter.Format.TXT_SHORT,
+            Formatter.Format.TXT_LONG,
+            d,
+            t,
+        )
+      } else {
+        viewHolder.tvDistance.text = ""
+        viewHolder.tvTime.text = ""
+        viewHolder.tvPace.text = ""
+      }
+      val sport = ai.sport
+      viewHolder.tvSport.text =
+          if (sport == null) {
+            Sport.textOf(resources, DB.ACTIVITY.SPORT_RUNNING)
+          } else {
+            Sport.textOf(resources, Sport.valueOf(sport).dbValue)
+          }
+      viewHolder.cb.tag = position
+      viewHolder.cb.setOnCheckedChangeListener(checkedChangeClick)
+      viewHolder.cb.isChecked = !ai.skipActivity()
+      viewHolder.cb.isEnabled = ai.isRelevantForSynch(syncMode)
+      if (syncMode == SyncManager.SyncMode.UPLOAD) {
+        view.setOnClickListener(onActivityClick)
+      } else if (view.hasOnClickListeners()) {
+        view.setOnClickListener(null)
+      }
+      return view
+    }
+  }
+
+  private class ViewHolderUploadActivity {
+    lateinit var tvStartTime: TextView
+    lateinit var tvDistance: TextView
+    lateinit var tvTime: TextView
+    lateinit var tvPace: TextView
+    lateinit var tvSport: TextView
+    lateinit var cb: CheckBox
+    var activityId: Long = 0
+  }
+
+  private val checkedChangeClick =
+      CompoundButton.OnCheckedChangeListener { button, checked ->
+        val pos = button.tag as Int
+        val tmp = allSyncActivities[pos]
+        tmp.setSkipFlag(!checked)
+        updateSyncCount()
+        requery()
+      }
+
+  private val uploadButtonClick =
+      View.OnClickListener {
+        if (allSyncActivities.isEmpty()) return@OnClickListener
+        val upload = selectedActivities
+        Log.i(Constants.LOG, "Start uploading " + upload.size)
+        fetching = true
+        cancelSync.delete(0, cancelSync.length)
+        syncManager?.syncActivities(
+            SyncManager.SyncMode.UPLOAD,
+            syncCallback,
+            synchronizerName,
+            upload,
+            cancelSync,
+        )
+      }
+
+  private val downloadButtonClick =
+      View.OnClickListener {
+        if (allSyncActivities.isEmpty()) return@OnClickListener
+        val download = selectedActivities
+        Log.i(Constants.LOG, "Start downloading " + download.size)
+        fetching = true
+        cancelSync.delete(0, cancelSync.length)
+        syncManager?.syncActivities(
+            SyncManager.SyncMode.DOWNLOAD,
+            syncCallback,
+            synchronizerName,
+            download,
+            cancelSync,
+        )
+      }
+
+  private val selectedActivities: List<SyncActivityItem>
+    get() {
+      val selected = ArrayList<SyncActivityItem>()
+      for (tmp in allSyncActivities) {
+        if (tmp.synchronize(syncMode)) selected.add(tmp)
+      }
+      return selected
+    }
+
+  private val syncCallback = SyncManager.Callback { _, status ->
+    fetching = false
+    if (cancelSync.isNotEmpty() || status == Synchronizer.Status.CANCEL) {
+      finish()
+      return@Callback
+    }
+    if (syncMode == SyncManager.SyncMode.UPLOAD) {
+      fillData()
+    } else {
+      filterAlreadyPresentActivities()
+      requery()
+    }
+  }
+
+  private val clearAllButtonClick =
+      View.OnClickListener {
+        for (tmp in allSyncActivities) {
+          if (tmp.isRelevantForSynch(syncMode)) {
+            tmp.setSkipFlag(true)
+          }
+        }
+        updateSyncCount()
+        requery()
+      }
+
+  private val setAllButtonClick =
+      View.OnClickListener {
+        var i = 0
+        val maxUpload = 30
+        val name = synchronizerName ?: return@OnClickListener
+        for (ai in allSyncActivities) {
+          if (ai.isRelevantForSynch(syncMode)) {
+            val upload = name == FileSynchronizer.NAME || i++ < maxUpload
+            ai.setSkipFlag(!upload)
+          }
+        }
+        updateSyncCount()
+        requery()
+      }
+
+  @Deprecated("Deprecated in Java")
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
+    fillData()
+  }
+}
