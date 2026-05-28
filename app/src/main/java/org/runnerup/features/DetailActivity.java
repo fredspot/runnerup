@@ -159,6 +159,8 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   private EditText notes = null;
   private DetailInjuryController injuryController = null;
   private View rootView;
+  private ViewPager2 detailPager;
+  private boolean detailTabContentBound = false;
   private View mapTab;
   private int mapTabIndex = -1;
 
@@ -226,48 +228,6 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     activityDistance = findViewById(R.id.activity_distance);
     activityPace = findViewById(R.id.activity_pace);
     activityPaceSeparator = findViewById(R.id.activity_pace_separator);
-    sport = findViewById(R.id.summary_sport);
-    sport.setOnSetValueListener(new OnSetValueListener() {
-        @Override
-        public String preSetValue(String newValue) throws IllegalArgumentException {
-          return newValue;
-        }
-
-        @Override
-        public int preSetValue(int newValue) throws IllegalArgumentException {
-          updateViewForSport(newValue);
-          ViewCompat.requestApplyInsets(rootView);
-          headerData.put(DB.ACTIVITY.SPORT, newValue);
-          return newValue;
-        }
-      });
-
-    sport.setArrayEntries(Sport.getStringArray(getResources()));
-
-    manualDistance = findViewById(R.id.summary_manual_distance);
-    manualDistance.setOnSetValueListener(new OnSetValueListener() {
-        @Override
-        public String preSetValue(String newValue) throws IllegalArgumentException {
-          double dist = SafeParse.parseDouble(newValue, 0); // convert to meters
-          headerData.put(DB.ACTIVITY.DISTANCE, dist);
-          updateHeader(headerData, /* fromManualDistance= */true);
-          return newValue;
-        }
-
-        @Override
-        public int preSetValue(int newValue) throws IllegalArgumentException {
-          return newValue;
-        }
-      });
-    notes = findViewById(R.id.notes_text);
-    injuryController = new DetailInjuryController(this, mDB, () -> mID);
-    injuryController.bindViews(this);
-
-    if (USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0) {
-      Object mapView = findViewById(R.id.mapview);
-      mapWrapper = new MapWrapper(this, mDB, mID, formatter, mapView);
-      mapWrapper.onCreate(savedInstanceState);
-    }
 
     saveButton.setOnClickListener(saveButtonClick);
     clearUploadClick =
@@ -283,23 +243,6 @@ public class DetailActivity extends AppCompatActivity implements Constants {
         syncController.createUploadListener(
             syncManager, mID, uploading -> DetailActivity.this.uploading = uploading, this::requery));
     uploadButton.setVisibility(View.GONE);
-
-    fillHeaderData();
-    requery();
-
-    {
-      ListView lv = findViewById(R.id.laplist);
-      BaseAdapter lapAdapter = DetailLapListController.createAdapter(this, lapListHost);
-      adapters.add(lapAdapter);
-      lv.setAdapter(lapAdapter);
-    }
-    // Upload tab removed - no longer initialize report list
-    // {
-    //   ListView lv = findViewById(R.id.report_list);
-    //   ReportListAdapter adapter = new ReportListAdapter();
-    //   adapters.add(adapter);
-    //   lv.setAdapter(adapter);
-    // }
 
     getOnBackPressedDispatcher()
         .addCallback(
@@ -360,35 +303,89 @@ public class DetailActivity extends AppCompatActivity implements Constants {
           }
         });
 
+    detailPager.post(() -> bindDetailTabContent(savedInstanceState));
+  }
+
+  private void bindDetailTabContent(Bundle savedInstanceState) {
+    if (detailTabContentBound || isFinishing()) {
+      return;
+    }
+    sport = findViewById(R.id.summary_sport);
+    if (sport == null) {
+      return;
+    }
+    detailTabContentBound = true;
+
+    sport.setOnSetValueListener(
+        new OnSetValueListener() {
+          @Override
+          public String preSetValue(String newValue) throws IllegalArgumentException {
+            return newValue;
+          }
+
+          @Override
+          public int preSetValue(int newValue) throws IllegalArgumentException {
+            updateViewForSport(newValue);
+            ViewCompat.requestApplyInsets(rootView);
+            headerData.put(DB.ACTIVITY.SPORT, newValue);
+            return newValue;
+          }
+        });
+    sport.setArrayEntries(Sport.getStringArray(getResources()));
+
+    manualDistance = findViewById(R.id.summary_manual_distance);
+    manualDistance.setOnSetValueListener(
+        new OnSetValueListener() {
+          @Override
+          public String preSetValue(String newValue) throws IllegalArgumentException {
+            double dist = SafeParse.parseDouble(newValue, 0);
+            headerData.put(DB.ACTIVITY.DISTANCE, dist);
+            updateHeader(headerData, /* fromManualDistance= */true);
+            return newValue;
+          }
+
+          @Override
+          public int preSetValue(int newValue) throws IllegalArgumentException {
+            return newValue;
+          }
+        });
+    notes = findViewById(R.id.notes_text);
+    injuryController = new DetailInjuryController(this, mDB, () -> mID);
+    injuryController.bindViews(this);
+
+    if (USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0) {
+      Object mapView = findViewById(R.id.mapview);
+      mapWrapper = new MapWrapper(this, mDB, mID, formatter, mapView);
+      mapWrapper.onCreate(savedInstanceState);
+    }
+
+    fillHeaderData();
+    requery();
+
+    ListView lv = findViewById(R.id.laplist);
+    BaseAdapter lapAdapter = DetailLapListController.createAdapter(this, lapListHost);
+    adapters.add(lapAdapter);
+    lv.setAdapter(lapAdapter);
+
     LinearLayout graphTabLayout = findViewById(R.id.tab_graph);
     LinearLayout hrzonesBarLayout = findViewById(R.id.hrzonesBarLayout);
     graphController.attach(
-        this,
-        graphTabLayout,
-        hrzonesBarLayout,
-        formatter,
-        mDB,
-        mID,
-        sport.getValueInt());
+        this, graphTabLayout, hrzonesBarLayout, formatter, mDB, mID, sport.getValueInt());
 
-    if (this.mode == MODE_SAVE) {
-      // Hide buttons (they will be removed from UI)
+    Button discardButton = findViewById(R.id.discard_button);
+    if (mode == MODE_SAVE) {
       View buttonsLayout = findViewById(R.id.buttons);
       buttonsLayout.setVisibility(View.GONE);
-      
       resumeButton.setOnClickListener(resumeButtonClick);
       discardButton.setOnClickListener(discardButtonClick);
       setEdit(true);
-      
-      // Auto-save the activity
       autoSaveActivity();
-    } else if (this.mode == MODE_DETAILS) {
+    } else if (mode == MODE_DETAILS) {
       resumeButton.setVisibility(View.GONE);
       discardButton.setVisibility(View.GONE);
       setEdit(false);
     }
-    
-    // Initial render of injury icons
+
     injuryController.renderIcons();
   }
   
@@ -423,7 +420,7 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   }
 
   private void setupDetailTabs() {
-    ViewPager2 detailPager = findViewById(R.id.detail_pager);
+    detailPager = findViewById(R.id.detail_pager);
     TabLayout detailTabLayout = findViewById(R.id.detail_tab_layout);
     boolean hasMap = USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0;
     java.util.ArrayList<Integer> layouts = new java.util.ArrayList<>();
