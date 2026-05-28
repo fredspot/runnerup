@@ -47,9 +47,10 @@ import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.TabHost;
-import android.widget.TabHost.TabSpec;
 import android.widget.TextView;
+import androidx.viewpager2.widget.ViewPager2;
+import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.tabs.TabLayoutMediator;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -159,7 +160,7 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   private DetailInjuryController injuryController = null;
   private View rootView;
   private View mapTab;
-  private View graphTab;
+  private int mapTabIndex = -1;
 
   private MapWrapper mapWrapper = null;
 
@@ -181,6 +182,7 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     }
     setContentView(R.layout.detail);
     rootView = findViewById(R.id.detail_view);
+    setupDetailTabs();
 
     Toolbar toolbar = findViewById(R.id.actionbar);
     setSupportActionBar(toolbar);
@@ -281,45 +283,6 @@ public class DetailActivity extends AppCompatActivity implements Constants {
         syncController.createUploadListener(
             syncManager, mID, uploading -> DetailActivity.this.uploading = uploading, this::requery));
     uploadButton.setVisibility(View.GONE);
-
-    TabHost th = findViewById(R.id.tabhost);
-    th.setup();
-    TabSpec tabSpec = th.newTabSpec("overview");
-    tabSpec.setIndicator(
-        WidgetUtil.createHoloTabIndicator(this, "Overview"));
-    tabSpec.setContent(R.id.tab_main);
-    th.addTab(tabSpec);
-
-    tabSpec = th.newTabSpec("laps");
-    tabSpec.setIndicator(
-        WidgetUtil.createHoloTabIndicator(this, getString(org.runnerup.common.R.string.Laps)));
-    tabSpec.setContent(R.id.tab_lap);
-    th.addTab(tabSpec);
-
-    if (USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0) {
-      tabSpec = th.newTabSpec("map");
-      tabSpec.setIndicator(
-          WidgetUtil.createHoloTabIndicator(this, getString(org.runnerup.common.R.string.Map)));
-      tabSpec.setContent(R.id.tab_map);
-      th.addTab(tabSpec);
-      mapTab = th.getTabWidget().getChildTabViewAt(2);
-    }
-
-    tabSpec = th.newTabSpec("graph");
-    tabSpec.setIndicator(
-        WidgetUtil.createHoloTabIndicator(this, getString(org.runnerup.common.R.string.Graph)));
-    tabSpec.setContent(R.id.tab_graph);
-    th.addTab(tabSpec);
-    // Get graph tab (cannot hardcode index due to optional map tab and removed upload tab).
-    int graphTabIndex = th.getTabWidget().getChildCount() - 1;
-    graphTab = th.getTabWidget().getChildTabViewAt(graphTabIndex);
-
-    // Upload tab removed
-    // tabSpec = th.newTabSpec("share");
-    // tabSpec.setIndicator(
-    //     WidgetUtil.createHoloTabIndicator(this, getString(org.runnerup.common.R.string.Upload)));
-    // tabSpec.setContent(R.id.tab_upload);
-    // th.addTab(tabSpec);
 
     fillHeaderData();
     requery();
@@ -457,6 +420,43 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     sport.setEnabled(value);
     updateViewForSport(sport.getValueInt());
     ViewCompat.requestApplyInsets(rootView);
+  }
+
+  private void setupDetailTabs() {
+    ViewPager2 detailPager = findViewById(R.id.detail_pager);
+    TabLayout detailTabLayout = findViewById(R.id.detail_tab_layout);
+    boolean hasMap = USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0;
+    java.util.ArrayList<Integer> layouts = new java.util.ArrayList<>();
+    java.util.ArrayList<String> titles = new java.util.ArrayList<>();
+    layouts.add(R.layout.detail_tab_overview);
+    titles.add("Overview");
+    layouts.add(R.layout.detail_tab_laps);
+    titles.add(getString(org.runnerup.common.R.string.Laps));
+    if (hasMap) {
+      layouts.add(R.layout.detail_tab_map);
+      titles.add(getString(org.runnerup.common.R.string.Map));
+      mapTabIndex = 2;
+    } else {
+      mapTabIndex = -1;
+    }
+    layouts.add(R.layout.detail_tab_graph);
+    titles.add(getString(org.runnerup.common.R.string.Graph));
+    int[] layoutArr = new int[layouts.size()];
+    for (int i = 0; i < layouts.size(); i++) {
+      layoutArr[i] = layouts.get(i);
+    }
+    detailPager.setAdapter(new DetailTabAdapter(layoutArr));
+    detailPager.setOffscreenPageLimit(layoutArr.length);
+    String[] titleArr = titles.toArray(new String[0]);
+    new TabLayoutMediator(
+            detailTabLayout, detailPager, (tab, position) -> tab.setText(titleArr[position]))
+        .attach();
+    if (hasMap && mapTabIndex >= 0) {
+      TabLayout.Tab mapTabLayout = detailTabLayout.getTabAt(mapTabIndex);
+      if (mapTabLayout != null) {
+        mapTab = mapTabLayout.view;
+      }
+    }
   }
 
   private void updateViewForSport(int sportValue) {

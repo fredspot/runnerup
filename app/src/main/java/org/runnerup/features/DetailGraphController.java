@@ -1,7 +1,6 @@
 package org.runnerup.features;
 
 import android.widget.LinearLayout;
-import android.widget.TabHost;
 import org.runnerup.core.util.Formatter;
 import org.runnerup.core.util.GraphWrapper;
 import org.runnerup.core.workout.Sport;

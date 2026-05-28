@@ -15,6 +15,7 @@
   ~  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:runnerup="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/detail_view"
@@ -90,238 +91,28 @@
         </LinearLayout>
     </LinearLayout>
 
-    <TabHost
-        android:id="@+id/tabhost"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/buttons"
-        android:layout_below="@id/appbarlayout">
+        android:layout_below="@id/appbarlayout"
+        android:orientation="vertical">
 
-        <LinearLayout
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/detail_tab_layout"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            app:tabMode="fixed"
+            app:tabGravity="fill" />
 
-            <TabWidget
-                android:id="@android:id/tabs"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp"
-                android:paddingStart="0dp"
-                android:paddingEnd="0dp"
-                android:gravity="center" />
-
-            <FrameLayout
-                android:id="@android:id/tabcontent"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <LinearLayout
-                    android:id="@+id/tab_main"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:layout_margin="@dimen/activity_margin">
-
-                    <org.runnerup.ui.common.widget.TitleSpinner
-                        android:id="@+id/summary_sport"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="1px"
-                        android:prompt="@string/Type"
-                        android:text="@string/Sport"
-                        android:visibility="gone" />
-
-		    <org.runnerup.ui.common.widget.TitleSpinner
-			android:id="@+id/summary_manual_distance"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:minWidth="48dp"
-			android:minHeight="48dp"
-			android:prompt="@string/Type"
-			android:inputType="numberDecimal"
-			android:text="@string/Distance"
-			runnerup:type="distancepicker" />
-
-                            <LinearLayout
-                                android:id="@+id/injury_row"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal"
-                                android:gravity="center_vertical"
-                                android:layout_marginTop="8dp">
-
-                                <Button
-                                    android:id="@+id/injury_button"
-                                    style="@style/ButtonText"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:background="@drawable/btn_outline_white"
-                                    android:textAllCaps="false"
-                                    android:textColor="@android:color/white"
-                                    android:text="@string/injury"
-                                    android:visibility="gone"/>
-
-                                <LinearLayout
-                                    android:layout_width="0dp"
-                                    android:layout_height="wrap_content"
-                                    android:layout_weight="1"
-                                    android:orientation="horizontal"
-                                    android:gravity="end"
-                                    android:layout_marginStart="12dp">
-
-                                    <LinearLayout
-                                        android:id="@+id/injury_card_before"
-                                        android:layout_width="0dp"
-                                        android:layout_height="wrap_content"
-                                        android:layout_weight="1"
-                                        android:orientation="vertical"
-                                        android:background="@drawable/modern_card_background"
-                                        android:padding="8dp"
-                                        android:layout_marginEnd="8dp"
-                                        android:clickable="true"
-                                        android:focusable="true"
-                                        android:foreground="?attr/selectableItemBackground">
-                                        <TextView
-                                            android:layout_width="wrap_content"
-                                            android:layout_height="wrap_content"
-                                            android:text="@string/injury_before"
-                                            android:textColor="@color/colorTextSecondary"
-                                            android:textSize="12sp"/>
-                                        <LinearLayout
-                                            android:id="@+id/injury_icons_before"
-                                            android:layout_width="match_parent"
-                                            android:layout_height="wrap_content"
-                                            android:orientation="horizontal"
-                                            android:gravity="start"/>
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:id="@+id/injury_card_during"
-                                        android:layout_width="0dp"
-                                        android:layout_height="wrap_content"
-                                        android:layout_weight="1"
-                                        android:orientation="vertical"
-                                        android:background="@drawable/modern_card_background"
-                                        android:padding="8dp"
-                                        android:layout_marginEnd="8dp"
-                                        android:clickable="true"
-                                        android:focusable="true"
-                                        android:foreground="?attr/selectableItemBackground">
-                                        <TextView
-                                            android:layout_width="wrap_content"
-                                            android:layout_height="wrap_content"
-                                            android:text="@string/injury_during"
-                                            android:textColor="@color/colorTextSecondary"
-                                            android:textSize="12sp"/>
-                                        <LinearLayout
-                                            android:id="@+id/injury_icons_during"
-                                            android:layout_width="match_parent"
-                                            android:layout_height="wrap_content"
-                                            android:orientation="horizontal"
-                                            android:gravity="start"/>
-                                    </LinearLayout>
-
-                                    <LinearLayout
-                                        android:id="@+id/injury_card_after"
-                                        android:layout_width="0dp"
-                                        android:layout_height="wrap_content"
-                                        android:layout_weight="1"
-                                        android:orientation="vertical"
-                                        android:background="@drawable/modern_card_background"
-                                        android:padding="8dp"
-                                        android:clickable="true"
-                                        android:focusable="true"
-                                        android:foreground="?attr/selectableItemBackground">
-                                        <TextView
-                                            android:layout_width="wrap_content"
-                                            android:layout_height="wrap_content"
-                                            android:text="@string/injury_after"
-                                            android:textColor="@color/colorTextSecondary"
-                                            android:textSize="12sp"/>
-                                        <LinearLayout
-                                            android:id="@+id/injury_icons_after"
-                                            android:layout_width="match_parent"
-                                            android:layout_height="wrap_content"
-                                            android:orientation="horizontal"
-                                            android:gravity="start"/>
-                                    </LinearLayout>
-                                </LinearLayout>
-                            </LinearLayout>
-
-                    <EditText
-                        android:id="@+id/notes_text"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="top|left"
-                        android:hint="@string/Notes_about_your_workout"
-                        android:inputType="textCapSentences|textMultiLine"
-                        android:minLines="4"
-                        android:singleLine="false"
-                        tools:ignore="AutoFill" />
-
-                    <LinearLayout
-                        android:id="@+id/hrzonesBarLayout"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginStart="0dp"
-                        android:layout_marginEnd="0dp"
-                        android:background="@android:color/transparent"
-                        android:orientation="vertical"
-                        android:padding="16dp"
-                        android:visibility="gone" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/tab_lap"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:baselineAligned="false"
-                    android:layout_margin="@dimen/activity_margin">
-
-                    <ListView
-                        android:id="@+id/laplist"
-                        android:layout_width="0dip"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
-                </LinearLayout>
-
-		<LinearLayout
-                    android:id="@+id/tab_map"
-		    android:layout_width="wrap_content"
-		    android:layout_height="wrap_content">
-		  <org.runnerup.core.util.MapViewWrapper
-		      android:id="@+id/mapview"
-		      android:layout_width="match_parent"
-		      android:layout_height="match_parent" />
-		  </LinearLayout>
-
-                  <LinearLayout
-                    android:id="@+id/tab_graph"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:weightSum="1"
-                    android:layout_margin="@dimen/activity_margin"/>
-
-                <LinearLayout
-                    android:id="@+id/tab_upload"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:baselineAligned="false"
-                    android:layout_margin="@dimen/activity_margin">
-
-                    <ListView
-                        android:id="@+id/report_list"
-                        android:layout_width="0dip"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
-                </LinearLayout>
-            </FrameLayout>
-        </LinearLayout>
-    </TabHost>
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/detail_pager"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/buttons"
