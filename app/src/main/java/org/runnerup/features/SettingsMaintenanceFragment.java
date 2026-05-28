@@ -18,6 +18,7 @@ import androidx.preference.SwitchPreference;
 import java.util.List;
 import java.util.Locale;
 import org.runnerup.R;
+import org.runnerup.core.util.BgTasks;
 import org.runnerup.data.DBHelper;
 import org.runnerup.core.util.DriveBackupManager;
 
@@ -156,23 +157,23 @@ public class SettingsMaintenanceFragment extends PreferenceFragmentCompat {
     progressDialog.setCancelable(false);
     progressDialog.show();
     
-    // Run backup in background
-    new Thread(() -> {
-      boolean success = org.runnerup.core.util.AutomaticBackupManager.createBackup(requireContext(), true);
-      
-      requireActivity().runOnUiThread(() -> {
-        if (progressDialog != null && progressDialog.isShowing()) {
-          progressDialog.dismiss();
-        }
-        
-        if (success) {
-          Toast.makeText(requireContext(), "Backup created successfully", Toast.LENGTH_SHORT).show();
-          updateAutomaticBackupStatus();
-        } else {
-          Toast.makeText(requireContext(), "Failed to create backup", Toast.LENGTH_LONG).show();
-        }
-      });
-    }).start();
+    android.content.Context ctx = requireContext();
+    BgTasks.runDb(
+        () -> org.runnerup.core.util.AutomaticBackupManager.createBackup(ctx, true),
+        success -> {
+          if (!isAdded()) {
+            return;
+          }
+          if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
+          }
+          if (Boolean.TRUE.equals(success)) {
+            Toast.makeText(ctx, "Backup created successfully", Toast.LENGTH_SHORT).show();
+            updateAutomaticBackupStatus();
+          } else {
+            Toast.makeText(ctx, "Failed to create backup", Toast.LENGTH_LONG).show();
+          }
+        });
   }
   
   private void showRestoreBackupDialog() {
@@ -228,31 +229,35 @@ public class SettingsMaintenanceFragment extends PreferenceFragmentCompat {
     progressDialog.setCancelable(false);
     progressDialog.show();
     
-    // Run restore in background
-    new Thread(() -> {
-      boolean success = org.runnerup.core.util.AutomaticBackupManager.restoreBackup(requireContext(), backup.file);
-      
-      requireActivity().runOnUiThread(() -> {
-        if (progressDialog != null && progressDialog.isShowing()) {
-          progressDialog.dismiss();
-        }
-        
-        if (success) {
-          new AlertDialog.Builder(requireContext())
-              .setTitle("Restore Complete")
-              .setMessage("Database restored successfully. Please restart the app to use the restored database.")
-              .setPositiveButton("OK", (dialog, which) -> {
-                // Exit app
-                requireActivity().finish();
-                System.exit(0);
-              })
-              .setCancelable(false)
-              .show();
-        } else {
-          Toast.makeText(requireContext(), "Failed to restore backup", Toast.LENGTH_LONG).show();
-        }
-      });
-    }).start();
+    android.content.Context ctx = requireContext();
+    java.io.File backupFile = backup.file;
+    BgTasks.runDb(
+        () -> org.runnerup.core.util.AutomaticBackupManager.restoreBackup(ctx, backupFile),
+        success -> {
+          if (!isAdded()) {
+            return;
+          }
+          if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
+          }
+          if (Boolean.TRUE.equals(success)) {
+            new AlertDialog.Builder(ctx)
+                .setTitle("Restore Complete")
+                .setMessage(
+                    "Database restored successfully. Please restart the app to use the restored"
+                        + " database.")
+                .setPositiveButton(
+                    "OK",
+                    (dialog, which) -> {
+                      requireActivity().finish();
+                      System.exit(0);
+                    })
+                .setCancelable(false)
+                .show();
+          } else {
+            Toast.makeText(ctx, "Failed to restore backup", Toast.LENGTH_LONG).show();
+          }
+        });
   }
   
   private void showShareBackupDialog() {
