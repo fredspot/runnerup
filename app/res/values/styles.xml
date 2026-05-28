@@ -81,7 +81,7 @@
     </style>
 
     <!-- Detail / Start inner tabs (replaces TabHost + Holo indicators) -->
-    <style name="InnerTabLayout" parent="Widget.MaterialComponents.TabLayout">
+    <style name="InnerTabLayout" parent="Widget.Design.TabLayout">
         <item name="tabMode">fixed</item>
         <item name="tabGravity">fill</item>
         <item name="tabIndicatorHeight">0dp</item>
