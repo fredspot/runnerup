@@ -122,6 +122,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   private StartUiState uiState;
 
   private ViewPager2 startPager = null;
+  private boolean startTabContentBound = false;
   private Button startButton = null;
 
   private ImageView expandIcon = null;
@@ -266,10 +267,32 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
     view.findViewById(R.id.status_layout).setOnClickListener(v -> toggleStatusDetails());
 
+    // ViewPager2 tab pages are inflated after layout; bind tab widgets on the next frame.
+    startPager.post(() -> bindStartTabContentViews(view));
+
+    mWearNotifier = new TrackerWear.WearNotifier(requireActivity().getApplicationContext());
+    mWearNotifier.onViewCreated();
+
+    // Set sport to running only
+    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+    prefs.edit().putInt(getResources().getString(R.string.pref_sport), DB.ACTIVITY.SPORT_RUNNING).apply();
+    setGpsNotRequired(Sport.isWithoutGps(DB.ACTIVITY.SPORT_RUNNING));
+  }
+
+  private void bindStartTabContentViews(View view) {
+    if (startTabContentBound || !isAdded()) {
+      return;
+    }
+    startTabContentBound = true;
+    Context context = requireContext();
     LayoutInflater inflater = getLayoutInflater();
     simpleAudioListAdapter = new AudioSchemeListAdapter(mDB, inflater, false);
     simpleAudioListAdapter.reload();
     TitleSpinner simpleAudioSpinner = view.findViewById(R.id.basic_audio_cue_spinner);
+    if (simpleAudioSpinner == null) {
+      startTabContentBound = false;
+      return;
+    }
     simpleAudioSpinner.setAdapter(simpleAudioListAdapter);
     simpleAudioSpinner.setOnSetValueListener(new OnConfigureAudioListener(simpleAudioListAdapter));
     simpleTargetType = view.findViewById(R.id.tab_basic_target_type);
@@ -358,14 +381,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     }
 
     updateTargetView();
-
-    mWearNotifier = new TrackerWear.WearNotifier(requireActivity().getApplicationContext());
-    mWearNotifier.onViewCreated();
-
-    // Set sport to running only
-    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-    prefs.edit().putInt(getResources().getString(R.string.pref_sport), DB.ACTIVITY.SPORT_RUNNING).apply();
-    setGpsNotRequired(Sport.isWithoutGps(DB.ACTIVITY.SPORT_RUNNING));
   }
 
   private void setGpsNotRequired(boolean val) {
@@ -475,6 +490,15 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   @Override
   public void onResume() {
     super.onResume();
+    if (!startTabContentBound) {
+      View fragmentView = getView();
+      if (fragmentView != null && startPager != null) {
+        startPager.post(() -> bindStartTabContentViews(fragmentView));
+      }
+    }
+    if (!startTabContentBound) {
+      return;
+    }
     simpleAudioListAdapter.reload();
     intervalAudioListAdapter.reload();
     advancedAudioListAdapter.reload();
