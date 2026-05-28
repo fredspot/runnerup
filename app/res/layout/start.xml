@@ -60,36 +60,30 @@
 
     </LinearLayout>
 
-    <TabHost
-        android:id="@+id/tabhost_start"
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <RelativeLayout
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:layout_above="@id/status_layout"
+            android:orientation="vertical">
 
-            <TabWidget
-                android:id="@android:id/tabs"
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/start_tab_layout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:tabMode="fixed"
+                app:tabGravity="fill" />
+
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/start_pager"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_alignParentTop="true"
-                android:minWidth="48dp"
-                android:minHeight="48dp"
-                android:visibility="gone" />
-
-            <FrameLayout
-                android:id="@android:id/tabcontent"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <include layout="@layout/start_basic" />
-
-                <include layout="@layout/start_interval" />
-
-                <include layout="@layout/start_advanced" />
-            </FrameLayout>
+                android:layout_weight="1" />
+        </LinearLayout>
 
             <RelativeLayout
                 android:id="@+id/status_layout"
@@ -237,8 +231,7 @@
 
             </RelativeLayout>
 
-        </RelativeLayout>
-    </TabHost>
+    </RelativeLayout>
     
     <!-- New Start GPS Button and Indicators -->
     <LinearLayout
