@@ -63,14 +63,18 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:layout_marginRight="8dp"
+                android:maxLines="1"
+                android:ellipsize="end"
                 android:textAppearance="@style/ListItem" />
 
             <TextView
                 android:id="@+id/history_list_date"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:gravity="end"
+                android:maxLines="1"
                 android:textAppearance="@style/ListItem" />
         </LinearLayout>
 
@@ -103,6 +107,8 @@
                 android:id="@+id/history_list_pace"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
                 android:textAppearance="@style/ListDescription" />
 
             <View
@@ -114,6 +120,8 @@
                 android:id="@+id/history_list_additional"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
                 android:textAppearance="@style/ListDescription" />
         </LinearLayout>
     </LinearLayout>

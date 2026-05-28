@@ -49,6 +49,31 @@ import org.runnerup.data.ActivityCleaner
 import org.runnerup.data.DBHelper
 import org.runnerup.data.entities.ActivityEntity
 
+private fun formatHistoryHeartRate(
+    formatter: Formatter,
+    avgHr: Int?,
+    maxHr: Int?,
+): String? {
+  val avg =
+      if (avgHr != null && avgHr > 0) {
+        formatter.formatHeartRate(Formatter.Format.TXT_SHORT, avgHr.toDouble())
+      } else {
+        null
+      }
+  val max =
+      if (maxHr != null && maxHr > 0) {
+        formatter.formatHeartRate(Formatter.Format.TXT_SHORT, maxHr.toDouble())
+      } else {
+        null
+      }
+  return when {
+    avg != null && max != null -> "$avg | $max"
+    avg != null -> avg
+    max != null -> max
+    else -> null
+  }
+}
+
 class HistoryFragment : Fragment(R.layout.history) {
 
   private var db: SQLiteDatabase? = null
@@ -87,7 +112,7 @@ class HistoryFragment : Fragment(R.layout.history) {
     db = DBHelper.getReadableDatabase(context)
     formatter = Formatter(context)
 
-    val spacingPx = (32 * resources.displayMetrics.density).toInt()
+    val spacingPx = (16 * resources.displayMetrics.density).toInt()
     recyclerView.layoutManager = LinearLayoutManager(context)
     recyclerView.addItemDecoration(HistoryItemSpacingDecoration(spacingPx))
     adapter =
@@ -139,6 +164,7 @@ class HistoryFragment : Fragment(R.layout.history) {
             DB.ACTIVITY.TIME,
             DB.ACTIVITY.SPORT,
             DB.ACTIVITY.AVG_HR,
+            DB.ACTIVITY.MAX_HR,
         )
     var whereClause = "deleted == 0"
     if (selectedYear != -1 && selectedMonth != -1) {
@@ -347,8 +373,7 @@ class HistoryFragment : Fragment(R.layout.history) {
         }
 
         val startTime = ae.startTime
-        dateText.text =
-            if (startTime != null) fmt.formatDateTime(startTime) else ""
+        dateText.text = if (startTime != null) fmt.formatDateTime(startTime) else ""
 
         val distance = ae.distance
         if (distance != null) {
@@ -365,9 +390,7 @@ class HistoryFragment : Fragment(R.layout.history) {
         distanceText.setTextColor(sportColor)
         additionalInfo.setTextColor(sportColor)
 
-        val hr = ae.avgHr
-        additionalInfo.text =
-            if (hr != null) fmt.formatHeartRate(Formatter.Format.TXT_SHORT, hr.toDouble()) else null
+        additionalInfo.text = formatHistoryHeartRate(fmt, ae.avgHr, ae.maxHr)
 
         val dur = ae.time
         if (distance != null && dur != null && dur != 0L) {
