@@ -267,8 +267,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
     view.findViewById(R.id.status_layout).setOnClickListener(v -> toggleStatusDetails());
 
-    // ViewPager2 tab pages are inflated after layout; bind tab widgets on the next frame.
-    startPager.post(() -> bindStartTabContentViews(view));
+    // ViewPager2 tab pages are inflated after layout; bind tab widgets once pages exist.
+    scheduleBindStartTabContentViews(view);
 
     mWearNotifier = new TrackerWear.WearNotifier(requireActivity().getApplicationContext());
     mWearNotifier.onViewCreated();
@@ -277,6 +277,35 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
     prefs.edit().putInt(getResources().getString(R.string.pref_sport), DB.ACTIVITY.SPORT_RUNNING).apply();
     setGpsNotRequired(Sport.isWithoutGps(DB.ACTIVITY.SPORT_RUNNING));
+  }
+
+  private void scheduleBindStartTabContentViews(View view) {
+    if (startPager == null) {
+      return;
+    }
+    startPager
+        .getViewTreeObserver()
+        .addOnGlobalLayoutListener(
+            new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+              @Override
+              public void onGlobalLayout() {
+                if (startTabContentBound || !isAdded()) {
+                  removeListener();
+                  return;
+                }
+                if (view.findViewById(R.id.basic_audio_cue_spinner) != null) {
+                  removeListener();
+                  bindStartTabContentViews(view);
+                }
+              }
+
+              private void removeListener() {
+                android.view.ViewTreeObserver observer = startPager.getViewTreeObserver();
+                if (observer.isAlive()) {
+                  observer.removeOnGlobalLayoutListener(this);
+                }
+              }
+            });
   }
 
   private void bindStartTabContentViews(View view) {
@@ -492,8 +521,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     super.onResume();
     if (!startTabContentBound) {
       View fragmentView = getView();
-      if (fragmentView != null && startPager != null) {
-        startPager.post(() -> bindStartTabContentViews(fragmentView));
+      if (fragmentView != null) {
+        scheduleBindStartTabContentViews(fragmentView);
       }
     }
     if (!startTabContentBound) {

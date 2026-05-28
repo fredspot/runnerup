@@ -39,6 +39,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -303,7 +304,36 @@ public class DetailActivity extends AppCompatActivity implements Constants {
           }
         });
 
-    detailPager.post(() -> bindDetailTabContent(savedInstanceState));
+    scheduleBindDetailTabContent(savedInstanceState);
+  }
+
+  private void scheduleBindDetailTabContent(Bundle savedInstanceState) {
+    if (detailPager == null) {
+      return;
+    }
+    detailPager
+        .getViewTreeObserver()
+        .addOnGlobalLayoutListener(
+            new ViewTreeObserver.OnGlobalLayoutListener() {
+              @Override
+              public void onGlobalLayout() {
+                if (detailTabContentBound || isFinishing()) {
+                  removeListener();
+                  return;
+                }
+                if (findViewById(R.id.summary_sport) != null) {
+                  removeListener();
+                  bindDetailTabContent(savedInstanceState);
+                }
+              }
+
+              private void removeListener() {
+                ViewTreeObserver observer = detailPager.getViewTreeObserver();
+                if (observer.isAlive()) {
+                  observer.removeOnGlobalLayoutListener(this);
+                }
+              }
+            });
   }
 
   private void bindDetailTabContent(Bundle savedInstanceState) {
@@ -311,7 +341,10 @@ public class DetailActivity extends AppCompatActivity implements Constants {
       return;
     }
     sport = findViewById(R.id.summary_sport);
-    if (sport == null) {
+    manualDistance = findViewById(R.id.summary_manual_distance);
+    notes = findViewById(R.id.notes_text);
+    ListView lapList = findViewById(R.id.laplist);
+    if (sport == null || manualDistance == null || notes == null || lapList == null) {
       return;
     }
     detailTabContentBound = true;
@@ -333,7 +366,6 @@ public class DetailActivity extends AppCompatActivity implements Constants {
         });
     sport.setArrayEntries(Sport.getStringArray(getResources()));
 
-    manualDistance = findViewById(R.id.summary_manual_distance);
     manualDistance.setOnSetValueListener(
         new OnSetValueListener() {
           @Override
@@ -349,28 +381,30 @@ public class DetailActivity extends AppCompatActivity implements Constants {
             return newValue;
           }
         });
-    notes = findViewById(R.id.notes_text);
     injuryController = new DetailInjuryController(this, mDB, () -> mID);
     injuryController.bindViews(this);
 
     if (USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0) {
       Object mapView = findViewById(R.id.mapview);
-      mapWrapper = new MapWrapper(this, mDB, mID, formatter, mapView);
-      mapWrapper.onCreate(savedInstanceState);
+      if (mapView != null) {
+        mapWrapper = new MapWrapper(this, mDB, mID, formatter, mapView);
+        mapWrapper.onCreate(savedInstanceState);
+      }
     }
 
     fillHeaderData();
     requery();
 
-    ListView lv = findViewById(R.id.laplist);
     BaseAdapter lapAdapter = DetailLapListController.createAdapter(this, lapListHost);
     adapters.add(lapAdapter);
-    lv.setAdapter(lapAdapter);
+    lapList.setAdapter(lapAdapter);
 
     LinearLayout graphTabLayout = findViewById(R.id.tab_graph);
     LinearLayout hrzonesBarLayout = findViewById(R.id.hrzonesBarLayout);
-    graphController.attach(
-        this, graphTabLayout, hrzonesBarLayout, formatter, mDB, mID, sport.getValueInt());
+    if (graphTabLayout != null && hrzonesBarLayout != null) {
+      graphController.attach(
+          this, graphTabLayout, hrzonesBarLayout, formatter, mDB, mID, sport.getValueInt());
+    }
 
     Button discardButton = findViewById(R.id.discard_button);
     if (mode == MODE_SAVE) {
@@ -576,10 +610,15 @@ deleteButtonClick.onClick(null);
   @Override
   public void onResume() {
     super.onResume();
+    if (!detailTabContentBound && detailPager != null) {
+      scheduleBindDetailTabContent(null);
+    }
     if (mapWrapper != null) {
       mapWrapper.onResume();
     }
-    injuryController.renderIcons();
+    if (injuryController != null) {
+      injuryController.renderIcons();
+    }
   }
 
   @Override
