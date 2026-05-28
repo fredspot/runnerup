@@ -39,17 +39,12 @@
         app:layout_constraintEnd_toEndOf="parent"
         tools:ignore="UnusedAttribute"/>
 
-    <GridView
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/statistics_grid"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:numColumns="2"
-        android:verticalSpacing="16dp"
-        android:horizontalSpacing="16dp"
+        android:clipToPadding="false"
         android:padding="16dp"
-        android:stretchMode="columnWidth"
-        android:listSelector="@android:color/transparent"
-        android:drawSelectorOnTop="false"
         app:layout_constraintTop_toBottomOf="@id/statistics_actionbar"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"

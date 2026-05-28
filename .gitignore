@@ -4,6 +4,10 @@ local.properties
 # Gedit temp files
 *~
 
+# JVM heap dumps and Kotlin compiler logs
+*.hprof
+.kotlin/
+
 # gradle files
 .gradle/
 .idea/

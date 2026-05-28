@@ -85,6 +85,21 @@ echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android
 # The build process will automatically install required components
 ```
 
+## Tests and CI
+
+```bash
+# Unit tests (app + common modules)
+./gradlew app:test common:test
+
+# Lint (matches GitHub Actions)
+./gradlew app:lintLatestRelease wear:lintRelease common:lintRelease
+
+# Install debug build on a connected device
+./gradlew :app:installLatestDebug
+```
+
+CI runs on push to `master` via GitHub Actions (`.github/workflows/ci.yml`).
+
 ## Build Process
 
 ### 1. Navigate to Project Directory

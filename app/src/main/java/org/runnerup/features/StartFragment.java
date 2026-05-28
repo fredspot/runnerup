@@ -102,27 +102,20 @@ import org.runnerup.core.workout.WorkoutSerializer;
 
 public class StartFragment extends Fragment implements TickListener, GpsInformation {
 
-  private enum GpsLevel {
-    NOT_FIXED,
-    POOR,
-    ACCEPTABLE,
-    GOOD
-  }
-
   private static final String TAB_BASIC = "basic";
   private static final String TAB_INTERVAL = "interval";
   static final String TAB_ADVANCED = "advanced";
 
-  private boolean statusDetailsShown = false;
+  boolean statusDetailsShown = false;
 
   // StartFragment normally stop GPS in onDestroy (or onStop)
   // but if the fragment stop as it has started a RunActivity
   // it should not!
   // TODO Figure out a way to do this prettier
-  private boolean runActivityPending = false;
-  private Tracker mTracker = null;
+  boolean runActivityPending = false;
+  Tracker mTracker = null;
   private StartTrackerBinding trackerBinding;
-  private org.runnerup.tracking.GpsStatus mGpsStatus = null;
+  org.runnerup.tracking.GpsStatus mGpsStatus = null;
   private StartGpsController gpsController;
   private StartHrController hrController;
   private StartWorkoutPickerController workoutController;
@@ -135,11 +128,11 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   private TextView noDevicesConnected = null;
 
   private Button gpsEnable = null;
-  private ImageView gpsIndicator = null;
-  private TextView gpsMessage = null;
-  private LinearLayout gpsDetailRow = null;
-  private ImageView gpsDetailIndicator = null;
-  private TextView gpsDetailMessage = null;
+  ImageView gpsIndicator = null;
+  TextView gpsMessage = null;
+  LinearLayout gpsDetailRow = null;
+  ImageView gpsDetailIndicator = null;
+  TextView gpsDetailMessage = null;
 
   private View hrIndicator = null;
   private TextView hrMessage = null;
@@ -183,9 +176,9 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   SQLiteDatabase mDB = null;
 
   Formatter formatter = null;
-  private NotificationStateManager notificationStateManager;
-  private GpsSearchingState gpsSearchingState;
-  private GpsBoundState gpsBoundState;
+  NotificationStateManager notificationStateManager;
+  GpsSearchingState gpsSearchingState;
+  GpsBoundState gpsBoundState;
   // Id to identify a permission request.
   // Note that the result is not used, the user is dropped back to initial view when a request is
   // done.
@@ -636,47 +629,9 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     return pref.getBoolean(getString(R.string.pref_startgps), false);
   }
 
-  void performStartGps() {
-    Log.v(getClass().getName(), "StartFragment.startGps()");
-    if (!sportWithoutGps) {
-      if (!mGpsStatus.isEnabled()) {
-        startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-      }
-      notificationStateManager.displayNotificationState(gpsSearchingState);
-    }
-
-    if (mGpsStatus != null && !mGpsStatus.isStarted()) {
-      mGpsStatus.start(this);
-    }
-
-    if (mTracker != null) {
-      mTracker.setWithoutGps(sportWithoutGps);
-      mTracker.connect();
-    }
-  }
-
-  void performStopGps() {
-    Log.e(getClass().getName(), "StartFragment.stopGps() skipStop: " + this.runActivityPending);
-    if (runActivityPending) {
-      return;
-    }
-
-    if (mGpsStatus != null) {
-      mGpsStatus.stop(this);
-    }
-
-    if (mTracker != null) {
-      mTracker.reset();
-    }
-
-    notificationStateManager.cancelNotification();
-  }
-
   public void stopGps() {
     if (gpsController != null) {
       gpsController.stopGps();
-    } else {
-      performStopGps();
     }
   }
 
@@ -1023,19 +978,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     updateView();
   }
 
-  private GpsLevel getGpsLevel(double gpsAccuracyMeters, int sats) {
-    if (!mGpsStatus.isFixed()) {
-      return GpsLevel.NOT_FIXED;
-    }
-    if (gpsAccuracyMeters <= 7 && sats > 7) {
-      return GpsLevel.GOOD;
-    } else if (gpsAccuracyMeters <= 15 && sats > 4) {
-      return GpsLevel.ACCEPTABLE;
-    } else {
-      return GpsLevel.POOR;
-    }
-  }
-
   public void updateView() {
     if (uiState != null) {
       uiState.updateView();
@@ -1107,87 +1049,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     } while (false);
 
     gpsEnable.setVisibility(View.GONE);
-  }
-
-  void performUpdateGpsView() {
-    if (!mGpsStatus.isEnabled() || !mGpsStatus.isStarted() || sportWithoutGps) {
-
-      if (statusDetailsShown) {
-        gpsDetailMessage.setText(org.runnerup.common.R.string.GPS_indicator_off);
-        gpsDetailRow.setVisibility(View.VISIBLE);
-        gpsMessage.setVisibility(View.GONE);
-      } else {
-        gpsMessage.setText(org.runnerup.common.R.string.GPS_indicator_off);
-        gpsMessage.setVisibility(View.VISIBLE);
-        gpsDetailRow.setVisibility(View.GONE);
-      }
-
-      gpsIndicator.setVisibility(View.GONE);
-      gpsDetailIndicator.setVisibility(View.GONE);
-      return;
-    }
-
-    if (statusDetailsShown) {
-      gpsIndicator.setVisibility(View.GONE);
-      gpsMessage.setVisibility(View.GONE);
-      gpsDetailRow.setVisibility(View.VISIBLE);
-    } else {
-      gpsIndicator.setVisibility(View.VISIBLE);
-      gpsMessage.setVisibility(View.VISIBLE);
-      gpsDetailRow.setVisibility(View.GONE);
-    }
-
-    gpsDetailIndicator.setVisibility(View.VISIBLE);
-
-    int satFixedCount = mGpsStatus.getSatellitesFixed();
-    int satAvailCount = mGpsStatus.getSatellitesAvailable();
-
-    // gps accuracy
-    float accuracy = getGpsAccuracy();
-
-    // gps details
-    String gpsAccuracy = getGpsAccuracyString(accuracy);
-    String gpsDetail =
-        gpsAccuracy.length() == 0
-            ? String.format(
-                getString(org.runnerup.common.R.string.GPS_status_no_accuracy),
-                satFixedCount,
-                satAvailCount)
-            : String.format(
-                getString(org.runnerup.common.R.string.GPS_status_accuracy),
-                satFixedCount,
-                satAvailCount,
-                gpsAccuracy);
-    gpsDetailMessage.setText(gpsDetail);
-
-    var gpsLevel = getGpsLevel(accuracy, satFixedCount);
-    switch (gpsLevel) {
-      case NOT_FIXED:
-        gpsIndicator.setImageResource(R.drawable.ic_gps_0);
-        gpsDetailIndicator.setImageResource(R.drawable.ic_gps_0);
-        gpsMessage.setText(org.runnerup.common.R.string.Waiting_for_GPS);
-        break;
-      case POOR:
-        gpsIndicator.setImageResource(R.drawable.ic_gps_1);
-        gpsDetailIndicator.setImageResource(R.drawable.ic_gps_1);
-        gpsMessage.setText(org.runnerup.common.R.string.GPS_level_poor);
-        break;
-      case ACCEPTABLE:
-        gpsIndicator.setImageResource(R.drawable.ic_gps_2);
-        gpsDetailIndicator.setImageResource(R.drawable.ic_gps_2);
-        gpsMessage.setText(org.runnerup.common.R.string.GPS_level_acceptable);
-        break;
-      case GOOD:
-        gpsIndicator.setImageResource(R.drawable.ic_gps_3);
-        gpsDetailIndicator.setImageResource(R.drawable.ic_gps_3);
-        gpsMessage.setText(org.runnerup.common.R.string.GPS_level_good);
-        break;
-    }
-    if (gpsLevel == GpsLevel.NOT_FIXED) {
-      notificationStateManager.displayNotificationState(gpsSearchingState);
-    } else {
-      notificationStateManager.displayNotificationState(gpsBoundState);
-    }
   }
 
   boolean performUpdateHrView() {
@@ -1283,25 +1144,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     }
   }
   
-  void performUpdateSatelliteInfo() {
-    View view = getView();
-    if (view == null) return;
-    LinearLayout satelliteInfo = view.findViewById(R.id.new_satellite_info);
-    TextView satelliteCount = view.findViewById(R.id.new_satellite_count);
-    if (satelliteInfo == null || satelliteCount == null) return;
-    
-    boolean gpsStarted = mGpsStatus != null && mGpsStatus.isStarted();
-    
-    if (gpsStarted) {
-      int fixed = mGpsStatus.getSatellitesFixed();
-      int available = mGpsStatus.getSatellitesAvailable();
-      satelliteCount.setText(fixed + "/" + available);
-      satelliteInfo.setVisibility(View.VISIBLE);
-    } else {
-      satelliteInfo.setVisibility(View.GONE);
-    }
-  }
-
   @Override
   public float getGpsAccuracy() {
     if (mTracker != null) {
