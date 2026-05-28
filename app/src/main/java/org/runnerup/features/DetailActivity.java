@@ -480,7 +480,11 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     detailPager.setOffscreenPageLimit(layoutArr.length);
     String[] titleArr = titles.toArray(new String[0]);
     new TabLayoutMediator(
-            detailTabLayout, detailPager, (tab, position) -> tab.setText(titleArr[position]))
+            detailTabLayout,
+            detailPager,
+            (tab, position) ->
+                tab.setCustomView(
+                    WidgetUtil.createHoloTabIndicator(this, titleArr[position])))
         .attach();
     if (hasMap && mapTabIndex >= 0) {
       TabLayout.Tab mapTabLayout = detailTabLayout.getTabAt(mapTabIndex);

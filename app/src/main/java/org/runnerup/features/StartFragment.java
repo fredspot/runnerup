@@ -739,7 +739,13 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
       getString(org.runnerup.common.R.string.Interval),
       getString(org.runnerup.common.R.string.Advanced)
     };
-    new TabLayoutMediator(tabLayout, startPager, (tab, position) -> tab.setText(titles[position]))
+    new TabLayoutMediator(
+            tabLayout,
+            startPager,
+            (tab, position) ->
+                tab.setCustomView(
+                    WidgetUtil.createHoloTabIndicator(
+                        requireContext(), titles[position])))
         .attach();
     startPager.registerOnPageChangeCallback(
         new ViewPager2.OnPageChangeCallback() {

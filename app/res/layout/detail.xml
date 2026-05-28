@@ -100,12 +100,11 @@
 
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/detail_tab_layout"
+            style="@style/InnerTabLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            app:tabMode="fixed"
-            app:tabGravity="fill" />
+            android:layout_marginEnd="16dp" />
 
         <androidx.viewpager2.widget.ViewPager2
             android:id="@+id/detail_pager"
