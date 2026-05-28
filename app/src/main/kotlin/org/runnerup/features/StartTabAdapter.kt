@@ -35,6 +35,11 @@ class StartTabAdapter(private val pageLayouts: IntArray) :
   override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PageViewHolder {
     val view =
         LayoutInflater.from(parent.context).inflate(pageLayouts[viewType], parent, false)
+    view.layoutParams =
+        ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+        )
     return PageViewHolder(view)
   }
 
