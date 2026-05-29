@@ -43,6 +43,8 @@ import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -91,9 +93,26 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
   private static final int GRAPH_HISTORY_SIZE = 180;
   private static final double xInterval = 60;
 
-  private static final int REQUEST_BLUETOOTH_SETTINGS = 123;
-  private static final int REQUEST_BLUETOOTH_ENABLE = 3002;
   private static final int REQUEST_BLUETOOTH_PERM = 3001;
+
+  private final ActivityResultLauncher<Intent> bluetoothEnableLauncher =
+      registerForActivityResult(
+          new ActivityResultContracts.StartActivityForResult(),
+          result -> {
+            if (hrProvider != null && !hrProvider.isEnabled()) {
+              log("Bluetooth not enabled!");
+              scanButton.setEnabled(false);
+              connectButton.setEnabled(false);
+              return;
+            }
+            load();
+            open();
+          });
+
+  private final ActivityResultLauncher<Intent> bluetoothSettingsLauncher =
+      registerForActivityResult(
+          new ActivityResultContracts.StartActivityForResult(),
+          result -> startScan());
 
   private DeviceAdapter deviceAdapter = null;
   private boolean mIsScanning = false;
@@ -253,23 +272,18 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
     super.onBackPressed(); // Standard back behavior will return to sensors settings
   }
 
-  @Override
-  public void onActivityResult(int requestCode, int resultCode, Intent data) {
-    super.onActivityResult(requestCode, resultCode, data);
-    if (requestCode == REQUEST_BLUETOOTH_ENABLE) {
-      if (!hrProvider.isEnabled()) {
-        log("Bluetooth not enabled!");
-        scanButton.setEnabled(false);
-        connectButton.setEnabled(false);
-        return;
-      }
-      load();
-      open();
-      return;
+  private boolean startBluetoothEnableIntent() {
+    if (hrProvider == null || hrProvider.isEnabled()) {
+      return false;
     }
-    if (requestCode == REQUEST_BLUETOOTH_SETTINGS) {
-      startScan();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        && ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+            != PackageManager.PERMISSION_GRANTED) {
+      System.err.println("No BLUETOOTH_CONNECT permission in startBluetoothEnableIntent");
+      return false;
     }
+    bluetoothEnableLauncher.launch(new Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE));
+    return true;
   }
 
   private int lineNo = 0;
@@ -318,7 +332,7 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
         return;
       }
 
-      if (hrProvider.startEnableIntent(this, REQUEST_BLUETOOTH_ENABLE)) {
+      if (startBluetoothEnableIntent()) {
         return;
       }
       hrProvider = null;
@@ -555,8 +569,7 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
           "Pairing",
           (dialog, which) -> {
             dialog.cancel();
-            Intent i = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
-            startActivity(i);
+            bluetoothSettingsLauncher.launch(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
           });
     }
     builder.show();

@@ -22,14 +22,42 @@
         <item name="colorAccent">@color/colorAccent</item>
         <item name="colorControlHighlight">@color/colorControlHighlight</item>
         <item name="android:defaultFocusHighlightEnabled">false</item>
-        <item name="selectableItemBackground">@drawable/ripple_card</item>
-        <item name="android:selectableItemBackground">@drawable/ripple_card</item>
+        <!-- Flat ripple for generic rows; never use card drawables here (rectangular bounded ripple). -->
+        <item name="selectableItemBackground">@drawable/ripple_borderless</item>
+        <item name="android:selectableItemBackground">@drawable/ripple_borderless</item>
         <item name="selectableItemBackgroundBorderless">@drawable/ripple_borderless</item>
         <item name="android:selectableItemBackgroundBorderless">@drawable/ripple_borderless</item>
         <item name="preferenceTheme">@style/PreferenceThemeDark</item>
     </style>
 
-    <!-- Dark theme for preferences -->
+    <!-- Static fill + full-card foreground ripple (combined ripple bg highlights only at touch point). -->
+    <style name="RunnerUpCard">
+        <item name="android:background">@drawable/card_background</item>
+        <item name="android:foreground">@drawable/card_ripple_overlay</item>
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <!-- Padding belongs on this inner wrapper, not on the card root (keeps ripple full-card). -->
+    <style name="RunnerUpCard.Body">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:clickable">false</item>
+        <item name="android:focusable">false</item>
+    </style>
+
+    <!-- Children inside RunnerUpCard: no own ripple/background (avoids squares around text). -->
+    <style name="RunnerUpCard.Content">
+        <item name="android:background">@null</item>
+        <item name="android:duplicateParentState">false</item>
+        <item name="android:clickable">false</item>
+        <item name="android:focusable">false</item>
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+        <item name="android:textColorHighlight">@android:color/transparent</item>
+    </style>
+
+    <!-- Dark theme for preferences: flat rows, no card fill (see preference_runnerup_row.xml) -->
     <style name="PreferenceThemeDark" parent="@style/PreferenceThemeOverlay">
         <item name="android:textColorPrimary">@color/colorText</item>
         <item name="android:textColorSecondary">@color/colorTextSecondary</item>
@@ -37,6 +65,19 @@
         <item name="android:textColor">@color/colorText</item>
         <item name="colorControlNormal">@color/colorTextSecondary</item>
         <item name="colorControlActivated">@color/colorAccent</item>
+        <item name="android:selectableItemBackground">@drawable/ripple_borderless</item>
+        <item name="selectableItemBackground">@drawable/ripple_borderless</item>
+        <item name="preferenceStyle">@style/Preference.RunnerUp</item>
+        <item name="checkBoxPreferenceStyle">@style/Preference.RunnerUp</item>
+        <item name="switchPreferenceStyle">@style/Preference.RunnerUp</item>
+        <item name="switchPreferenceCompatStyle">@style/Preference.RunnerUp</item>
+        <item name="dialogPreferenceStyle">@style/Preference.RunnerUp</item>
+        <item name="editTextPreferenceStyle">@style/Preference.RunnerUp</item>
+        <item name="dropdownPreferenceStyle">@style/Preference.RunnerUp</item>
+    </style>
+
+    <style name="Preference.RunnerUp" parent="@style/Preference.Material">
+        <item name="android:layout">@layout/preference_runnerup_row</item>
     </style>
 
     <style name="AppTheme.NoActionBar" parent="AppTheme">
@@ -104,7 +145,7 @@
         <item name="android:singleLine">true</item>
     </style>
 
-    <style name="AccountListText">
+    <style name="AccountListText" parent="RunnerUpCard.Content">
         <item name="android:textSize">18sp</item>
     </style>
 

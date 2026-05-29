@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/lap_list_header"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:baselineAligned="true"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp"
+    android:background="@color/backgroundSecondary">
+
+    <TextView
+        android:layout_width="@dimen/lap_list_lap_number_width"
+        android:layout_height="wrap_content"
+        android:layout_weight="0"
+        android:paddingStart="12dp"
+        android:paddingEnd="6dp" />
+
+    <TextView
+        android:layout_width="@dimen/lap_list_type_width"
+        android:layout_height="wrap_content"
+        android:layout_weight="0" />
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="end"
+        android:paddingStart="6dp"
+        android:singleLine="true"
+        android:maxLines="1"
+        android:text="@string/time"
+        android:textColor="@color/colorTextSecondary"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="end"
+        android:paddingStart="6dp"
+        android:singleLine="true"
+        android:maxLines="1"
+        android:text="@string/distance"
+        android:textColor="@color/colorTextSecondary"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.2"
+        android:gravity="end"
+        android:paddingStart="6dp"
+        android:singleLine="true"
+        android:maxLines="1"
+        android:text="@string/pace"
+        android:textColor="@color/colorTextSecondary"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/lap_list_header_hr"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.35"
+        android:gravity="end"
+        android:paddingStart="6dp"
+        android:paddingEnd="12dp"
+        android:singleLine="true"
+        android:maxLines="1"
+        android:text="@string/metrics_heartrate"
+        android:textColor="@color/colorTextSecondary"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+</LinearLayout>

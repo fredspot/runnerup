@@ -33,6 +33,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import org.runnerup.R
+import org.runnerup.core.util.CardPressHelper
 import org.runnerup.analytics.BestTimesCalculator
 import org.runnerup.common.util.Constants
 import org.runnerup.core.util.BgTasks
@@ -161,10 +162,15 @@ class BestTimesFragment : Fragment(R.layout.best_times), Constants {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RowHolder {
       val row = inflater.inflate(R.layout.best_times_row, parent, false)
-      return RowHolder(row)
+      CardPressHelper.prepareRowHost(row)
+      return RowHolder(row).also {
+        CardPressHelper.applyChipStyle(it.distanceText)
+        CardPressHelper.prepareCard(it.cardLayout)
+      }
     }
 
     override fun onBindViewHolder(holder: RowHolder, position: Int) {
+      CardPressHelper.clearPressState(holder.itemView, holder.cardLayout, holder.distanceText)
       val summary = summaries[position]
       val bestTime = bestTimes.getOrNull(position)
 

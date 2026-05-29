@@ -18,20 +18,14 @@
 package org.runnerup.features;
 
 import static org.runnerup.BuildConfig.USING_OSMDROID;
-import static org.runnerup.core.content.ActivityProvider.GPX_MIME;
-import static org.runnerup.core.content.ActivityProvider.TCX_MIME;
-
 import android.annotation.SuppressLint;
 import android.content.ContentValues;
-import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
-import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -57,7 +51,6 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.appcompat.widget.Toolbar;
@@ -72,17 +65,13 @@ import java.util.Map;
 import org.runnerup.BuildConfig;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
-import org.runnerup.core.content.ActivityProvider;
-import org.runnerup.data.ActivityCleaner;
 import org.runnerup.data.DBHelper;
 import org.runnerup.data.WorkoutStepGrouper;
-import org.runnerup.data.PathSimplifier;
 import org.runnerup.sync.SyncManager;
 import org.runnerup.sync.Synchronizer;
 import org.runnerup.sync.Synchronizer.Feature;
 import org.runnerup.core.util.ActivitySummaryBinder;
 import org.runnerup.core.util.Bitfield;
-import org.runnerup.core.util.FileNameHelper;
 import org.runnerup.core.util.Formatter;
 import org.runnerup.core.util.GraphWrapper;
 import org.runnerup.core.util.MapWrapper;
@@ -99,6 +88,8 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   private SQLiteDatabase mDB = null;
   private final DetailSyncController syncController = new DetailSyncController();
   private final DetailGraphController graphController = new DetailGraphController();
+  private final DetailSaveModeController saveModeController = new DetailSaveModeController(this);
+  private final DetailMenuController menuController = new DetailMenuController(this);
   private final DetailLapListController.Host lapListHost =
       new DetailLapListController.Host() {
         @Override
@@ -150,13 +141,7 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   private final ArrayList<ContentValues> reports = new ArrayList<>();
   private DetailLapListController.LapListAdapter lapListAdapter;
 
-  private int mode; // 0 == save 1 == details
-  private static final int MODE_SAVE = 0;
-  private static final int MODE_DETAILS = 1;
-  private boolean edit = false;
   private boolean uploading = false;
-  private boolean hasUnsavedChanges = false;
-  private MenuItem saveMenuItem = null;
 
   private Button saveButton = null;
   private Button uploadButton = null;
@@ -235,9 +220,9 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     formatter = new Formatter(this);
 
     if (intentMode.contentEquals("save")) {
-      this.mode = MODE_SAVE;
+      saveModeController.mode = DetailSaveModeController.MODE_SAVE;
     } else if (intentMode.contentEquals("details")) {
-      this.mode = MODE_DETAILS;
+      saveModeController.mode = DetailSaveModeController.MODE_DETAILS;
     } else {
       if (BuildConfig.DEBUG) {
         throw new AssertionError();
@@ -253,13 +238,12 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     activityPace = findViewById(R.id.activity_pace);
     activityPaceSeparator = findViewById(R.id.activity_pace_separator);
 
-    saveButton.setOnClickListener(saveButtonClick);
     clearUploadClick =
         syncController.createClearUploadListener(this, syncManager, mID, this::requery);
     onSendChecked =
         syncController.createSendCheckedListener(
             () -> {
-              if (mode == MODE_DETAILS) {
+              if (saveModeController.mode == DetailSaveModeController.MODE_DETAILS) {
                 setUploadVisibility();
               }
             });
@@ -278,31 +262,10 @@ public class DetailActivity extends AppCompatActivity implements Constants {
                   // Ignore while uploading
                   return;
                 }
-                if (mode == MODE_SAVE) {
-                  // When finishing a run, save it and navigate back to Run page (tab 0)
-                  // Save the activity first (don't discard it)
-                  saveActivity();
-                  
-                  // Prepare return intent with manual distance if applicable
-                  Intent returnIntent = new Intent();
-                  int sportValue = sport.getValueInt();
-                  if (Sport.hasManualDistance(sportValue)) {
-                    returnIntent.putExtra(
-                        "MANUAL_DISTANCE", headerData.getAsDouble(DB.ACTIVITY.DISTANCE));
-                  }
-                  
-                  // Set navigation target to Run page (tab 0)
-                  android.content.SharedPreferences prefs = 
-                      getSharedPreferences("nav_prefs", MODE_PRIVATE);
-                  prefs.edit().putInt("navigate_to_tab", 0).apply(); // Run tab is at position 0
-                  
-                  // Return RESULT_OK to save the run (not RESULT_CANCELED which discards it)
-                  setResult(RESULT_OK, returnIntent);
-                  finish();
-                } else {
-                  // When in details mode, navigate back to History tab
-                  navigateToHistory();
+                if (saveModeController.handleBackPressedSave()) {
+                  return;
                 }
+                navigateToHistory();
               }
             });
 
@@ -406,6 +369,7 @@ public class DetailActivity extends AppCompatActivity implements Constants {
         });
     injuryController = new DetailInjuryController(this, mDB, () -> mID);
     injuryController.bindViews(this);
+    menuController.bind(mDB, mID, sport);
 
     if (USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0) {
       Object mapView = findViewById(R.id.mapview);
@@ -430,50 +394,55 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     }
 
     Button discardButton = findViewById(R.id.discard_button);
-    if (mode == MODE_SAVE) {
-      View buttonsLayout = findViewById(R.id.buttons);
-      buttonsLayout.setVisibility(View.GONE);
-      resumeButton.setOnClickListener(resumeButtonClick);
-      discardButton.setOnClickListener(discardButtonClick);
-      setEdit(true);
-      autoSaveActivity();
-    } else if (mode == MODE_DETAILS) {
-      resumeButton.setVisibility(View.GONE);
-      discardButton.setVisibility(View.GONE);
-      setEdit(false);
-    }
+    saveModeController.bind(
+        saveModeController.mode,
+        saveButton,
+        discardButton,
+        resumeButton,
+        notes,
+        sport,
+        manualDistance,
+        headerData,
+        mDB,
+        mID,
+        rootView);
 
     injuryController.renderIcons();
   }
-  
-  private void autoSaveActivity() {
-    // Auto-save the activity when screen loads
-    saveActivity();
-    
-    // Set result to indicate activity was saved
-    final Intent returnIntent = new Intent();
-    int sportValue = sport.getValueInt();
-    if (Sport.hasManualDistance(sportValue)) {
-      returnIntent.putExtra("MANUAL_DISTANCE", headerData.getAsDouble(DB.ACTIVITY.DISTANCE));
+
+  void updateViewForSport(int sportValue) {
+    if (saveModeController.edit && Sport.hasManualDistance(sportValue)) {
+      manualDistance.setVisibility(View.VISIBLE);
+      manualDistance.setEnabled(true);
+    } else {
+      manualDistance.setVisibility(View.GONE);
     }
-    setResult(RESULT_OK, returnIntent);
-    
-    // Track activity is already saved
-    hasUnsavedChanges = false;
-    updateSaveMenuVisibility();
+
+    if (mapTab != null) {
+      if (Sport.isWithoutGps(sportValue)) {
+        mapTab.setVisibility(View.GONE);
+      } else {
+        mapTab.setVisibility(View.VISIBLE);
+      }
+    }
+    graphController.updateForSport(sportValue);
   }
 
-  private void setEdit(boolean value) {
-    edit = value;
-    if (value) {
-      saveButton.setVisibility(View.VISIBLE);
-    } else {
-      saveButton.setVisibility(View.GONE);
-    }
-    WidgetUtil.setEditable(notes, value);
-    sport.setEnabled(value);
-    updateViewForSport(sport.getValueInt());
-    ViewCompat.requestApplyInsets(rootView);
+  void startUploadAfterSave() {
+    uploading = true;
+    syncManager.startUploading(
+        (synchronizerName, status) -> {
+          uploading = false;
+          final Intent returnIntent = new Intent();
+          int sportValue = sport.getValueInt();
+          if (Sport.hasManualDistance(sportValue)) {
+            returnIntent.putExtra("MANUAL_DISTANCE", headerData.getAsDouble(DB.ACTIVITY.DISTANCE));
+          }
+          DetailActivity.this.setResult(RESULT_OK, returnIntent);
+          DetailActivity.this.finish();
+        },
+        syncController.pendingSynchronizers,
+        mID);
   }
 
   private void setupDetailTabs() {
@@ -517,24 +486,6 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     }
   }
 
-  private void updateViewForSport(int sportValue) {
-    if (edit && Sport.hasManualDistance(sportValue)) {
-      manualDistance.setVisibility(View.VISIBLE);
-      manualDistance.setEnabled(true);
-    } else {
-      manualDistance.setVisibility(View.GONE);
-    }
-
-    if (mapTab != null) {
-      if (Sport.isWithoutGps(sportValue)) {
-        mapTab.setVisibility(View.GONE);
-      } else {
-        mapTab.setVisibility(View.VISIBLE);
-      }
-    }
-    graphController.updateForSport(sportValue);
-  }
-
   private void setUploadVisibility() {
     boolean enabled = !syncController.pendingSynchronizers.isEmpty();
     if (enabled) {
@@ -548,24 +499,8 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   @Override
   public boolean onCreateOptionsMenu(Menu menu) {
     getMenuInflater().inflate(R.menu.detail_menu, menu);
-    saveMenuItem = menu.findItem(R.id.menu_save_activity);
-    updateSaveMenuVisibility();
-    
-    // Add text change listener to notes field
-    if (notes != null && mode == MODE_SAVE) {
-      notes.addTextChangedListener(new android.text.TextWatcher() {
-        @Override
-        public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-        
-        @Override
-        public void onTextChanged(CharSequence s, int start, int before, int count) {
-          markAsUnsaved();
-        }
-        
-        @Override
-        public void afterTextChanged(android.text.Editable s) {}
-      });
-    }
+    saveModeController.setSaveMenuItem(menu.findItem(R.id.menu_save_activity));
+    saveModeController.attachNotesChangeListener();
     return true;
   }
 
@@ -573,62 +508,27 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   public boolean onOptionsItemSelected(MenuItem item) {
     int id = item.getItemId();
     if (id == android.R.id.home) {
-      if (mode == MODE_DETAILS) {
-        // When in details mode, navigate back to History tab
+      if (saveModeController.mode == DetailSaveModeController.MODE_DETAILS) {
         navigateToHistory();
         return true;
       }
       return super.onOptionsItemSelected(item);
     } else if (id == R.id.menu_save_activity) {
-      saveActivity();
-      hasUnsavedChanges = false;
-      updateSaveMenuVisibility();
+      saveModeController.onMenuSaveSelected();
     } else if (id == R.id.menu_delete_activity) {
-deleteButtonClick.onClick(null);
+      menuController.onDeleteSelected();
     } else if (id == R.id.menu_edit_activity) {
-      if (!edit) {
-        setEdit(true);
+      if (!saveModeController.edit) {
+        saveModeController.setEdit(true);
         notes.requestFocus();
         requery();
       }
     } else if (id == R.id.menu_recompute_activity) {
-      new AlertDialog.Builder(this)
-          .setTitle(org.runnerup.common.R.string.Recompute_activity)
-          .setMessage(org.runnerup.common.R.string.Are_you_sure)
-          .setPositiveButton(
-              org.runnerup.common.R.string.Yes,
-              (dialog, which) -> {
-                dialog.dismiss();
-                // Force-recompute from raw GPS rows: overwrite saved DISTANCE/TIME for every lap
-                // unless GPS yields zero. This is the user explicitly asking us to trust the raw
-                // data over whatever the workout / older cleaner had stored.
-                new ActivityCleaner().recompute(mDB, mID, true);
-                requery();
-                fillHeaderData();
-                finish();
-              })
-          .setNegativeButton(org.runnerup.common.R.string.No, (dialog, which) -> dialog.dismiss())
-          .show();
+      menuController.onRecomputeSelected();
     } else if (id == R.id.menu_simplify_path) {
-      new AlertDialog.Builder(this)
-          .setTitle(org.runnerup.common.R.string.path_simplification_menu)
-          .setMessage(org.runnerup.common.R.string.Are_you_sure)
-          .setPositiveButton(
-              org.runnerup.common.R.string.Yes,
-              (dialog, which) -> {
-                dialog.dismiss();
-                PathSimplifier simplifier = new PathSimplifier(this);
-                ArrayList<String> ids = simplifier.getNoisyLocationIDsAsStrings(mDB, mID);
-                ActivityCleaner.deleteLocations(mDB, ids);
-                new ActivityCleaner().recompute(mDB, mID);
-                requery();
-                fillHeaderData();
-                finish();
-              })
-          .setNegativeButton(org.runnerup.common.R.string.No, (dialog, which) -> dialog.dismiss())
-          .show();
+      menuController.onSimplifyPathSelected();
     } else if (id == R.id.menu_share_activity) {
-      shareActivity();
+      menuController.onShareSelected();
     }
 
     return true;
@@ -698,7 +598,7 @@ deleteButtonClick.onClick(null);
     }
   }
 
-  private void requery() {
+  void requery() {
     {
       /*
        * Laps
@@ -801,16 +701,17 @@ deleteButtonClick.onClick(null);
       c.close();
     }
 
-    if (mode == MODE_DETAILS) {
+    if (saveModeController.mode == DetailSaveModeController.MODE_DETAILS) {
       setUploadVisibility();
     }
 
     if (lapListAdapter != null) {
       lapListAdapter.notifyDataSetChanged();
     }
+    DetailLapListController.bindLapHeader(findViewById(R.id.lap_list_header), lapListHost);
   }
 
-  private void fillHeaderData() {
+  void fillHeaderData() {
     // Fields from the database (projection)
     // Must include the _id column for the adapter to work
     String[] from =
@@ -830,6 +731,7 @@ deleteButtonClick.onClick(null);
     if (tmp.containsKey(DB.ACTIVITY.START_TIME)) {
       long st = tmp.getAsLong(DB.ACTIVITY.START_TIME);
       mStartTime = st;
+      menuController.setStartTime(st);
       setTitle(formatter.formatDateTime(st));
     }
 
@@ -940,11 +842,7 @@ deleteButtonClick.onClick(null);
         viewHolder.cb.setText(org.runnerup.common.R.string.Upload);
         viewHolder.cb.setOnLongClickListener(null);
       }
-      if (mode == MODE_DETAILS) {
-        viewHolder.cb.setEnabled(true);
-      } else if (mode == MODE_SAVE) {
-        viewHolder.cb.setEnabled(true);
-      }
+      viewHolder.cb.setEnabled(true);
       viewHolder.cb.setOnCheckedChangeListener(onSendChecked);
 
       viewHolder.tv0.setText(tmp.getAsString("_id"));
@@ -960,175 +858,12 @@ deleteButtonClick.onClick(null);
     finish();
   }
 
-  private void saveActivity() {
-    int sportValue = sport.getValueInt();
-    ContentValues tmp = headerData;
-    tmp.put(DB.ACTIVITY.COMMENT, notes.getText().toString());
-    tmp.put(DB.ACTIVITY.SPORT, sportValue);
-    String[] whereArgs = {Long.toString(mID)};
-    mDB.update(DB.ACTIVITY.TABLE, tmp, "_id = ?", whereArgs);
-
-    // path simplification (reduce resolution of location entries in database)
-    try {
-      PathSimplifier simplifier = PathSimplifier.getPathSimplifierForSave(this);
-      if (simplifier != null) {
-        ArrayList<String> ids = simplifier.getNoisyLocationIDsAsStrings(mDB, mID);
-        ActivityCleaner.deleteLocations(mDB, ids);
-        (new ActivityCleaner()).recompute(mDB, mID);
-      }
-    } catch (Exception e) {
-      Log.e(getClass().getName(), "Failed to simplify path: " + e.getMessage());
-    }
-    
-    // Create automatic backup after saving activity changes (if enough time has passed)
-    org.runnerup.core.util.AutomaticBackupManager.createBackupIfNeeded(this);
-  }
-
   private OnLongClickListener clearUploadClick;
   private OnCheckedChangeListener onSendChecked;
 
   // Note: onClick set in reportlist_row.xml
   public void onClickAccountName(View arg0) {
     syncController.openAccountUrl(this, syncManager, (String) arg0.getTag());
-  }
-
-  private final OnClickListener saveButtonClick =
-      new OnClickListener() {
-        public void onClick(View v) {
-          saveActivity();
-          if (mode == MODE_DETAILS) {
-            setEdit(false);
-            requery();
-            return;
-          }
-          uploading = true;
-          syncManager.startUploading(
-              (synchronizerName, status) -> {
-                uploading = false;
-                final Intent returnIntent = new Intent();
-                int sportValue = sport.getValueInt();
-                if (Sport.hasManualDistance(sportValue)) {
-                  returnIntent.putExtra(
-                      "MANUAL_DISTANCE", headerData.getAsDouble(DB.ACTIVITY.DISTANCE));
-                }
-                DetailActivity.this.setResult(RESULT_OK, returnIntent);
-                DetailActivity.this.finish();
-              },
-              syncController.pendingSynchronizers,
-              mID);
-        }
-      };
-
-  private final OnClickListener discardButtonClick =
-      v ->
-          new AlertDialog.Builder(DetailActivity.this)
-              .setTitle(org.runnerup.common.R.string.Discard)
-              .setMessage(org.runnerup.common.R.string.Are_you_sure)
-              .setPositiveButton(
-                  org.runnerup.common.R.string.Yes,
-                  (dialog, which) -> {
-                    dialog.dismiss();
-                    DetailActivity.this.setResult(RESULT_CANCELED);
-                    DetailActivity.this.finish();
-                  })
-              .setNegativeButton(
-                  org.runnerup.common.R.string.No,
-                  // Do nothing but close the dialog
-                  (dialog, which) -> dialog.dismiss())
-              .show();
-
-  private final OnClickListener resumeButtonClick =
-      v -> {
-        DetailActivity.this.setResult(RESULT_FIRST_USER);
-        DetailActivity.this.finish();
-      };
-
-  private final OnClickListener deleteButtonClick =
-      v ->
-          new AlertDialog.Builder(DetailActivity.this)
-              .setTitle(org.runnerup.common.R.string.Delete_activity)
-              .setMessage(org.runnerup.common.R.string.Are_you_sure)
-              .setPositiveButton(
-                  org.runnerup.common.R.string.Yes,
-                  (dialog, which) -> {
-                    DBHelper.deleteActivity(mDB, mID);
-                    dialog.dismiss();
-                    DetailActivity.this.setResult(RESULT_OK);
-                    DetailActivity.this.finish();
-                  })
-              .setNegativeButton(
-                  org.runnerup.common.R.string.No,
-                  // Do nothing but close the dialog
-                  (dialog, which) -> dialog.dismiss())
-              .show();
-
-  private void shareActivity() {
-    final int[] which = {
-      1 // TODO preselect tcx - choice should be remembered
-    };
-    final CharSequence[] items = {"gpx", "tcx"};
-    new AlertDialog.Builder(this)
-        .setTitle(getString(org.runnerup.common.R.string.Share_activity))
-        .setPositiveButton(
-            org.runnerup.common.R.string.OK,
-            (dialog, w) -> {
-              if (which[0] == -1) {
-                dialog.dismiss();
-                return;
-              }
-
-              final Context context = DetailActivity.this;
-              final CharSequence fmt = items[which[0]];
-              final Intent intent = new Intent(Intent.ACTION_SEND);
-
-              if (fmt.equals("tcx")) {
-                intent.setType(TCX_MIME);
-              } else {
-                intent.setType(GPX_MIME);
-              }
-
-              // Use of content:// (or STREAM?) instead of file:// is not supported in ES and other
-              // apps
-              // Solid Explorer File Manager works though
-              String actType = Sport.textOf(getResources(), sport.getValueInt());
-              Uri uri =
-                  Uri.parse(
-                      "content://"
-                          + ActivityProvider.AUTHORITY
-                          + "/"
-                          + fmt
-                          + "/"
-                          + mID
-                          + "/"
-                          + FileNameHelper.getExportFileName(mStartTime, actType)
-                          + fmt);
-              intent.putExtra(Intent.EXTRA_STREAM, uri);
-              context.startActivity(
-                  Intent.createChooser(
-                      intent, getString(org.runnerup.common.R.string.Share_activity)));
-            })
-        .setNegativeButton(
-            org.runnerup.common.R.string.Cancel,
-            (dialog, which1) -> {
-              // Do nothing but close the dialog
-              dialog.dismiss();
-            })
-        .setSingleChoiceItems(items, which[0], (dialog, w) -> which[0] = w)
-        .show();
-  }
-  
-  private void markAsUnsaved() {
-    if (!hasUnsavedChanges) {
-      hasUnsavedChanges = true;
-      updateSaveMenuVisibility();
-    }
-  }
-  
-  private void updateSaveMenuVisibility() {
-    if (saveMenuItem != null) {
-      // Only show save icon in MODE_SAVE when there are unsaved changes
-      saveMenuItem.setVisible(mode == MODE_SAVE && hasUnsavedChanges);
-    }
   }
 
 }

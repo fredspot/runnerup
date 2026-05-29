@@ -112,22 +112,6 @@ public class ManualActivity extends AppCompatActivity {
     super.onDestroy();
   }
 
-  @Override
-  public void onActivityResult(
-      int requestCode, int resultCode, Intent data) { // todo is this log needed?
-    super.onActivityResult(requestCode, resultCode, data);
-    if (data != null) {
-      if (data.getStringExtra("url") != null)
-        Log.e(
-            getClass().getName(), "data.getStringExtra(\"url\") => " + data.getStringExtra("url"));
-      if (data.getStringExtra("ex") != null)
-        Log.e(getClass().getName(), "data.getStringExtra(\"ex\") => " + data.getStringExtra("ex"));
-      if (data.getStringExtra("obj") != null)
-        Log.e(
-            getClass().getName(), "data.getStringExtra(\"obj\") => " + data.getStringExtra("obj"));
-    }
-  }
-
   void setManualPace(String distance, String duration) {
     Log.e(getClass().getName(), "distance: >" + distance + "< duration: >" + duration + "<");
     double dist = SafeParse.parseDouble(distance, 0); // convert to meters

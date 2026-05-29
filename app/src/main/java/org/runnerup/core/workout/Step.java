@@ -193,6 +193,7 @@ public class Step implements TickComponent {
   private double lapStartTime = 0;
   private double lapStartDistance = 0;
   private double lapStartHeartbeats = 0;
+  private int lapMaxHr = 0;
 
   @Override
   public void onStart(Scope what, Workout s) {
@@ -217,6 +218,7 @@ public class Step implements TickComponent {
       lapStartTime = time;
       lapStartDistance = dist;
       lapStartHeartbeats = beats;
+      lapMaxHr = 0;
       ContentValues tmp = new ContentValues();
       tmp.put(DB.LAP.INTENSITY, intensity.getValue());
       if (persistedStepId > 0) {
@@ -286,6 +288,9 @@ public class Step implements TickComponent {
       tmp.put(DB.LAP.DISTANCE, distance);
       tmp.put(DB.LAP.TIME, time);
       tmp.put(DB.LAP.AVG_HR, Math.round(hr));
+      if (lapMaxHr > 0) {
+        tmp.put(DB.LAP.MAX_HR, lapMaxHr);
+      }
       s.saveLap(tmp, /* next lap */ false);
     }
   }
@@ -306,6 +311,7 @@ public class Step implements TickComponent {
    * @return true if finished
    */
   public boolean onTick(Workout s) {
+    updateLapMaxHr(s);
     if (checkFinished(s)) {
       return true;
     }
@@ -315,6 +321,13 @@ public class Step implements TickComponent {
     }
 
     return false;
+  }
+
+  private void updateLapMaxHr(Workout s) {
+    double current = s.getHeartRate(Scope.CURRENT);
+    if (current > 0) {
+      lapMaxHr = Math.max(lapMaxHr, (int) Math.round(current));
+    }
   }
 
   private boolean exceedDistance(
@@ -395,6 +408,9 @@ public class Step implements TickComponent {
         tmp.put(DB.LAP.TIME, time);
         long hr = Math.round(s.getHeartRate(scope));
         tmp.put(DB.LAP.AVG_HR, hr);
+        if (lapMaxHr > 0) {
+          tmp.put(DB.LAP.MAX_HR, lapMaxHr);
+        }
         s.saveLap(tmp, /* next lap */ true);
       }
     }

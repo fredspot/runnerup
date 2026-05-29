@@ -41,6 +41,7 @@ import org.runnerup.R;
 import org.runnerup.common.util.Constants;
 import org.runnerup.data.DBHelper;
 import org.runnerup.data.entities.MonthlyStatsEntity;
+import org.runnerup.core.util.CardPressHelper;
 import org.runnerup.core.util.Formatter;
 
 public class StatisticsDetailActivity extends AppCompatActivity implements Constants {
@@ -198,6 +199,7 @@ public class StatisticsDetailActivity extends AppCompatActivity implements Const
 
     @Override
     public void onBindViewHolder(@NonNull Holder holder, int position) {
+      CardPressHelper.clearPressState(holder.itemView);
       MonthlyStatsEntity stats = getItem(position);
       if (stats == null) {
         return;

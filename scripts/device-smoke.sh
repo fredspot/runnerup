@@ -228,6 +228,41 @@ main() {
     fi
     if focused_app | grep -q DetailActivity; then
       assert_activity_resumed "DetailActivity"
+      log "Detail: open Laps tab (index 1)"
+      prepare_ui
+      if python3 - "$PKG" "$DUMP" "$LOCAL_DUMP" <<'PY'
+import re, sys, subprocess
+pkg, remote, local = sys.argv[1], sys.argv[2], sys.argv[3]
+subprocess.run(["adb", "shell", "uiautomator", "dump", remote], check=True, capture_output=True)
+subprocess.run(["adb", "pull", remote, local], check=True, capture_output=True)
+raw = open(local, encoding="utf-8", errors="replace").read()
+pkg_pat = re.escape(pkg)
+nodes = re.findall(r"<node[^>]*package=\"" + pkg_pat + r"\"[^>]*>", raw)
+xml = "\n".join(nodes)
+tabs = []
+for m in re.finditer(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml):
+    x1, y1, x2, y2 = map(int, m.groups())
+    w, h = x2 - x1, y2 - y1
+    if 80 <= w <= 400 and 40 <= h <= 120 and y1 < 400:
+        tabs.append(((x1 + x2) // 2, (y1 + y2) // 2, x1))
+tabs = sorted(set(tabs), key=lambda t: t[2])
+if len(tabs) > 1:
+    cx, cy, _ = tabs[1]
+    subprocess.run(["adb", "shell", "input", "tap", str(cx), str(cy)], check=True)
+    print(cx, cy)
+    sys.exit(0)
+sys.exit(1)
+PY
+      then
+        sleep 1
+        if has_runnerup_node "laplist" 2>/dev/null; then
+          log "Detail Laps tab content visible"
+        else
+          warn "Detail Laps tab — lap list id not found (layout may differ)"
+        fi
+      else
+        warn "Detail Laps tab — could not tap tab (SKIP)"
+      fi
       log "back to main"
       adb shell input keyevent KEYCODE_BACK >/dev/null
       sleep 1
@@ -248,8 +283,46 @@ main() {
   tap_rid "workout_mode_spinner" || log "warning: workout_mode_spinner not tappable (optional)"
   sleep 1
 
+  log "bottom nav: Best Times (index 2)"
+  tap_nav_index 2 || warn "Best Times tab not found (SKIP)"
+  sleep 2
+  assert_activity_resumed "MainLayout"
+
   log "bottom nav: Statistics (index 3)"
   tap_nav_index 3 || fail "Statistics tab not found"
+  sleep 2
+  assert_activity_resumed "MainLayout"
+
+  log "open Month Comparison from Statistics (optional)"
+  prepare_ui
+  if tap_rid "statistics_card_label" 2>/dev/null; then
+    sleep 2
+    if focused_app | grep -q MonthlyComparisonActivity; then
+      assert_activity_resumed "MonthlyComparisonActivity"
+      log "MonthlyComparisonActivity opened"
+      adb shell input keyevent KEYCODE_BACK >/dev/null
+      sleep 1
+      assert_activity_resumed "MainLayout"
+    else
+      warn "Month Comparison card tap did not open MonthlyComparisonActivity (SKIP)"
+    fi
+  elif tap_screen_ratio 270 420 2>/dev/null; then
+    sleep 2
+    if focused_app | grep -q MonthlyComparisonActivity; then
+      assert_activity_resumed "MonthlyComparisonActivity"
+      log "MonthlyComparisonActivity opened (ratio fallback)"
+      adb shell input keyevent KEYCODE_BACK >/dev/null
+      sleep 1
+      assert_activity_resumed "MainLayout"
+    else
+      warn "Month Comparison ratio tap did not open activity (SKIP)"
+    fi
+  else
+    warn "Month Comparison entry not tappable (SKIP)"
+  fi
+
+  log "bottom nav: Settings (index 4)"
+  tap_nav_index 4 || warn "Settings tab not found (SKIP)"
   sleep 2
   assert_activity_resumed "MainLayout"
 

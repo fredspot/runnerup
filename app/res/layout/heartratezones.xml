@@ -78,7 +78,7 @@
             android:id="@+id/zones_table"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/modern_card_background"
+            android:background="@drawable/card_background"
             android:padding="16dp">
         </TableLayout>
 

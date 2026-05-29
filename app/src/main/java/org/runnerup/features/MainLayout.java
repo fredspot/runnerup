@@ -52,18 +52,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import org.runnerup.BuildConfig;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants.DB;
-import org.runnerup.data.ActivityCleaner;
-import org.runnerup.analytics.AutoComputeRunner;
-import org.runnerup.data.ComputationTracker;
 import org.runnerup.data.DBHelper;
-import org.runnerup.analytics.MonthlyComparisonCalculator;
-import org.runnerup.core.util.BgTasks;
 import org.runnerup.core.util.FileUtil;
 import org.runnerup.core.util.Formatter;
-import org.runnerup.core.util.HRZones;
 import org.runnerup.core.util.GoogleApiHelper;
 import org.runnerup.core.util.ViewUtil;
 
@@ -78,9 +71,6 @@ public class MainLayout extends AppCompatActivity {
   }
 
   private ViewPager2 pager;
-
-  /** Set from background task when a full activity recompute just finished (for UI feedback). */
-  private volatile boolean autoComputeBulkRecomputeJustRan = false;
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -129,7 +119,8 @@ public class MainLayout extends AppCompatActivity {
     MainLayoutTabs.wire(this, pager, tabLayout);
 
     // Handle intent extras for navigation to History tab with filters
-    handleHistoryNavigationIntent();
+    MainLayoutNavigation.handleHistoryNavigationIntent(
+        this, getIntent(), pager, this::getCurrentFragment);
 
     if (upgradeState == UpgradeState.UPGRADE) {
       whatsNew();
@@ -174,14 +165,15 @@ public class MainLayout extends AppCompatActivity {
     getOnBackPressedDispatcher().addCallback(this, onBackPressed);
 
     // Start auto-computation of statistics and best times
-    runAutoComputeInBackground();
+    MainLayoutNavigation.runAutoComputeInBackground(this);
   }
 
     @Override
   protected void onNewIntent(Intent intent) {
     super.onNewIntent(intent);
     setIntent(intent);
-    handleHistoryNavigationIntent();
+    MainLayoutNavigation.handleHistoryNavigationIntent(
+        this, intent, pager, this::getCurrentFragment);
   }
 
   @Override
@@ -272,42 +264,6 @@ public class MainLayout extends AppCompatActivity {
     }
 
     return null;
-  }
-
-  private void handleHistoryNavigationIntent() {
-    Intent intent = getIntent();
-    if (intent != null && pager != null) {
-      // Check for navigate_to_tab extra (from DetailActivity)
-      if (intent.hasExtra("navigate_to_tab")) {
-        int tabIndex = intent.getIntExtra("navigate_to_tab", -1);
-        if (tabIndex >= 0 && pager.getAdapter() != null && tabIndex < pager.getAdapter().getItemCount()) {
-          pager.post(() -> {
-            pager.setCurrentItem(tabIndex, false);
-          });
-        }
-      }
-      // Check for HISTORY_TAB with filters
-      else if (intent.getBooleanExtra("HISTORY_TAB", false)) {
-        int filterYear = intent.getIntExtra("FILTER_YEAR", -1);
-        int filterMonth = intent.getIntExtra("FILTER_MONTH", -1);
-        
-        if (filterYear != -1 && filterMonth != -1) {
-          // Navigate to History tab (position 1)
-          pager.post(() -> {
-            pager.setCurrentItem(1, false);
-            
-            // Wait for fragment to be ready, then apply filter
-            pager.postDelayed(() -> {
-              Fragment fragment = getCurrentFragment();
-              if (fragment instanceof HistoryFragment) {
-                HistoryFragment historyFragment = (HistoryFragment) fragment;
-                historyFragment.applyFilter(filterYear, filterMonth);
-              }
-            }, 100);
-          });
-        }
-      }
-    }
   }
 
   private void handleBundled(AssetManager mgr, String srcBase, String dstBase) {
@@ -430,78 +386,5 @@ public class MainLayout extends AppCompatActivity {
     }
     builder.show();
     wv.loadUrl("file:///android_asset/changes.html");
-  }
-
-  private static final String PREF_ACTIVITY_BULK_STAMP = "activity_bulk_recompute_stamp";
-  private static final int BULK_RECOMPUTE_DATA_REVISION = 2;
-
-  private void runAutoComputeInBackground() {
-    BgTasks.run(
-        () -> {
-          autoComputeBulkRecomputeJustRan = false;
-          SQLiteDatabase db = null;
-          try {
-            db = DBHelper.getWritableDatabase(MainLayout.this);
-            SharedPreferences prefs =
-                PreferenceManager.getDefaultSharedPreferences(MainLayout.this);
-            long requiredStamp =
-                (long) BuildConfig.VERSION_CODE * 1000L + BULK_RECOMPUTE_DATA_REVISION;
-            long appliedStamp = prefs.getLong(PREF_ACTIVITY_BULK_STAMP, 0L);
-            if (appliedStamp < requiredStamp) {
-              Log.i(
-                  getClass().getSimpleName(),
-                  "Bulk activity recompute (apk "
-                      + BuildConfig.VERSION_CODE
-                      + ", revision "
-                      + BULK_RECOMPUTE_DATA_REVISION
-                      + ")");
-              ActivityCleaner cleaner = new ActivityCleaner();
-              int n = 0;
-              try (Cursor c =
-                  db.query(
-                      DB.ACTIVITY.TABLE,
-                      new String[] {DB.PRIMARY_KEY},
-                      DB.ACTIVITY.DELETED + " = ?",
-                      new String[] {"0"},
-                      null,
-                      null,
-                      DB.PRIMARY_KEY + " ASC")) {
-                while (c.moveToNext()) {
-                  long id = c.getLong(0);
-                  try {
-                    cleaner.recompute(db, id);
-                    n++;
-                  } catch (Exception e) {
-                    Log.w(getClass().getSimpleName(), "Recompute failed for activity " + id, e);
-                  }
-                }
-              }
-              ComputationTracker.deleteTracking(
-                  db, ComputationTracker.TYPE_BEST_TIMES, ComputationTracker.TYPE_STATISTICS);
-              prefs.edit().putLong(PREF_ACTIVITY_BULK_STAMP, requiredStamp).apply();
-              autoComputeBulkRecomputeJustRan = true;
-            }
-            AutoComputeRunner.runAll(db, getMonthlyComparisonZoneBounds(MainLayout.this));
-          } catch (Exception e) {
-            Log.e(getClass().getSimpleName(), "Error during auto-computation: " + e.getMessage(), e);
-          } finally {
-            if (db != null) {
-              DBHelper.closeDB(db);
-            }
-          }
-        },
-        () -> {
-          if (autoComputeBulkRecomputeJustRan) {
-            Toast.makeText(
-                    MainLayout.this,
-                    R.string.activity_bulk_recompute_done,
-                    Toast.LENGTH_LONG)
-                .show();
-          }
-        });
-  }
-
-  static int[] getMonthlyComparisonZoneBounds(android.content.Context context) {
-    return MonthlyComparisonCalculator.resolveZoneBounds(new HRZones(context));
   }
 }

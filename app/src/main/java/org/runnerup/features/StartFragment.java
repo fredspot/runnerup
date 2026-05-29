@@ -37,19 +37,16 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
-import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import androidx.viewpager2.widget.ViewPager2;
 import android.widget.TextView;
 import androidx.activity.result.ActivityResultLauncher;
@@ -85,7 +82,6 @@ import org.runnerup.tracking.component.TrackerCadence;
 import org.runnerup.tracking.component.TrackerHRM;
 import org.runnerup.tracking.component.TrackerWear;
 import org.runnerup.core.util.Formatter;
-import org.runnerup.core.util.HRZones;
 import org.runnerup.core.util.SafeParse;
 import org.runnerup.core.util.TickListener;
 import org.runnerup.ui.common.widget.ClassicSpinner;
@@ -95,9 +91,7 @@ import org.runnerup.ui.common.widget.TitleSpinner;
 import org.runnerup.core.workout.Dimension;
 import org.runnerup.core.workout.Sport;
 import org.runnerup.core.workout.Workout;
-import org.runnerup.core.workout.Workout.StepListEntry;
 import org.runnerup.core.workout.WorkoutBuilder;
-import org.runnerup.core.workout.WorkoutSerializer;
 
 public class StartFragment extends Fragment implements TickListener, GpsInformation {
 
@@ -118,6 +112,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   private StartGpsController gpsController;
   private StartHrController hrController;
   private StartWorkoutPickerController workoutController;
+  private StartIntervalController intervalController;
+  private StartAdvancedWorkoutController advancedController;
   private StartUiState uiState;
 
   private ViewPager2 startPager = null;
@@ -149,29 +145,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   TitleSpinner simpleTargetHrz = null;
   AudioSchemeListAdapter simpleAudioListAdapter = null;
   HRZonesListAdapter hrZonesAdapter = null;
-
-  TitleSpinner intervalType = null;
-  TitleSpinner intervalTime = null;
-  TitleSpinner intervalDistance = null;
-  TitleSpinner intervalRestType = null;
-  TitleSpinner intervalRestTime = null;
-  TitleSpinner intervalRestDistance = null;
-  TitleSpinner intervalWarmupType = null;
-  TitleSpinner intervalWarmupTime = null;
-  TitleSpinner intervalWarmupDistance = null;
-  TitleSpinner intervalCooldownType = null;
-  TitleSpinner intervalCooldownTime = null;
-  TitleSpinner intervalCooldownDistance = null;
-  TitleSpinner intervalTargetHrz = null;
-  TitleSpinner intervalHrCueSeconds = null;
-  AudioSchemeListAdapter intervalAudioListAdapter = null;
-
-  TitleSpinner advancedWorkoutSpinner = null;
-  WorkoutListAdapter advancedWorkoutListAdapter = null;
-  Workout advancedWorkout = null;
-  ListView advancedStepList = null;
-  final WorkoutStepsAdapter advancedWorkoutStepsAdapter = new WorkoutStepsAdapter();
-  AudioSchemeListAdapter advancedAudioListAdapter = null;
 
   SQLiteDatabase mDB = null;
 
@@ -214,6 +187,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     gpsController = new StartGpsController(this);
     hrController = new StartHrController(this);
     workoutController = new StartWorkoutPickerController(this);
+    intervalController = new StartIntervalController(this);
+    advancedController = new StartAdvancedWorkoutController(this);
     uiState = new StartUiState(this, gpsController, hrController);
     NotificationManager notificationManager =
         ContextCompat.getSystemService(context, NotificationManager.class);
@@ -331,7 +306,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
       return;
     }
     simpleAudioSpinner.setAdapter(simpleAudioListAdapter);
-    simpleAudioSpinner.setOnSetValueListener(new OnConfigureAudioListener(simpleAudioListAdapter));
+    simpleAudioSpinner.setOnSetValueListener(
+        new StartConfigureAudioListener(this, simpleAudioListAdapter));
     simpleTargetType = view.findViewById(R.id.tab_basic_target_type);
     simpleTargetPaceValue = view.findViewById(R.id.tab_basic_target_pace_max);
     hrZonesAdapter = new HRZonesListAdapter(context, inflater);
@@ -339,71 +315,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     simpleTargetHrz.setAdapter(hrZonesAdapter);
     simpleTargetType.setOnCloseDialogListener(simpleTargetTypeClick);
 
-    intervalWarmupType = view.findViewById(R.id.interval_warmup_type);
-    intervalWarmupTime = view.findViewById(R.id.interval_warmup_time);
-    intervalWarmupTime.setOnSetValueListener(onSetTimeValidator);
-    intervalWarmupDistance = view.findViewById(R.id.interval_warmup_distance);
-    intervalWarmupType.setOnSetValueListener(
-        makeIntervalPhaseTypeListener(intervalWarmupTime, intervalWarmupDistance));
-    intervalType = view.findViewById(R.id.interval_type);
-    intervalTime = view.findViewById(R.id.start_interval_time);
-    intervalTime.setOnSetValueListener(onSetTimeValidator);
-    intervalDistance = view.findViewById(R.id.interval_distance);
-    intervalType.setOnSetValueListener(intervalTypeSetValue);
-    intervalRestType = view.findViewById(R.id.interval_rest_type);
-    intervalRestTime = view.findViewById(R.id.interval_rest_time);
-    intervalRestTime.setOnSetValueListener(onSetTimeValidator);
-    intervalRestDistance = view.findViewById(R.id.interval_rest_distance);
-    intervalRestType.setOnSetValueListener(intervalRestTypeSetValue);
-    intervalCooldownType = view.findViewById(R.id.interval_cooldown_type);
-    intervalCooldownTime = view.findViewById(R.id.interval_cooldown_time);
-    intervalCooldownTime.setOnSetValueListener(onSetTimeValidator);
-    intervalCooldownDistance = view.findViewById(R.id.interval_cooldown_distance);
-    intervalCooldownType.setOnSetValueListener(
-        makeIntervalPhaseTypeListener(intervalCooldownTime, intervalCooldownDistance));
-    syncIntervalPhasePickers(intervalWarmupType, intervalWarmupTime, intervalWarmupDistance);
-    syncIntervalPhasePickers(intervalCooldownType, intervalCooldownTime, intervalCooldownDistance);
-    intervalTargetHrz = view.findViewById(R.id.interval_target_hrz);
-    configureIntervalTargetHrzSpinner(intervalTargetHrz);
-    intervalHrCueSeconds = view.findViewById(R.id.interval_hr_cue_seconds);
-    intervalAudioListAdapter = new AudioSchemeListAdapter(mDB, inflater, false);
-    intervalAudioListAdapter.reload();
-    TitleSpinner intervalAudioSpinner = view.findViewById(R.id.interval_audio_cue_spinner);
-    intervalAudioSpinner.setAdapter(intervalAudioListAdapter);
-    intervalAudioSpinner.setOnSetValueListener(
-        new OnConfigureAudioListener(intervalAudioListAdapter));
-
-    advancedAudioListAdapter = new AudioSchemeListAdapter(mDB, inflater, false);
-    advancedAudioListAdapter.reload();
-    TitleSpinner advancedAudioSpinner = view.findViewById(R.id.advanced_audio_cue_spinner);
-    advancedAudioSpinner.setAdapter(advancedAudioListAdapter);
-    advancedAudioSpinner.setOnSetValueListener(
-        new OnConfigureAudioListener(advancedAudioListAdapter));
-
-    advancedWorkoutSpinner = view.findViewById(R.id.advanced_workout_spinner);
-    advancedWorkoutListAdapter = new WorkoutListAdapter(inflater);
-    advancedWorkoutListAdapter.reload();
-    advancedWorkoutSpinner.setAdapter(advancedWorkoutListAdapter);
-    
-    // Explicitly set the spinner to the first valid workout (not "Manage workouts")
-    // This prevents the spinner from defaulting to the "Manage workouts" item during fragment recreation
-    android.util.Log.d("StartFragment", "Adapter count: " + advancedWorkoutListAdapter.getCount());
-    if (advancedWorkoutListAdapter.getCount() > 1) {
-      // Set to first workout (index 0), not the last item which is "Manage workouts"
-      String firstWorkout = advancedWorkoutListAdapter.getItem(0).toString();
-      android.util.Log.d("StartFragment", "About to set spinner to first workout: " + firstWorkout);
-      advancedWorkoutSpinner.setValue(firstWorkout);
-      android.util.Log.d("StartFragment", "Set spinner to first workout: " + firstWorkout);
-    } else {
-      android.util.Log.d("StartFragment", "Adapter count <= 1, not setting spinner value");
-    }
-    
-    android.util.Log.d("StartFragment", "Setting up OnConfigureWorkoutsListener for advancedWorkoutSpinner");
-    advancedWorkoutSpinner.setOnSetValueListener(
-        new OnConfigureWorkoutsListener(advancedWorkoutListAdapter));
-    advancedStepList = view.findViewById(R.id.advanced_step_list);
-    advancedStepList.setDividerHeight(0);
-    advancedStepList.setAdapter(advancedWorkoutStepsAdapter);
+    intervalController.bindIntervalTab(view, inflater, mDB, onSetTimeValidator);
+    advancedController.bindAdvancedTab(view, inflater, mDB);
 
     Intent i = requireActivity().getIntent();
     if (i != null) {
@@ -449,79 +362,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     }
   }
 
-  private class OnConfigureAudioListener implements OnSetValueListener {
-    final AudioSchemeListAdapter adapter;
-
-    OnConfigureAudioListener(AudioSchemeListAdapter adapter) {
-      this.adapter = adapter;
-    }
-
-    @Override
-    public String preSetValue(String newValue) throws IllegalArgumentException {
-      if (newValue != null
-          && newValue.contentEquals((String) adapter.getItem(adapter.getCount() - 1))) {
-        Intent i = new Intent(requireContext(), AudioCueSettingsActivity.class);
-        startActivity(i);
-        throw new IllegalArgumentException();
-      }
-      return newValue;
-    }
-
-    @Override
-    public int preSetValue(int newValueId) throws IllegalArgumentException {
-      return newValueId;
-    }
-  }
-
-  private class OnConfigureWorkoutsListener implements OnSetValueListener {
-    final WorkoutListAdapter adapter;
-    private boolean isInitialization = true;
-
-    OnConfigureWorkoutsListener(WorkoutListAdapter adapter) {
-      this.adapter = adapter;
-    }
-
-      @Override
-      public String preSetValue(String newValue) throws IllegalArgumentException {
-        android.util.Log.d("StartFragment", "OnConfigureWorkoutsListener.preSetValue called with: '" + newValue + "', isInitialization: " + isInitialization);
-        android.util.Log.d("StartFragment", "Stack trace for preSetValue:", new Exception("Stack trace for debugging"));
-      
-      // Prevent launching ManageWorkoutsActivity during initialization
-      if (isInitialization) {
-        isInitialization = false;
-        android.util.Log.d("StartFragment", "During initialization, preventing ManageWorkoutsActivity launch");
-        if (newValue != null && newValue.contentEquals((String) adapter.getItem(adapter.getCount() - 1))) {
-          // During initialization, just return the first valid workout instead of launching ManageWorkoutsActivity
-          if (adapter.getCount() > 1) {
-            String firstWorkout = adapter.getItem(0).toString();
-            android.util.Log.d("StartFragment", "Returning first workout instead: " + firstWorkout);
-            return firstWorkout;
-          }
-        }
-      }
-      
-      if (newValue != null
-          && newValue.contentEquals((String) adapter.getItem(adapter.getCount() - 1))) {
-        android.util.Log.d("StartFragment", "ManageWorkoutsActivity disabled - not launching for: " + newValue);
-        // ManageWorkoutsActivity is disabled - just return the first workout instead
-        if (adapter.getCount() > 1) {
-          String firstWorkout = adapter.getItem(0).toString();
-          android.util.Log.d("StartFragment", "Returning first workout instead: " + firstWorkout);
-          return firstWorkout;
-        }
-        throw new IllegalArgumentException();
-      }
-      loadAdvanced(newValue);
-      return newValue;
-    }
-
-    @Override
-    public int preSetValue(int newValueId) throws IllegalArgumentException {
-      loadAdvanced(null);
-      return newValueId;
-    }
-  }
-
   @Override
   public void onStart() {
     super.onStart();
@@ -541,9 +381,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
       return;
     }
     simpleAudioListAdapter.reload();
-    intervalAudioListAdapter.reload();
-    advancedAudioListAdapter.reload();
-    advancedWorkoutListAdapter.reload();
+    intervalController.reloadAudioAdapter();
+    advancedController.reloadAdapters();
     hrZonesAdapter.reload();
     simpleTargetHrz.setAdapter(hrZonesAdapter);
     if (!hrZonesAdapter.hrZones.isConfigured()) {
@@ -553,7 +392,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     }
 
     if (TAB_ADVANCED.contentEquals(getCurrentWorkoutTabTag())) {
-      loadAdvanced(null);
+      advancedController.loadAdvanced(null);
     }
 
     ensureTrackerBound();
@@ -752,7 +591,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
           @Override
           public void onPageSelected(int position) {
             if (position == 2) {
-              loadAdvanced(null);
+              advancedController.loadAdvanced(null);
             }
             View fragmentView = getView();
             if (fragmentView != null) {
@@ -780,7 +619,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
         pref,
         getCurrentWorkoutTabTag(),
         simpleTargetType.getValueInt(),
-        advancedWorkout,
+        advancedController.advancedWorkout,
         getString(R.string.pref_basic_audio),
         getString(R.string.pref_interval_audio),
         getString(R.string.pref_advanced_audio));
@@ -1061,7 +900,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
         break;
       }
 
-      if (TAB_ADVANCED.contentEquals(getCurrentWorkoutTabTag()) && advancedWorkout == null) {
+      if (TAB_ADVANCED.contentEquals(getCurrentWorkoutTabTag())
+          && advancedController.advancedWorkout == null) {
         break;
       }
 
@@ -1331,114 +1171,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     }
   }
 
-  private void configureIntervalTargetHrzSpinner(TitleSpinner sp) {
-    Context ctx = requireContext();
-    HRZones hz = new HRZones(ctx);
-    int count = hz.getCount();
-    ArrayList<String> labels = new ArrayList<>();
-    labels.add(getString(org.runnerup.common.R.string.Interval_no_hr_target));
-    for (int i = 0; i < count; i++) {
-      Pair<Integer, Integer> p = hz.getHRValues(i + 1);
-      if (p != null) {
-        labels.add("Zone " + (i + 1) + " (" + p.first + " - " + p.second + ")");
-      }
-    }
-    sp.setArrayEntries(labels.toArray(new String[0]));
-    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(ctx);
-    int saved = pref.getInt(getString(R.string.pref_interval_target_hrz), 0);
-    if (saved >= 0 && saved < labels.size()) {
-      sp.setValue(saved);
-    }
-  }
-
-  private static void syncIntervalPhasePickers(
-      TitleSpinner typeSpinner, TitleSpinner timeSpinner, TitleSpinner distSpinner) {
-    if (typeSpinner == null || timeSpinner == null || distSpinner == null) {
-      return;
-    }
-    int v = typeSpinner.getValueInt();
-    boolean time = (v == DB.DIMENSION.TIME);
-    boolean dist = (v == DB.DIMENSION.DISTANCE);
-    timeSpinner.setVisibility(time ? View.VISIBLE : View.GONE);
-    distSpinner.setVisibility(dist ? View.VISIBLE : View.GONE);
-  }
-
-  private static OnSetValueListener makeIntervalPhaseTypeListener(
-      TitleSpinner timeSpinner, TitleSpinner distSpinner) {
-    return new OnSetValueListener() {
-
-      @Override
-      public String preSetValue(String newValue) throws IllegalArgumentException {
-        return newValue;
-      }
-
-      @Override
-      public int preSetValue(int newValue) throws IllegalArgumentException {
-        boolean time = (newValue == DB.DIMENSION.TIME);
-        boolean dist = (newValue == DB.DIMENSION.DISTANCE);
-        timeSpinner.setVisibility(time ? View.VISIBLE : View.GONE);
-        distSpinner.setVisibility(dist ? View.VISIBLE : View.GONE);
-        return newValue;
-      }
-    };
-  }
-
-  private final OnSetValueListener intervalTypeSetValue =
-      new OnSetValueListener() {
-
-        @Override
-        public String preSetValue(String newValue) throws IllegalArgumentException {
-          return newValue;
-        }
-
-        @Override
-        public int preSetValue(int newValue) throws IllegalArgumentException {
-          boolean time = (newValue == 0);
-          intervalTime.setVisibility(time ? View.VISIBLE : View.GONE);
-          intervalDistance.setVisibility(time ? View.GONE : View.VISIBLE);
-          return newValue;
-        }
-      };
-
-  private final OnSetValueListener intervalRestTypeSetValue =
-      new OnSetValueListener() {
-
-        @Override
-        public String preSetValue(String newValue) throws IllegalArgumentException {
-          return newValue;
-        }
-
-        @Override
-        public int preSetValue(int newValue) throws IllegalArgumentException {
-          boolean time = (newValue == 0);
-          intervalRestTime.setVisibility(time ? View.VISIBLE : View.GONE);
-          intervalRestDistance.setVisibility(time ? View.GONE : View.VISIBLE);
-          return newValue;
-        }
-      };
-
-  private void loadAdvanced(String name) {
-    Context ctx = requireActivity().getApplicationContext();
-    if (name == null) {
-      SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(ctx);
-      name = pref.getString(getResources().getString(R.string.pref_advanced_workout), "");
-    }
-    advancedWorkout = null;
-    if ("".contentEquals(name)) return;
-    try {
-      advancedWorkout = WorkoutSerializer.readFile(ctx, name);
-      advancedWorkoutStepsAdapter.steps = advancedWorkout.getStepList();
-      advancedWorkoutStepsAdapter.notifyDataSetChanged();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      new AlertDialog.Builder(requireActivity())
-          .setTitle(getString(org.runnerup.common.R.string.Failed_to_load_workout))
-          .setMessage(ex.toString())
-          .setPositiveButton(org.runnerup.common.R.string.OK, (dialog, which) -> dialog.dismiss())
-          .show();
-    }
-  }
-
   @Override
   public int getSatellitesAvailable() {
     return mGpsStatus.getSatellitesAvailable();
@@ -1448,59 +1180,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   public int getSatellitesFixed() {
     return mGpsStatus.getSatellitesFixed();
   }
-
-  final class WorkoutStepsAdapter extends BaseAdapter {
-
-    List<StepListEntry> steps = new ArrayList<>();
-
-    @Override
-    public int getCount() {
-      return steps.size();
-    }
-
-    @Override
-    public Object getItem(int position) {
-      return steps.get(position);
-    }
-
-    @Override
-    public long getItemId(int position) {
-      return 0;
-    }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-      StepListEntry entry = steps.get(position);
-      StepButton button =
-          (convertView instanceof StepButton)
-              ? (StepButton) convertView
-              : new StepButton(requireContext(), null);
-      button.setStep(entry.step);
-
-      float pxToDp = getResources().getDisplayMetrics().density;
-      button.setPadding((int) (entry.level * 8 * pxToDp + 0.5f), 0, 0, 0);
-      button.setOnChangedListener(onWorkoutChanged);
-      return button;
-    }
-  }
-
-  private final Runnable onWorkoutChanged =
-      () -> {
-        String name = advancedWorkoutSpinner.getValue().toString();
-        if (advancedWorkout != null) {
-          Context ctx = requireActivity().getApplicationContext();
-          try {
-            WorkoutSerializer.writeFile(ctx, name, advancedWorkout);
-          } catch (Exception ex) {
-            new AlertDialog.Builder(requireContext())
-                .setTitle(org.runnerup.common.R.string.Failed_to_load_workout)
-                .setMessage(ex.toString())
-                .setPositiveButton(
-                    org.runnerup.common.R.string.OK, (dialog, which) -> dialog.dismiss())
-                .show();
-          }
-        }
-      };
 
   private final OnSetValueListener onSetTimeValidator =
       new OnSetValueListener() {

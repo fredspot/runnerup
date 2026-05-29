@@ -16,13 +16,22 @@
       ~  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/RunnerUpCard"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
     android:orientation="vertical"
-    android:background="@drawable/ripple_card"
-    android:padding="16dp"
-    android:defaultFocusHighlightEnabled="false"
+    android:clickable="true"
+    android:focusable="true"
+    android:clipChildren="true"
+    android:clipToOutline="true"
     android:descendantFocusability="blocksDescendants">
+
+    <LinearLayout
+        style="@style/RunnerUpCard.Body"
+        android:orientation="vertical"
+        android:padding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -32,6 +41,7 @@
 
         <TextView
             android:id="@+id/rank_text"
+            style="@style/RunnerUpCard.Content"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="@style/ListItem"
@@ -42,6 +52,7 @@
 
         <TextView
             android:id="@+id/time_text"
+            style="@style/RunnerUpCard.Content"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -52,6 +63,7 @@
 
         <TextView
             android:id="@+id/pace_text"
+            style="@style/RunnerUpCard.Content"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="@style/ListItem"
@@ -78,6 +90,7 @@
 
             <TextView
                 android:id="@+id/hr_text"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:maxLines="1"
@@ -86,6 +99,8 @@
             android:textAppearance="@style/ListDescription"
             android:textSize="14sp"
             android:textColor="@color/colorTextSecondary" />
+
+    </LinearLayout>
 
     </LinearLayout>
 

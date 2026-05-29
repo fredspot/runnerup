@@ -47,32 +47,8 @@ import org.runnerup.core.util.Formatter
 import org.runnerup.core.workout.Sport
 import org.runnerup.data.ActivityCleaner
 import org.runnerup.data.DBHelper
+import org.runnerup.core.util.CardPressHelper
 import org.runnerup.data.entities.ActivityEntity
-
-private fun formatHistoryHeartRate(
-    formatter: Formatter,
-    avgHr: Int?,
-    maxHr: Int?,
-): String? {
-  val avg =
-      if (avgHr != null && avgHr > 0) {
-        formatter.formatHeartRate(Formatter.Format.TXT_SHORT, avgHr.toDouble())
-      } else {
-        null
-      }
-  val max =
-      if (maxHr != null && maxHr > 0) {
-        formatter.formatHeartRate(Formatter.Format.TXT_SHORT, maxHr.toDouble())
-      } else {
-        null
-      }
-  return when {
-    avg != null && max != null -> "$avg | $max"
-    avg != null -> avg
-    max != null -> max
-    else -> null
-  }
-}
 
 class HistoryFragment : Fragment(R.layout.history) {
 
@@ -335,7 +311,7 @@ class HistoryFragment : Fragment(R.layout.history) {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
       val view =
           LayoutInflater.from(parent.context).inflate(R.layout.history_row, parent, false)
-      view.defaultFocusHighlightEnabled = false
+      CardPressHelper.prepareRowHost(view)
       return Holder(view, onItemClick)
     }
 
@@ -358,11 +334,12 @@ class HistoryFragment : Fragment(R.layout.history) {
       private var activityId: Long? = null
 
       init {
+        CardPressHelper.prepareCard(cardView)
         cardView.setOnClickListener { onItemClick(activityId) }
       }
 
       fun bind(row: HistoryRow, formatter: Formatter?) {
-        cardView.isPressed = false
+        CardPressHelper.clearPressState(itemView, cardView)
         val ae = row.entity
         activityId = ae.id
         val fmt = formatter ?: return
@@ -393,7 +370,7 @@ class HistoryFragment : Fragment(R.layout.history) {
         distanceText.setTextColor(sportColor)
         additionalInfo.setTextColor(sportColor)
 
-        additionalInfo.text = formatHistoryHeartRate(fmt, ae.avgHr, ae.maxHr)
+        additionalInfo.text = fmt.formatBestTimesHeartRateLine(ae.avgHr, ae.maxHr)
 
         val dur = ae.time
         if (distance != null && dur != null && dur != 0L) {

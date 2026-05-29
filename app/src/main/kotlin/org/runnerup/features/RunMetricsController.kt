@@ -10,7 +10,7 @@
 package org.runnerup.features
 
 import android.view.View
-import android.widget.ListView
+import androidx.recyclerview.widget.RecyclerView
 import android.widget.TextView
 import org.runnerup.common.util.Constants
 import org.runnerup.core.util.Formatter
@@ -40,11 +40,8 @@ internal class RunMetricsController(
     private val intervalHr: TextView,
     private val currentHr: TextView,
     private val activityHeaderHr: TextView,
-    private val workoutList: ListView,
-    private val workoutRows: ArrayList<RunActivity.WorkoutRow>,
+    private val workoutListController: RunWorkoutListController,
 ) {
-
-  @JvmField var currentStep: Step? = null
 
   fun updateMetrics(workout: Workout, tracker: Tracker) {
     val ad = workout.getDistance(Scope.ACTIVITY)
@@ -61,7 +58,7 @@ internal class RunMetricsController(
     lapDistance.text = formatter.formatDistance(Formatter.Format.TXT_LONG, Math.round(ld))
     lapPace.text = formatter.formatVelocityByPreferredUnit(Formatter.Format.TXT_SHORT, lp)
 
-    val step = currentStep
+    val step = workout.getCurrentStep()
     if (tableRowInterval != null &&
         step != null &&
         workout.getWorkoutType() != Constants.WORKOUT_TYPE.BASIC &&
@@ -102,22 +99,6 @@ internal class RunMetricsController(
       activityHeaderHr.visibility = View.GONE
     }
 
-    val curr = workout.getCurrentStep()
-    if (curr != currentStep) {
-      (workoutList.adapter as? RunActivity.WorkoutAdapter)?.notifyDataSetChanged()
-      currentStep = curr
-      workoutList.setSelection(getPosition(workoutRows, currentStep))
-    }
-  }
-
-  private fun getPosition(
-      workoutRows: ArrayList<RunActivity.WorkoutRow>,
-      step: Step?,
-  ): Int {
-    if (step == null) return 0
-    for (i in workoutRows.indices) {
-      if (workoutRows[i].step === step) return i
-    }
-    return 0
+    workoutListController.onCurrentStepChanged(workout.getCurrentStep())
   }
 }

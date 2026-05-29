@@ -56,6 +56,10 @@
   <string name="monthly_comparison_zone_pace_metric_unconfigured">Z%1$d pace</string>
   <string name="monthly_comparison_zone_pace_same">on par</string>
   <string name="monthly_comparison_zone_pace_footnote">Shows steady Z3 pace and combined easy Z1–Z2 pace. “vs others” is the gap to your historical monthly average (negative = faster). Only completed months with 50+ km and 2+ runs; laps 400 m+ from runs 2 km+, pace 2:30–15:00 min/km.</string>
+  <string name="monthly_comparison_empty">No running activities yet. Record a run to see monthly comparisons.</string>
+  <string name="monthly_comparison_metric_column">Metric</string>
+  <string name="monthly_comparison_avg_distance">Avg Distance</string>
+  <string name="monthly_comparison_top25_runs">Top 25 Runs</string>
   <string name="this_month">This Month</string>
   <string name="all_other_months">All Others</string>
   <string name="personal_bests">Personal Bests</string>

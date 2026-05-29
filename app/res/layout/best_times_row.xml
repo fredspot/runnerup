@@ -39,24 +39,31 @@
         android:paddingTop="8dp"
         android:paddingBottom="8dp"
         android:gravity="start|center_vertical"
-        android:background="?attr/selectableItemBackgroundBorderless"
+        android:background="@android:color/transparent"
+        android:foreground="@drawable/chip_ripple_overlay"
         android:clickable="true"
         android:focusable="true"
-        android:defaultFocusHighlightEnabled="false" />
+        android:defaultFocusHighlightEnabled="false"
+        android:stateListAnimator="@null" />
 
     <!-- Best run card on the right (80% width) -->
     <LinearLayout
         android:id="@+id/best_run_card"
+        style="@style/RunnerUpCard"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="0.8"
         android:orientation="vertical"
-        android:background="@drawable/ripple_card"
-        android:padding="12dp"
         android:clickable="true"
         android:focusable="true"
-        android:defaultFocusHighlightEnabled="false"
+        android:clipChildren="true"
+        android:clipToOutline="true"
         android:descendantFocusability="blocksDescendants">
+
+        <LinearLayout
+            style="@style/RunnerUpCard.Body"
+            android:orientation="vertical"
+            android:padding="12dp">
 
         <!-- Time row -->
         <LinearLayout
@@ -67,6 +74,7 @@
 
             <TextView
                 android:id="@+id/time_text"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -77,6 +85,7 @@
 
             <TextView
                 android:id="@+id/pace_text"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAppearance="@style/ListItem"
@@ -95,6 +104,7 @@
 
             <TextView
                 android:id="@+id/date_text"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -104,6 +114,7 @@
 
             <TextView
                 android:id="@+id/hr_text"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:maxLines="1"
@@ -112,6 +123,8 @@
                 android:textAppearance="@style/ListDescription"
                 android:textSize="14sp"
                 android:textColor="@color/colorTextSecondary" />
+
+        </LinearLayout>
 
         </LinearLayout>
 

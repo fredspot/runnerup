@@ -38,6 +38,7 @@ import java.util.Locale;
 import java.util.Map;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
+import org.runnerup.core.util.CardPressHelper;
 import org.runnerup.core.util.Formatter;
 import org.runnerup.core.util.WeekCalendarUtil;
 import org.runnerup.data.DBHelper;
@@ -357,6 +358,7 @@ public class MonthWeekBreakdownActivity extends AppCompatActivity {
 
     @Override
     public void onBindViewHolder(@NonNull Holder holder, int position) {
+      CardPressHelper.clearPressState(holder.itemView);
       WeekRow row = weekRows.get(position);
 
       holder.monthText.setText(row.title);

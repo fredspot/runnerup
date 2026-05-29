@@ -17,18 +17,14 @@
 
 package org.runnerup.features;
 
-import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
-import android.widget.BaseAdapter;
-import android.widget.ListView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -37,15 +33,18 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.OnApplyWindowInsetsListener;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
 import org.runnerup.data.DBHelper;
 import org.runnerup.data.entities.YearlyStatsEntity;
+import org.runnerup.core.util.CardPressHelper;
 import org.runnerup.core.util.Formatter;
 import java.util.ArrayList;
 import java.util.List;
 
-public class YearlyStatsActivity extends AppCompatActivity implements Constants, OnItemClickListener {
+public class YearlyStatsActivity extends AppCompatActivity implements Constants {
 
   private SQLiteDatabase mDB = null;
   private YearlyStatsListAdapter adapter = null;
@@ -57,7 +56,6 @@ public class YearlyStatsActivity extends AppCompatActivity implements Constants,
     super.onCreate(savedInstanceState);
     setContentView(R.layout.statistics_detail);
 
-    // Set up toolbar
     Toolbar toolbar = findViewById(R.id.toolbar);
     setSupportActionBar(toolbar);
     if (getSupportActionBar() != null) {
@@ -65,31 +63,37 @@ public class YearlyStatsActivity extends AppCompatActivity implements Constants,
       getSupportActionBar().setTitle(getString(R.string.statistics_year_month_breakdown));
     }
 
-    // Initialize database and formatter
     mDB = DBHelper.getReadableDatabase(this);
     formatter = new Formatter(this);
 
-    // Set up list view
-    ListView listView = findViewById(R.id.statistics_detail_list);
-    listView.setDividerHeight(16); // Spacing between cards
-    adapter = new YearlyStatsListAdapter(this);
-    listView.setAdapter(adapter);
-    listView.setOnItemClickListener(this);
+    RecyclerView recyclerView = findViewById(R.id.statistics_detail_list);
+    recyclerView.setLayoutManager(new LinearLayoutManager(this));
+    int spacingPx = (int) (16 * getResources().getDisplayMetrics().density);
+    recyclerView.addItemDecoration(new CardSpacingDecoration(spacingPx));
+    adapter = new YearlyStatsListAdapter();
+    recyclerView.setAdapter(adapter);
+    adapter.setOnItemClickListener(
+        stats -> {
+          Intent intent = new Intent(this, StatisticsDetailActivity.class);
+          intent.putExtra("YEAR", stats.getYear());
+          startActivity(intent);
+        });
 
-    // Handle window insets for proper spacing
     View rootView = findViewById(R.id.statistics_detail_layout);
-    ViewCompat.setOnApplyWindowInsetsListener(rootView, new OnApplyWindowInsetsListener() {
-      @NonNull
-      @Override
-      public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat windowInsets) {
-        Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-        ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
-        mlp.topMargin = insets.top;
-        return WindowInsetsCompat.CONSUMED;
-      }
-    });
+    ViewCompat.setOnApplyWindowInsetsListener(
+        rootView,
+        new OnApplyWindowInsetsListener() {
+          @NonNull
+          @Override
+          public WindowInsetsCompat onApplyWindowInsets(
+              @NonNull View v, @NonNull WindowInsetsCompat windowInsets) {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            ViewGroup.MarginLayoutParams mlp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+            mlp.topMargin = insets.top;
+            return WindowInsetsCompat.CONSUMED;
+          }
+        });
 
-    // Load data
     loadYears();
   }
 
@@ -105,81 +109,111 @@ public class YearlyStatsActivity extends AppCompatActivity implements Constants,
     return true;
   }
 
-  @Override
-  public void onItemClick(AdapterView<?> arg0, View arg1, int position, long id) {
-    if (position < yearlyStats.size()) {
-      YearlyStatsEntity stats = yearlyStats.get(position);
-      Intent intent = new Intent(this, StatisticsDetailActivity.class);
-      intent.putExtra("YEAR", stats.getYear());
-      startActivity(intent);
-    }
-  }
-
   private void loadYears() {
     yearlyStats.clear();
-    String sql = "SELECT * FROM " + Constants.DB.YEARLY_STATS.TABLE + 
-                 " ORDER BY " + Constants.DB.YEARLY_STATS.YEAR + " DESC";
-    
+    String sql =
+        "SELECT * FROM "
+            + Constants.DB.YEARLY_STATS.TABLE
+            + " ORDER BY "
+            + Constants.DB.YEARLY_STATS.YEAR
+            + " DESC";
+
     try (Cursor cursor = mDB.rawQuery(sql, null)) {
       while (cursor.moveToNext()) {
         yearlyStats.add(new YearlyStatsEntity(cursor));
       }
     }
-    adapter.notifyDataSetChanged();
+    adapter.setItems(yearlyStats);
   }
 
-  /**
-   * Adapter for displaying yearly statistics list.
-   */
-  class YearlyStatsListAdapter extends BaseAdapter {
-    private final LayoutInflater inflater;
+  private static final class CardSpacingDecoration extends RecyclerView.ItemDecoration {
+    private final int spacingPx;
 
-    YearlyStatsListAdapter(Context context) {
-      inflater = LayoutInflater.from(context);
+    CardSpacingDecoration(int spacingPx) {
+      this.spacingPx = spacingPx;
     }
 
     @Override
-    public int getCount() {
-      return yearlyStats.size();
-    }
-
-    @Override
-    public Object getItem(int position) {
-      return yearlyStats.get(position);
-    }
-
-    @Override
-    public long getItemId(int position) {
-      return position;
-    }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-      if (convertView == null) {
-        convertView = inflater.inflate(R.layout.statistics_row, parent, false);
+    public void getItemOffsets(
+        @NonNull Rect outRect,
+        @NonNull View view,
+        @NonNull RecyclerView parent,
+        @NonNull RecyclerView.State state) {
+      int position = parent.getChildAdapterPosition(view);
+      if (position == RecyclerView.NO_POSITION) return;
+      if (position < state.getItemCount() - 1) {
+        outRect.bottom = spacingPx;
       }
-      
-      YearlyStatsEntity stats = yearlyStats.get(position);
-      
-      TextView yearText = convertView.findViewById(R.id.year_text);
-      TextView statsSummaryText = convertView.findViewById(R.id.stats_summary_text);
-      
-      // Year
-      yearText.setText(String.valueOf(stats.getYear()));
-      
-      // Summary stats
-      if (stats.getTotalDistance() != null && stats.getAvgPace() != null && stats.getRunCount() != null) {
-        String distanceStr = formatter.formatDistance(Formatter.Format.TXT_SHORT, stats.getTotalDistance().longValue());
+    }
+  }
+
+  class YearlyStatsListAdapter extends RecyclerView.Adapter<YearlyStatsListAdapter.Holder> {
+    private final List<YearlyStatsEntity> items = new ArrayList<>();
+    private OnItemClickListener onItemClickListener;
+
+    interface OnItemClickListener {
+      void onItemClick(YearlyStatsEntity stats);
+    }
+
+    void setOnItemClickListener(OnItemClickListener listener) {
+      onItemClickListener = listener;
+    }
+
+    void setItems(List<YearlyStatsEntity> newItems) {
+      items.clear();
+      items.addAll(newItems);
+      notifyDataSetChanged();
+    }
+
+    @Override
+    public int getItemCount() {
+      return items.size();
+    }
+
+    @NonNull
+    @Override
+    public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+      LayoutInflater inflater = LayoutInflater.from(YearlyStatsActivity.this);
+      View view = inflater.inflate(R.layout.statistics_row, parent, false);
+      return new Holder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull Holder holder, int position) {
+      CardPressHelper.clearPressState(holder.itemView);
+      YearlyStatsEntity stats = items.get(position);
+      holder.yearText.setText(String.valueOf(stats.getYear()));
+      if (stats.getTotalDistance() != null
+          && stats.getAvgPace() != null
+          && stats.getRunCount() != null) {
+        String distanceStr =
+            formatter.formatDistance(
+                Formatter.Format.TXT_SHORT, stats.getTotalDistance().longValue());
         String paceStr =
             formatter.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, stats.getAvgPace());
-        String summary = distanceStr + " • " + paceStr + " • " + stats.getRunCount() + " runs";
-        statsSummaryText.setText(summary);
+        String summary =
+            distanceStr + " • " + paceStr + " • " + stats.getRunCount() + " runs";
+        holder.statsSummaryText.setText(summary);
       } else {
-        statsSummaryText.setText("");
+        holder.statsSummaryText.setText("");
       }
-      
-      return convertView;
+      holder.itemView.setOnClickListener(
+          v -> {
+            if (onItemClickListener != null) {
+              onItemClickListener.onItemClick(stats);
+            }
+          });
+    }
+
+    static class Holder extends RecyclerView.ViewHolder {
+      final TextView yearText;
+      final TextView statsSummaryText;
+
+      Holder(View itemView) {
+        super(itemView);
+        yearText = itemView.findViewById(R.id.year_text);
+        statsSummaryText = itemView.findViewById(R.id.stats_summary_text);
+      }
     }
   }
 }
-

@@ -55,7 +55,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="16dp"
                 android:gravity="center">
 
@@ -112,7 +112,7 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="16dp">
 
                 <com.jjoe64.graphview.GraphView

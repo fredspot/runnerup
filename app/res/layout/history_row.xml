@@ -39,36 +39,42 @@
 
     <LinearLayout
         android:id="@+id/history_row_card"
+        style="@style/RunnerUpCard"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
         android:orientation="vertical"
-        android:padding="16dp"
-        android:background="@drawable/ripple_card"
         android:clickable="true"
         android:focusable="true"
-        android:defaultFocusHighlightEnabled="false"
+        android:clipChildren="true"
+        android:clipToOutline="true"
         android:descendantFocusability="blocksDescendants">
+
+        <LinearLayout
+            style="@style/RunnerUpCard.Body"
+            android:orientation="vertical"
+            android:padding="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:background="@null">
 
             <ImageView
                 android:id="@+id/history_list_emblem"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:layout_marginRight="8dp"
-                android:background="@android:color/transparent"
-                android:duplicateParentState="false"
-                android:focusable="false"
-                android:clickable="false"
                 android:contentDescription="@string/Sport"/>
 
             <TextView
                 android:id="@+id/history_list_distance"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -80,6 +86,7 @@
 
             <TextView
                 android:id="@+id/history_list_date"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:gravity="end"
@@ -95,12 +102,14 @@
 
             <TextView
                 android:id="@+id/history_list_duration"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAppearance="@style/ListDescription" />
 
             <TextView
                 android:id="@+id/history_list_separator"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
@@ -114,6 +123,7 @@
 
             <TextView
                 android:id="@+id/history_list_pace"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:maxLines="1"
@@ -127,11 +137,14 @@
 
             <TextView
                 android:id="@+id/history_list_additional"
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:textAppearance="@style/ListDescription" />
+        </LinearLayout>
+
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

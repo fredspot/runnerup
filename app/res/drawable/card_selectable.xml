@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded card fill + press ripple in one drawable (use as view background, not foreground). -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/colorControlHighlight">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/backgroundCard" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/white" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+</ripple>

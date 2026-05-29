@@ -51,17 +51,14 @@
         android:text="@string/Workout"
         runnerup:type="spinner_txt" />
 
-    <ListView
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/advanced_step_list"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:layout_alignParentBottom="true"
         android:layout_below="@id/advanced_workout_spinner"
         android:background="@color/subsectionBg"
-        android:cacheColorHint="@color/subsectionBg"
         android:clipToPadding="false"
-        android:minWidth="48dp"
-        android:minHeight="48dp"
         android:paddingLeft="@dimen/activity_margin"
         android:paddingRight="@dimen/activity_margin"
         android:paddingTop="@dimen/activity_margin"

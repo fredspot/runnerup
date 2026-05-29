@@ -32,6 +32,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.runnerup.R
+import org.runnerup.core.util.CardPressHelper
 import org.runnerup.common.util.Constants
 import org.runnerup.common.util.Constants.DB
 import org.runnerup.core.util.BgTasks
@@ -257,6 +258,7 @@ class AccountListActivity : AppCompatActivity(), Constants {
     }
 
     private fun bindAccount(holder: AccountHolder, item: AccountListItem.AccountRow) {
+      CardPressHelper.clearPressState(holder.itemView)
       val values = item.values
       val syncManager = syncManager ?: return
       val synchronizer = syncManager.add(values)

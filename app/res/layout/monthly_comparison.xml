@@ -34,10 +34,38 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
+    <TextView
+        android:id="@+id/monthly_comparison_empty_hint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/monthly_comparison_empty"
+        android:textColor="@color/colorTextSecondary"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:visibility="gone"
+        android:paddingTop="24dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <ProgressBar
+        android:id="@+id/monthly_comparison_loading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
     <ScrollView
+        android:id="@+id/monthly_comparison_content"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:fillViewport="true"
+        android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/toolbar"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -55,7 +83,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="4"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
 
@@ -63,7 +91,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Metric"
+                    android:text="@string/monthly_comparison_metric_column"
                     android:textColor="@color/colorText"
                     android:textStyle="bold"
                     android:textSize="18sp"/>
@@ -106,7 +134,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="4"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
 
@@ -185,7 +213,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="4"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
 
@@ -264,7 +292,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="4"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
 
@@ -272,7 +300,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Avg Distance"
+                    android:text="@string/monthly_comparison_avg_distance"
                     android:textColor="@color/colorText"
                     android:textSize="16sp"/>
 
@@ -343,7 +371,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="4"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
 
@@ -422,7 +450,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="4"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
 
@@ -501,7 +529,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="4"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="16dp"
                 android:layout_marginBottom="8dp">
 
@@ -509,7 +537,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Top 25 Runs"
+                    android:text="@string/monthly_comparison_top25_runs"
                     android:textColor="@color/colorText"
                     android:textSize="16sp"/>
 
@@ -637,7 +665,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="4"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="12dp"
                 android:layout_marginBottom="8dp"
                 android:clipChildren="false"
@@ -733,7 +761,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="4"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="12dp"
                 android:layout_marginBottom="8dp"
                 android:clipChildren="false"

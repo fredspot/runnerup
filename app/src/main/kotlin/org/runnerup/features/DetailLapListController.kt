@@ -63,6 +63,13 @@ internal object DetailLapListController {
       WorkoutStepGrouper.buildDisplayEntries(laps, host::labelForIntensity)
 
   @JvmStatic
+  fun bindLapHeader(headerRow: View?, host: Host) {
+    if (headerRow == null) return
+    val hrHeader = headerRow.findViewById<TextView>(R.id.lap_list_header_hr)
+    hrHeader.visibility = if (host.isLapHrPresent()) View.VISIBLE else View.GONE
+  }
+
+  @JvmStatic
   fun createAdapter(activity: DetailActivity, host: Host): LapListAdapter =
       LapListAdapter(activity, host)
 

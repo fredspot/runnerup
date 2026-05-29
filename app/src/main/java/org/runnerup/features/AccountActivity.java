@@ -83,8 +83,10 @@ public class AccountActivity extends AppCompatActivity implements Constants {
     // Set up action bar with dark theme
     if (getSupportActionBar() != null) {
       getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-      getSupportActionBar().setBackgroundDrawable(
-          getResources().getDrawable(R.drawable.modern_card_background, null));
+      getSupportActionBar()
+          .setBackgroundDrawable(
+              new android.graphics.drawable.ColorDrawable(
+                  getColor(R.color.backgroundPrimary)));
     }
 
     Intent intent = getIntent();

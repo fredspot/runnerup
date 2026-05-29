@@ -263,19 +263,17 @@
             android:visibility="invisible" />
     </LinearLayout>
 
-    <ListView
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/workout_list"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_above="@id/run_table_row1"
         android:layout_below="@id/countdown_layout"
+        android:clipToPadding="false"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
         android:paddingLeft="16dp"
-        android:paddingRight="16dp"
-        android:divider="@color/backgroundPrimary"
-        android:dividerHeight="8dp" >
-    </ListView>
+        android:paddingRight="16dp" />
 
     <TableRow
         android:id="@+id/run_table_row1"

@@ -32,20 +32,17 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
-import android.widget.BaseExpandableListAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
-import android.widget.ExpandableListView;
-import android.widget.LinearLayout;
 import android.widget.RadioButton;
-import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.preference.PreferenceManager;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -83,7 +80,8 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
   private final HashSet<SyncManager.WorkoutRef> pendingWorkouts = new HashSet<>();
   private final ArrayList<ContentValues> providers = new ArrayList<>();
   private final HashMap<String, ArrayList<SyncManager.WorkoutRef>> workouts = new HashMap<>();
-  private WorkoutAccountListAdapter adapter = null;
+  private ManageWorkoutsListController listController = null;
+  private String pendingExpandProvider = null;
 
   private final HashSet<String> loadedProviders = new HashSet<>();
 
@@ -117,9 +115,19 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
               requery();
             });
     syncManager.setConfigureLauncher(configureLauncher);
-    adapter = new WorkoutAccountListAdapter(this);
-    ExpandableListView list = findViewById(R.id.expandable_list_view);
-    list.setAdapter(adapter);
+    RecyclerView list = findViewById(R.id.expandable_list_view);
+    listController =
+        new ManageWorkoutsListController(
+            list,
+            (provider, expanded) -> {
+              onWorkoutListHeaderClick(provider, expanded);
+              return kotlin.Unit.INSTANCE;
+            },
+            (button, checked) -> {
+              onWorkoutChecked.onCheckedChanged(button, checked);
+              return kotlin.Unit.INSTANCE;
+            });
+    listController.setSelectionState(() -> currentlySelectedWorkout);
 
     deleteButton = findViewById(R.id.delete_workout_button);
     deleteButton.setOnClickListener(deleteButtonClick);
@@ -136,9 +144,7 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
 
     requery();
     listLocal();
-    if (!list.getAdapter().isEmpty()) {
-      list.expandGroup(0);
-    }
+    listController.expandFirstGroupIfNeeded();
 
     Uri data = getIntent().getData();
     if (data != null) {
@@ -318,7 +324,11 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
 
     workouts.remove(PHONE_STRING);
     workouts.put(PHONE_STRING, newlist);
-    adapter.notifyDataSetChanged();
+    refreshListData();
+  }
+
+  private void refreshListData() {
+    listController.setProvidersAndWorkouts(providers, workouts);
   }
 
   @Override
@@ -374,7 +384,37 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
     //            }
     //        }
 
-    adapter.notifyDataSetChanged();
+    refreshListData();
+  }
+
+  private void onWorkoutListHeaderClick(String provider, boolean expanded) {
+    if (expanded) {
+      listController.collapseProvider(provider);
+      if (currentlySelectedWorkout != null) {
+        WorkoutRef ref = (WorkoutRef) currentlySelectedWorkout.getTag();
+        if (ref.synchronizer.contentEquals(provider)) {
+          currentlySelectedWorkout.setChecked(false);
+          currentlySelectedWorkout = null;
+          handleButtons();
+        }
+      }
+      return;
+    }
+    if (PHONE_STRING.contentEquals(provider)) {
+      listController.expandProvider(provider);
+      return;
+    }
+    if (loadedProviders.contains(provider)) {
+      listController.expandProvider(provider);
+      return;
+    }
+    pendingExpandProvider = provider;
+    uploading = true;
+    if (!syncManager.isConfigured(provider)) {
+      syncManager.connect(onSynchronizerConfiguredCallback, provider);
+    } else {
+      onSynchronizerConfiguredCallback.run(provider, Synchronizer.Status.OK);
+    }
   }
 
   interface Filter<T> {
@@ -503,177 +543,38 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
         startActivity(intent);
       };
 
-  class WorkoutAccountListAdapter extends BaseExpandableListAdapter {
-
-    final Context context;
-
-    WorkoutAccountListAdapter(Context ctx) {
-      context = ctx;
-    }
-
-    String getProvider(int index) {
-      return providers.get(index).getAsString(DB.ACCOUNT.NAME);
-    }
-
-    @Override
-    public Object getChild(int groupPosition, int childPosition) {
-      return workouts.get(getProvider(groupPosition)).get(childPosition);
-    }
-
-    @Override
-    public long getChildId(int groupPosition, int childPosition) {
-      return 0;
-    }
-
-    @Override
-    public View getChildView(
-        int groupPosition, int childPosition, boolean isLastChild, View view, ViewGroup parent) {
-
-      if (!(view instanceof LinearLayout)) {
-        LayoutInflater infalInflater =
-            (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        view = infalInflater.inflate(R.layout.manage_workouts_list_row, parent, false);
-      }
-
-      WorkoutRef workout = workouts.get(getProvider(groupPosition)).get(childPosition);
-      RadioButton cb = view.findViewById(R.id.download_workout_checkbox);
-
-      cb.setTag(workout);
-      cb.setChecked(
-          currentlySelectedWorkout != null && currentlySelectedWorkout.getTag() == workout);
-      cb.setOnCheckedChangeListener(onWorkoutChecked);
-      cb.setText(workout.workoutName);
-      return view;
-    }
-
-    @Override
-    public int getChildrenCount(int groupPosition) {
-      return workouts.get(getProvider(groupPosition)).size();
-    }
-
-    @Override
-    public Object getGroup(int groupPosition) {
-      return providers.get(groupPosition);
-    }
-
-    @Override
-    public int getGroupCount() {
-      return providers.size();
-    }
-
-    @Override
-    public long getGroupId(int groupPosition) {
-      return 0;
-    }
-
-    @Override
-    public View getGroupView(
-        int groupPosition, boolean isExpanded, View convertView, ViewGroup parent) {
-      if (convertView == null) {
-        LayoutInflater inflater =
-            (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        convertView = inflater.inflate(R.layout.manage_workouts_list_category, parent, false);
-      }
-
-      TextView categoryText = convertView.findViewById(R.id.category_text);
-      categoryText.setText(getProvider(groupPosition));
-
-      if (isExpanded)
-        categoryText.setCompoundDrawablesWithIntrinsicBounds(
-            0, 0, R.drawable.ic_expand_up_white_24dp, 0);
-      else
-        categoryText.setCompoundDrawablesWithIntrinsicBounds(
-            0, 0, R.drawable.ic_expand_down_white_24dp, 0);
-
-      return convertView;
-    }
-
-    @Override
-    public boolean hasStableIds() {
-      return false;
-    }
-
-    @Override
-    public boolean isChildSelectable(int groupPosition, int childPosition) {
-      return false;
-    }
-
-    int saveGroupPosition;
-
-    @Override
-    public void onGroupExpanded(int groupPosition) {
-      String provider = getProvider(groupPosition);
-      if (PHONE_STRING.contentEquals(provider)) {
-        super.onGroupExpanded(groupPosition);
-        return;
-      }
-
-      // below is not supported by any current provider, so 'uploading'
-      // is not set (back while uploading would abort)
-      if (loadedProviders.contains(provider)) {
-        super.onGroupExpanded(groupPosition);
-        return;
-      }
-
-      uploading = true;
-      saveGroupPosition = groupPosition;
-
-      if (!syncManager.isConfigured(provider)) {
-        syncManager.connect(onSynchronizerConfiguredCallback, provider);
-      } else {
-        onSynchronizerConfiguredCallback.run(provider, Synchronizer.Status.OK);
-      }
-    }
-
-    final Callback onSynchronizerConfiguredCallback =
-        new Callback() {
-          @Override
-          public void run(String synchronizerName, Status status) {
-            Log.i(getClass().getName(), "status: " + status);
-            if (status != Synchronizer.Status.OK) {
-              uploading = false;
-              return;
-            }
-
-            ArrayList<WorkoutRef> list = workouts.get(synchronizerName);
-            list.clear();
-
-            HashSet<String> tmp = new HashSet<>();
-            tmp.add(synchronizerName);
-
-            syncManager.loadWorkoutList(list, onLoadWorkoutListCallback, tmp);
-          }
-        };
-
-    private void onGroupExpandedImpl() {
-      super.onGroupExpanded(saveGroupPosition);
-    }
-
-    private final Callback onLoadWorkoutListCallback =
-        new Callback() {
-
-          @Override
-          public void run(String synchronizerName, Status status) {
+  final Callback onSynchronizerConfiguredCallback =
+      new Callback() {
+        @Override
+        public void run(String synchronizerName, Status status) {
+          Log.i(getClass().getName(), "status: " + status);
+          if (status != Synchronizer.Status.OK) {
             uploading = false;
-            if (status == Status.OK) {
-              loadedProviders.add(getProvider(saveGroupPosition));
-              adapter.notifyDataSetChanged();
-              onGroupExpandedImpl();
-            }
+            pendingExpandProvider = null;
+            return;
           }
-        };
 
-    @Override
-    public void onGroupCollapsed(int groupPosition) {
-      super.onGroupCollapsed(groupPosition);
-      String provider = getProvider(groupPosition);
-      if (currentlySelectedWorkout != null) {
-        WorkoutRef ref = (WorkoutRef) currentlySelectedWorkout.getTag();
-        if (ref.synchronizer.contentEquals(provider)) {
-          currentlySelectedWorkout.setChecked(false);
-          currentlySelectedWorkout = null;
+          ArrayList<WorkoutRef> list = workouts.get(synchronizerName);
+          list.clear();
+
+          HashSet<String> tmp = new HashSet<>();
+          tmp.add(synchronizerName);
+
+          syncManager.loadWorkoutList(list, onLoadWorkoutListCallback, tmp);
         }
-      }
-    }
-  }
+      };
+
+  private final Callback onLoadWorkoutListCallback =
+      new Callback() {
+        @Override
+        public void run(String synchronizerName, Status status) {
+          uploading = false;
+          if (status == Status.OK && pendingExpandProvider != null) {
+            loadedProviders.add(pendingExpandProvider);
+            refreshListData();
+            listController.expandProvider(pendingExpandProvider);
+          }
+          pendingExpandProvider = null;
+        }
+      };
 }

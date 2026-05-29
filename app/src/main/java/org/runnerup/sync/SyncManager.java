@@ -304,8 +304,11 @@ public class SyncManager {
       case OAUTH2:
         if (configureLauncher != null) {
           configureLauncher.launch(l.getAuthIntent(mActivity));
-        } else if (mActivity != null) {
-          mActivity.startActivityForResult(l.getAuthIntent(mActivity), CONFIGURE_REQUEST);
+        } else {
+          Log.e(
+              getClass().getName(),
+              "OAuth requires configureLauncher; host must call setConfigureLauncher()");
+          handleAuthComplete(l, Status.ERROR);
         }
         return;
       case USER_PASS:
@@ -684,13 +687,6 @@ public class SyncManager {
     final Callback cb = uploadCallback;
     uploadCallback = null;
     if (cb != null) cb.run(null, null);
-  }
-
-  public void onActivityResult(int requestCode, int resultCode, Intent data) {
-    if (requestCode != CONFIGURE_REQUEST) {
-      return;
-    }
-    handleConfigureResult(resultCode, data);
   }
 
   public void disableSynchronizer(

@@ -16,17 +16,27 @@
   -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/RunnerUpCard"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
     xmlns:tools="http://schemas.android.com/tools"
     android:descendantFocusability="blocksDescendants"
     android:orientation="vertical"
-    android:background="@drawable/ripple_card"
-    android:defaultFocusHighlightEnabled="false"
-    android:padding="16dp">
+    android:clickable="true"
+    android:focusable="true"
+    android:clipChildren="true"
+    android:clipToOutline="true">
+
+    <LinearLayout
+        style="@style/RunnerUpCard.Body"
+        android:orientation="vertical"
+        android:padding="16dp">
 
     <TextView
         android:id="@+id/account_row_section_title"
+        style="@style/RunnerUpCard.Content"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
@@ -53,6 +63,7 @@
                 tools:ignore="ContentDescription"/>
 
             <TextView
+                style="@style/RunnerUpCard.Content"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/account_row_icon_text"
@@ -83,7 +94,11 @@
             android:layout_marginStart="16dp"
             android:minWidth="48dp"
             android:minHeight="48dp"
+            android:background="@null"
+            android:defaultFocusHighlightEnabled="false"
             android:contentDescription="@string/Upload" />
+
+    </LinearLayout>
 
     </LinearLayout>
 

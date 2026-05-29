@@ -39,7 +39,7 @@
         android:layout_height="0dp"
         android:fillViewport="false"
         android:scrollbars="horizontal"
-        android:background="@drawable/modern_card_background"
+        android:background="@drawable/card_background"
         android:padding="8dp"
         android:layout_margin="12dp"
         app:layout_constraintTop_toBottomOf="@id/toolbar"

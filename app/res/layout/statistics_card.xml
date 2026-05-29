@@ -17,32 +17,37 @@
 -->
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/RunnerUpCard"
     android:layout_width="match_parent"
     android:layout_height="160dp"
     android:orientation="vertical"
-    android:gravity="center"
-    android:background="@drawable/ripple_card"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
-    android:paddingTop="18dp"
-    android:paddingBottom="18dp"
-    android:defaultFocusHighlightEnabled="false"
+    android:clickable="true"
+    android:focusable="true"
+    android:clipChildren="true"
+    android:clipToOutline="true"
     android:descendantFocusability="blocksDescendants">
+
+    <LinearLayout
+        style="@style/RunnerUpCard.Body"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="18dp"
+        android:paddingBottom="18dp">
 
     <ImageView
         android:id="@+id/statistics_card_icon"
+        style="@style/RunnerUpCard.Content"
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:scaleType="fitCenter"
         android:tint="@color/colorText"
-        android:duplicateParentState="false"
-        android:background="@android:color/transparent"
-        android:layout_gravity="center_horizontal"
-        android:focusable="false"
-        android:clickable="false"/>
+        android:layout_gravity="center_horizontal"/>
 
     <TextView
         android:id="@+id/statistics_card_label"
+        style="@style/RunnerUpCard.Content"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
@@ -56,5 +61,7 @@
         android:gravity="center"
         android:layout_gravity="center_horizontal"
         android:lineSpacingExtra="2dp"/>
+
+    </LinearLayout>
 
 </LinearLayout>

@@ -4,12 +4,18 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:baselineAligned="false"
-    android:layout_margin="@dimen/activity_margin">
+    android:layout_margin="@dimen/activity_margin"
+    android:orientation="vertical">
+
+    <include
+        android:id="@+id/lap_list_header"
+        layout="@layout/laplist_header_row" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/laplist"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:clipToPadding="false"
         android:defaultFocusHighlightEnabled="false"
         android:scrollbarStyle="outsideOverlay" />

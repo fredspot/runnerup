@@ -43,7 +43,7 @@
         android:id="@+id/best_times_list"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:clipToPadding="false"
+        android:clipToPadding="true"
         android:defaultFocusHighlightEnabled="false"
         android:scrollbarStyle="outsideOverlay"
         app:layout_constraintTop_toBottomOf="@id/best_times_actionbar"

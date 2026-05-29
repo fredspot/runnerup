@@ -43,8 +43,10 @@ public class AudioCueSettingsActivity extends AppCompatActivity {
     if (getSupportActionBar() != null) {
       getSupportActionBar().setDisplayHomeAsUpEnabled(true);
       getSupportActionBar().setTitle("Audio Cues");
-      getSupportActionBar().setBackgroundDrawable(
-          ContextCompat.getDrawable(this, R.drawable.modern_card_background));
+      getSupportActionBar()
+          .setBackgroundDrawable(
+              new android.graphics.drawable.ColorDrawable(
+                  getColor(R.color.backgroundPrimary)));
     }
 
     Intent intent = getIntent();

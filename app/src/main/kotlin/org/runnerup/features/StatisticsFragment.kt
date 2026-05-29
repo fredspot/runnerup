@@ -30,6 +30,7 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.runnerup.R
+import org.runnerup.core.util.CardPressHelper
 import org.runnerup.data.DBHelper
 
 class StatisticsFragment : Fragment(R.layout.statistics) {
@@ -80,6 +81,7 @@ class StatisticsFragment : Fragment(R.layout.statistics) {
       val view =
           LayoutInflater.from(parent.context)
               .inflate(R.layout.statistics_card, parent, false)
+      CardPressHelper.prepareCard(view)
       return CardHolder(view, onCategoryClick)
     }
 
@@ -104,8 +106,7 @@ class StatisticsFragment : Fragment(R.layout.statistics) {
       }
 
       fun bind(position: Int) {
-        itemView.isPressed = false
-        iconView.isPressed = false
+        CardPressHelper.clearPressState(itemView, iconView)
         iconView.setImageResource(CATEGORY_ICONS[position])
         labelView.setText(CATEGORY_LABELS[position])
       }

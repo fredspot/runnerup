@@ -55,7 +55,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="12dp"
                 android:orientation="horizontal"
                 android:gravity="center">
@@ -93,7 +93,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="12dp"
                 android:layout_marginBottom="8dp">
 
@@ -141,7 +141,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="12dp"
                 android:layout_marginBottom="8dp">
 
@@ -189,7 +189,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="12dp"
                 android:layout_marginBottom="8dp">
 
@@ -237,7 +237,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="12dp"
                 android:layout_marginBottom="8dp">
 
@@ -285,7 +285,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="12dp"
                 android:layout_marginBottom="8dp">
 
@@ -333,7 +333,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@drawable/modern_card_background"
+                android:background="@drawable/card_background"
                 android:padding="12dp"
                 android:layout_marginBottom="8dp">
 

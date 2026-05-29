@@ -25,13 +25,13 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.CompoundButton
 import android.widget.ImageView
-import android.widget.ListView
 import android.widget.TextView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -56,7 +56,7 @@ class UploadActivity : AppCompatActivity() {
   private var synchronizerName: String? = null
   private var syncMode = SyncManager.SyncMode.UPLOAD
   private var syncManager: SyncManager? = null
-  private var listView: ListView? = null
+  private lateinit var uploadAdapter: UploadListAdapter
 
   private var db: SQLiteDatabase? = null
   private var formatter: Formatter? = null
@@ -90,9 +90,10 @@ class UploadActivity : AppCompatActivity() {
     detailLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { fillData() }
 
-    listView = findViewById(R.id.upload_view)
-    listView?.dividerHeight = 1
-    listView?.adapter = UploadListAdapter()
+    val recyclerView = findViewById<RecyclerView>(R.id.upload_view)
+    recyclerView.layoutManager = LinearLayoutManager(this)
+    uploadAdapter = UploadListAdapter()
+    recyclerView.adapter = uploadAdapter
 
     findViewById<Button>(R.id.upload_account_set_all).setOnClickListener(setAllButtonClick)
     findViewById<Button>(R.id.upload_account_clear_all).setOnClickListener(clearAllButtonClick)
@@ -249,7 +250,7 @@ class UploadActivity : AppCompatActivity() {
   }
 
   private fun requery() {
-    (listView?.adapter as? BaseAdapter)?.notifyDataSetChanged()
+    uploadAdapter.notifyDataSetChanged()
     val button = actionButton ?: return
     val label = actionButtonText ?: return
     if (syncCount > 0) {
@@ -261,94 +262,73 @@ class UploadActivity : AppCompatActivity() {
     }
   }
 
-  private val onActivityClick =
-      View.OnClickListener { view ->
-        val holder = view.tag as ViewHolderUploadActivity
-        val intent = Intent(this@UploadActivity, DetailActivity::class.java)
-        intent.putExtra("ID", holder.activityId)
-        intent.putExtra("mode", "details")
-        detailLauncher.launch(intent)
-      }
-
-  private inner class UploadListAdapter : BaseAdapter() {
+  private inner class UploadListAdapter : RecyclerView.Adapter<UploadListAdapter.Holder>() {
     private val inflater: LayoutInflater = LayoutInflater.from(this@UploadActivity)
 
-    override fun getCount(): Int = allSyncActivities.size
+    override fun getItemCount(): Int = allSyncActivities.size
 
-    override fun getItem(position: Int): Any = allSyncActivities[position]
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
+      val view = inflater.inflate(R.layout.upload_row, parent, false)
+      return Holder(view)
+    }
 
-    override fun getItemId(position: Int): Long = allSyncActivities[position].id
-
-    @SuppressLint("ObsoleteSdkInt")
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-      val view: View
-      val viewHolder: ViewHolderUploadActivity
-      if (convertView == null) {
-        viewHolder = ViewHolderUploadActivity()
-        view = inflater.inflate(R.layout.upload_row, parent, false)
-        viewHolder.tvStartTime = view.findViewById(R.id.upload_list_start_time)
-        viewHolder.tvDistance = view.findViewById(R.id.upload_list_distance)
-        viewHolder.tvTime = view.findViewById(R.id.upload_list_time)
-        viewHolder.tvPace = view.findViewById(R.id.upload_list_pace)
-        viewHolder.tvSport = view.findViewById(R.id.upload_list_sport)
-        viewHolder.cb = view.findViewById(R.id.upload_list_check)
-        view.tag = viewHolder
-      } else {
-        view = convertView
-        viewHolder = view.tag as ViewHolderUploadActivity
-      }
-      viewHolder.activityId = getItemId(position)
+    override fun onBindViewHolder(holder: Holder, position: Int) {
       val ai = allSyncActivities[position]
-      val fmt = formatter ?: return view
+      holder.activityId = ai.id
+      val fmt = formatter ?: return
+      holder.tvStartTime.text =
+          if (ai.startTime != null) fmt.formatDateTime(ai.startTime) else ""
       val d = ai.distance
       val t = ai.duration
-      val startTime = ai.startTime
-      viewHolder.tvStartTime.text =
-          if (startTime != null) fmt.formatDateTime(startTime) else ""
       if (d != null && t != null) {
         ActivitySummaryBinder.bind(
             fmt,
-            viewHolder.tvDistance,
-            viewHolder.tvTime,
-            viewHolder.tvPace,
+            holder.tvDistance,
+            holder.tvTime,
+            holder.tvPace,
             Formatter.Format.TXT_SHORT,
             Formatter.Format.TXT_LONG,
             d,
             t,
         )
       } else {
-        viewHolder.tvDistance.text = ""
-        viewHolder.tvTime.text = ""
-        viewHolder.tvPace.text = ""
+        holder.tvDistance.text = ""
+        holder.tvTime.text = ""
+        holder.tvPace.text = ""
       }
       val sport = ai.sport
-      viewHolder.tvSport.text =
+      holder.tvSport.text =
           if (sport == null) {
             Sport.textOf(resources, DB.ACTIVITY.SPORT_RUNNING)
           } else {
             Sport.textOf(resources, Sport.valueOf(sport).dbValue)
           }
-      viewHolder.cb.tag = position
-      viewHolder.cb.setOnCheckedChangeListener(checkedChangeClick)
-      viewHolder.cb.isChecked = !ai.skipActivity()
-      viewHolder.cb.isEnabled = ai.isRelevantForSynch(syncMode)
+      holder.cb.setOnCheckedChangeListener(null)
+      holder.cb.tag = position
+      holder.cb.setOnCheckedChangeListener(checkedChangeClick)
+      holder.cb.isChecked = !ai.skipActivity()
+      holder.cb.isEnabled = ai.isRelevantForSynch(syncMode)
       if (syncMode == SyncManager.SyncMode.UPLOAD) {
-        view.setOnClickListener(onActivityClick)
-      } else if (view.hasOnClickListeners()) {
-        view.setOnClickListener(null)
+        holder.itemView.setOnClickListener {
+          val intent = Intent(this@UploadActivity, DetailActivity::class.java)
+          intent.putExtra("ID", holder.activityId)
+          intent.putExtra("mode", "details")
+          detailLauncher.launch(intent)
+        }
+      } else {
+        holder.itemView.setOnClickListener(null)
       }
-      return view
     }
-  }
 
-  private class ViewHolderUploadActivity {
-    lateinit var tvStartTime: TextView
-    lateinit var tvDistance: TextView
-    lateinit var tvTime: TextView
-    lateinit var tvPace: TextView
-    lateinit var tvSport: TextView
-    lateinit var cb: CheckBox
-    var activityId: Long = 0
+    inner class Holder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+      val tvStartTime: TextView = itemView.findViewById(R.id.upload_list_start_time)
+      val tvDistance: TextView = itemView.findViewById(R.id.upload_list_distance)
+      val tvTime: TextView = itemView.findViewById(R.id.upload_list_time)
+      val tvPace: TextView = itemView.findViewById(R.id.upload_list_pace)
+      val tvSport: TextView = itemView.findViewById(R.id.upload_list_sport)
+      val cb: CheckBox = itemView.findViewById(R.id.upload_list_check)
+      var activityId: Long = 0
+    }
   }
 
   private val checkedChangeClick =
