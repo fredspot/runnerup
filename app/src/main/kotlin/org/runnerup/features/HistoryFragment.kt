@@ -335,6 +335,7 @@ class HistoryFragment : Fragment(R.layout.history) {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
       val view =
           LayoutInflater.from(parent.context).inflate(R.layout.history_row, parent, false)
+      view.defaultFocusHighlightEnabled = false
       return Holder(view, onItemClick)
     }
 

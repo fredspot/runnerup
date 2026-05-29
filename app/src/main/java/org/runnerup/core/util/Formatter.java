@@ -406,6 +406,9 @@ public class Formatter implements OnSharedPreferenceChangeListener {
     return "";
   }
 
+  /** Separator between segment avg and run max HR (spaces around {@code |}). */
+  private static final String BEST_TIMES_HR_SEPARATOR = " | ";
+
   /**
    * Best Times card line: segment average HR and whole-activity max HR, e.g. {@code 164 | 177}.
    */
@@ -414,15 +417,21 @@ public class Formatter implements OnSharedPreferenceChangeListener {
     String avgPart =
         (avgHr != null && avgHr > 0)
             ? formatHeartRate(Format.TXT_SHORT, avgHr)
-            : dash;
+            : null;
     String maxPart =
         (maxHr != null && maxHr > 0)
             ? formatHeartRate(Format.TXT_SHORT, maxHr)
-            : dash;
-    if (dash.equals(avgPart) && dash.equals(maxPart)) {
-      return dash;
+            : null;
+    if (avgPart != null && maxPart != null) {
+      return avgPart + BEST_TIMES_HR_SEPARATOR + maxPart;
     }
-    return avgPart + resources.getString(R.string.best_times_hr_separator) + maxPart;
+    if (avgPart != null) {
+      return avgPart;
+    }
+    if (maxPart != null) {
+      return maxPart;
+    }
+    return dash;
   }
 
   /**

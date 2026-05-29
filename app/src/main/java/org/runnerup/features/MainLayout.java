@@ -140,10 +140,8 @@ public class MainLayout extends AppCompatActivity {
 
     PreferenceManager.setDefaultValues(this, R.xml.settings, false);
     PreferenceManager.setDefaultValues(this, R.xml.audio_cue_settings, true);
-    PreferenceManager.setDefaultValues(this, R.xml.settings_controls, true);
-    PreferenceManager.setDefaultValues(this, R.xml.settings_graph, true);
+    PreferenceManager.setDefaultValues(this, R.xml.settings_runtime_defaults, true);
     PreferenceManager.setDefaultValues(this, R.xml.settings_maintenance, true);
-    PreferenceManager.setDefaultValues(this, R.xml.settings_map, true);
     PreferenceManager.setDefaultValues(this, R.xml.settings_sensors, true);
     PreferenceManager.setDefaultValues(this, R.xml.settings_units, true);
     PreferenceManager.setDefaultValues(this, R.xml.settings_workout, true);

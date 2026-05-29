@@ -33,9 +33,10 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:onClick="onClickAccountName"
+        android:background="?attr/selectableItemBackgroundBorderless"
         android:clickable="true"
         android:focusable="true"
-        android:foreground="?attr/selectableItemBackground"/>
+        android:defaultFocusHighlightEnabled="false"/>
 
     <CheckBox
         android:id="@+id/reportlist_sent"

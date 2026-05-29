@@ -21,7 +21,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:descendantFocusability="blocksDescendants"
     android:orientation="vertical"
-    android:background="@drawable/modern_card_background"
+    android:background="@drawable/ripple_card"
+    android:defaultFocusHighlightEnabled="false"
     android:padding="16dp">
 
     <TextView

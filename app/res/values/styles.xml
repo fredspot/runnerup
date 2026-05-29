@@ -22,6 +22,10 @@
         <item name="colorAccent">@color/colorAccent</item>
         <item name="colorControlHighlight">@color/colorControlHighlight</item>
         <item name="android:defaultFocusHighlightEnabled">false</item>
+        <item name="selectableItemBackground">@drawable/ripple_card</item>
+        <item name="android:selectableItemBackground">@drawable/ripple_card</item>
+        <item name="selectableItemBackgroundBorderless">@drawable/ripple_borderless</item>
+        <item name="android:selectableItemBackgroundBorderless">@drawable/ripple_borderless</item>
         <item name="preferenceTheme">@style/PreferenceThemeDark</item>
     </style>
 

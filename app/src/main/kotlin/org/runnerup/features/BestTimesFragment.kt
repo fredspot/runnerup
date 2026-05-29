@@ -19,16 +19,16 @@ package org.runnerup.features
 
 import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.Rect
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.BaseAdapter
-import android.widget.ListView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -42,7 +42,7 @@ import org.runnerup.data.DBHelper
 import org.runnerup.data.entities.BestTimesEntity
 import org.runnerup.data.entities.BestTimesSummaryEntity
 
-class BestTimesFragment : Fragment(R.layout.best_times), Constants, AdapterView.OnItemClickListener {
+class BestTimesFragment : Fragment(R.layout.best_times), Constants {
 
   private var db: SQLiteDatabase? = null
   private var adapter: BestTimesListAdapter? = null
@@ -53,19 +53,21 @@ class BestTimesFragment : Fragment(R.layout.best_times), Constants, AdapterView.
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
 
-    val listView = view.findViewById<ListView>(R.id.best_times_list)
+    val recyclerView = view.findViewById<RecyclerView>(R.id.best_times_list)
     val context = requireContext()
 
     db = DBHelper.getWritableDatabase(context)
     formatter = Formatter(context)
-    listView.dividerHeight = 16
-    listView.setOnItemLongClickListener { _, _, _, _ ->
+    recyclerView.layoutManager = LinearLayoutManager(context)
+    val spacing = (16 * resources.displayMetrics.density).toInt()
+    recyclerView.addItemDecoration(SpacingDecoration(spacing))
+    adapter = BestTimesListAdapter()
+    recyclerView.adapter = adapter
+    recyclerView.setOnLongClickListener {
       Log.d(TAG, "Long press detected - forcing recomputation")
       forceRecomputation()
       true
     }
-    adapter = BestTimesListAdapter()
-    listView.adapter = adapter
 
     loadDistances()
   }
@@ -141,34 +143,32 @@ class BestTimesFragment : Fragment(R.layout.best_times), Constants, AdapterView.
     )
   }
 
-  override fun onItemClick(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-    // Clicks handled in adapter row views.
+  private class SpacingDecoration(private val spacePx: Int) : RecyclerView.ItemDecoration() {
+    override fun getItemOffsets(
+        outRect: Rect,
+        view: View,
+        parent: RecyclerView,
+        state: RecyclerView.State,
+    ) {
+      outRect.bottom = spacePx
+    }
   }
 
-  private inner class BestTimesListAdapter : BaseAdapter() {
+  private inner class BestTimesListAdapter : RecyclerView.Adapter<BestTimesListAdapter.RowHolder>() {
     private val inflater = LayoutInflater.from(requireContext())
 
-    override fun getCount(): Int = summaries.size
+    override fun getItemCount(): Int = summaries.size
 
-    override fun getItem(position: Int): Any = summaries[position]
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RowHolder {
+      val row = inflater.inflate(R.layout.best_times_row, parent, false)
+      return RowHolder(row)
+    }
 
-    override fun getItemId(position: Int): Long = position.toLong()
-
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-      val row =
-          convertView ?: inflater.inflate(R.layout.best_times_row, parent, false)
-
+    override fun onBindViewHolder(holder: RowHolder, position: Int) {
       val summary = summaries[position]
       val bestTime = bestTimes.getOrNull(position)
 
-      val distanceText = row.findViewById<TextView>(R.id.distance_text)
-      val cardLayout = row.findViewById<View>(R.id.best_run_card)
-      val timeText = row.findViewById<TextView>(R.id.time_text)
-      val paceText = row.findViewById<TextView>(R.id.pace_text)
-      val dateText = row.findViewById<TextView>(R.id.date_text)
-      val hrText = row.findViewById<TextView>(R.id.hr_text)
-
-      distanceText.setOnClickListener {
+      holder.distanceText.setOnClickListener {
         val intent = Intent(requireContext(), BestTimesDetailActivity::class.java)
         intent.putExtra("DISTANCE", summary.distance)
         startActivity(intent)
@@ -176,24 +176,25 @@ class BestTimesFragment : Fragment(R.layout.best_times), Constants, AdapterView.
 
       val activityId = bestTime?.activityId
       if (activityId != null) {
-        cardLayout.setOnClickListener {
+        holder.cardLayout.setOnClickListener {
           val intent = Intent(requireContext(), DetailActivity::class.java)
           intent.putExtra("ID", activityId)
           intent.putExtra("mode", "details")
           intent.putExtra("source_tab", 2)
           startActivity(intent)
         }
-        cardLayout.isClickable = true
+        holder.cardLayout.isClickable = true
       } else {
-        cardLayout.isClickable = false
+        holder.cardLayout.setOnClickListener(null)
+        holder.cardLayout.isClickable = false
       }
 
-      distanceText.text = BestTimesDistances.getLabel(summary.distance)
+      holder.distanceText.text = BestTimesDistances.getLabel(summary.distance)
 
       val fmt = formatter
       if (bestTime != null && fmt != null) {
         val time = bestTime.time
-        timeText.text =
+        holder.timeText.text =
             if (time != null) {
               fmt.formatElapsedTime(Formatter.Format.TXT_LONG, time / 1000)
             } else {
@@ -201,7 +202,7 @@ class BestTimesFragment : Fragment(R.layout.best_times), Constants, AdapterView.
             }
 
         val pace = bestTime.pace
-        paceText.text =
+        holder.paceText.text =
             if (pace != null) {
               fmt.formatPaceFromSecPerKm(Formatter.Format.TXT_LONG, pace)
             } else {
@@ -209,7 +210,7 @@ class BestTimesFragment : Fragment(R.layout.best_times), Constants, AdapterView.
             }
 
         val startTime = bestTime.startTime
-        dateText.text =
+        holder.dateText.text =
             if (startTime != null) {
               SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
                   .format(Date(startTime * 1000))
@@ -217,15 +218,22 @@ class BestTimesFragment : Fragment(R.layout.best_times), Constants, AdapterView.
               "-"
             }
 
-        hrText.text = fmt.formatBestTimesHeartRateLine(bestTime.avgHr, bestTime.maxHr)
+        holder.hrText.text = fmt.formatBestTimesHeartRateLine(bestTime.avgHr, bestTime.maxHr)
       } else {
-        timeText.text = "-"
-        paceText.text = "-"
-        dateText.text = "-"
-        hrText.text = "-"
+        holder.timeText.text = "-"
+        holder.paceText.text = "-"
+        holder.dateText.text = "-"
+        holder.hrText.text = "-"
       }
+    }
 
-      return row
+    inner class RowHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+      val distanceText: TextView = itemView.findViewById(R.id.distance_text)
+      val cardLayout: View = itemView.findViewById(R.id.best_run_card)
+      val timeText: TextView = itemView.findViewById(R.id.time_text)
+      val paceText: TextView = itemView.findViewById(R.id.pace_text)
+      val dateText: TextView = itemView.findViewById(R.id.date_text)
+      val hrText: TextView = itemView.findViewById(R.id.hr_text)
     }
   }
 

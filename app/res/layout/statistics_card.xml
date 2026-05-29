@@ -21,12 +21,12 @@
     android:layout_height="160dp"
     android:orientation="vertical"
     android:gravity="center"
-    android:background="@drawable/modern_card_background"
-    android:foreground="?attr/selectableItemBackground"
+    android:background="@drawable/ripple_card"
     android:paddingStart="16dp"
     android:paddingEnd="16dp"
     android:paddingTop="18dp"
     android:paddingBottom="18dp"
+    android:defaultFocusHighlightEnabled="false"
     android:descendantFocusability="blocksDescendants">
 
     <ImageView
@@ -34,7 +34,8 @@
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:scaleType="fitCenter"
-        android:tint="@color/colorAccent"
+        android:tint="@color/colorText"
+        android:duplicateParentState="false"
         android:background="@android:color/transparent"
         android:layout_gravity="center_horizontal"
         android:focusable="false"

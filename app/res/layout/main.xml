@@ -39,6 +39,7 @@
         android:elevation="8dp"
         app:tabIndicatorHeight="0dp"
         app:tabIconTint="@color/bottom_tabs"
-        app:tabRippleColor="@null" />
+        app:tabRippleColor="@null"
+        app:tabUnboundedRipple="false" />
 
 </LinearLayout>

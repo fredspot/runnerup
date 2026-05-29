@@ -52,6 +52,8 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import androidx.viewpager2.widget.ViewPager2;
 import android.widget.TextView;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
@@ -181,7 +183,16 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   // Note that the result is not used, the user is dropped back to initial view when a request is
   // done.
   private static final int REQUEST_LOCATION = 3000;
-  private static final int START_ACTIVITY = 112;
+
+  private final ActivityResultLauncher<Intent> runActivityLauncher =
+      registerForActivityResult(
+          new ActivityResultContracts.StartActivityForResult(),
+          result -> {
+            registerStartEventListener();
+            runActivityPending = false;
+            ensureTrackerBound();
+            updateView();
+          });
 
   public StartFragment() {
     super(R.layout.start);
@@ -787,8 +798,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
     runActivityPending = true;
     Intent intent = new Intent(requireContext(), RunActivity.class);
-    // TODO: Use the Activity Result API
-    StartFragment.this.startActivityForResult(intent, START_ACTIVITY);
+    runActivityLauncher.launch(intent);
     notificationStateManager.cancelNotification(); // will be added by RunActivity
   }
 
@@ -1287,31 +1297,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
               });
     }
     trackerBinding.bind();
-  }
-
-  // TODO: Use Activity Result API
-  @Override
-  public void onActivityResult(int requestCode, int resultCode, Intent data) {
-    super.onActivityResult(requestCode, resultCode, data);
-    registerStartEventListener();
-
-    if (data != null) {
-      if (data.getStringExtra("url") != null)
-        Log.e(
-            getClass().getName(), "data.getStringExtra(\"url\") => " + data.getStringExtra("url"));
-      if (data.getStringExtra("ex") != null)
-        Log.e(getClass().getName(), "data.getStringExtra(\"ex\") => " + data.getStringExtra("ex"));
-      if (data.getStringExtra("obj") != null)
-        Log.e(
-            getClass().getName(), "data.getStringExtra(\"obj\") => " + data.getStringExtra("obj"));
-    }
-    if (requestCode == START_ACTIVITY) {
-      runActivityPending = false;
-      ensureTrackerBound();
-    } else {
-      advancedWorkoutListAdapter.reload();
-    }
-    updateView();
   }
 
   @Override

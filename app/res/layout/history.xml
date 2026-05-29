@@ -69,6 +69,7 @@
         android:id="@+id/history_list"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:defaultFocusHighlightEnabled="false"
         android:clipToPadding="false"
         android:paddingBottom="@dimen/margin_for_fab"
         android:paddingStart="16dp"

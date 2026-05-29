@@ -31,7 +31,6 @@
     <string name="pref_cue_hrm_connection">pref_cue_hrm_connection</string>
 
     <string name="cue_configure_hrzones">cue_configure_hrzones</string>
-    <string name="pref_cue_accounts">pref_cue_accounts</string>
     <string name="pref_cue_audiocues">pref_cue_audiocues</string>
     <string name="pref_cue_workouts">pref_cue_workouts</string>
 
@@ -174,5 +173,4 @@
     <string name="pref_exportdb">pref_exportdb</string>
     <string name="pref_importdb">pref_importdb</string>
     <string name="pref_prunedb">pref_prunedb</string>
-    <string name="pref_about">pref_about</string>
 </resources>

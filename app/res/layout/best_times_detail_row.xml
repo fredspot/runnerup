@@ -19,9 +19,9 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@drawable/modern_card_background"
+    android:background="@drawable/ripple_card"
     android:padding="16dp"
-    android:foreground="?android:attr/selectableItemBackground"
+    android:defaultFocusHighlightEnabled="false"
     android:descendantFocusability="blocksDescendants">
 
     <LinearLayout
@@ -76,12 +76,13 @@
             android:textSize="14sp"
             android:textColor="@color/colorTextSecondary" />
 
-        <TextView
-            android:id="@+id/hr_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:maxLines="2"
-            android:gravity="end"
+            <TextView
+                android:id="@+id/hr_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:gravity="end"
             android:textAppearance="@style/ListDescription"
             android:textSize="14sp"
             android:textColor="@color/colorTextSecondary" />

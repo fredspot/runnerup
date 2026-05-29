@@ -39,9 +39,10 @@
         android:paddingTop="8dp"
         android:paddingBottom="8dp"
         android:gravity="start|center_vertical"
+        android:background="?attr/selectableItemBackgroundBorderless"
         android:clickable="true"
         android:focusable="true"
-        android:foreground="?android:attr/selectableItemBackground" />
+        android:defaultFocusHighlightEnabled="false" />
 
     <!-- Best run card on the right (80% width) -->
     <LinearLayout
@@ -50,11 +51,12 @@
         android:layout_height="wrap_content"
         android:layout_weight="0.8"
         android:orientation="vertical"
-        android:background="@drawable/modern_card_background"
+        android:background="@drawable/ripple_card"
         android:padding="12dp"
         android:clickable="true"
         android:focusable="true"
-        android:foreground="?android:attr/selectableItemBackground">
+        android:defaultFocusHighlightEnabled="false"
+        android:descendantFocusability="blocksDescendants">
 
         <!-- Time row -->
         <LinearLayout
@@ -104,7 +106,8 @@
                 android:id="@+id/hr_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:maxLines="2"
+                android:maxLines="1"
+                android:ellipsize="end"
                 android:gravity="end"
                 android:textAppearance="@style/ListDescription"
                 android:textSize="14sp"

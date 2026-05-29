@@ -43,10 +43,10 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp"
-        android:background="@drawable/modern_card_background"
-        android:foreground="?attr/selectableItemBackground"
+        android:background="@drawable/ripple_card"
         android:clickable="true"
         android:focusable="true"
+        android:defaultFocusHighlightEnabled="false"
         android:descendantFocusability="blocksDescendants">
 
         <LinearLayout
@@ -62,6 +62,7 @@
                 android:layout_marginEnd="8dp"
                 android:layout_marginRight="8dp"
                 android:background="@android:color/transparent"
+                android:duplicateParentState="false"
                 android:focusable="false"
                 android:clickable="false"
                 android:contentDescription="@string/Sport"/>

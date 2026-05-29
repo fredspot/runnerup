@@ -38,15 +38,6 @@
         app:fragment="org.runnerup.features.SettingsSensorsFragment"
         app:iconSpaceReserved="false" />
 
-    <!--Controls -->
-
-    <Preference
-        android:key="controls_preferencescreen"
-        android:summary="@string/Controls_pref_summary"
-        android:title="@string/Controls"
-        app:fragment="org.runnerup.features.SettingsControlsFragment"
-        app:iconSpaceReserved="false" />
-
     <!--Workout -->
 
     <Preference
@@ -68,48 +59,12 @@
             android:targetPackage="@string/applicationIdFull" />
     </Preference>
 
-    <!--Accounts -->
-
-    <Preference
-        android:key="@string/pref_cue_accounts"
-        android:summary="@string/Configure_accounts"
-        android:title="@string/Accounts"
-        app:iconSpaceReserved="false">
-        <intent
-            android:targetClass="org.runnerup.features.AccountListActivity"
-            android:targetPackage="@string/applicationIdFull" />
-    </Preference>
-
-    <!--Map -->
-
-    <Preference
-        android:key="map_preferencescreen"
-        android:summary="@string/Map_pref_summary"
-        android:title="@string/Map"
-        app:fragment="org.runnerup.features.SettingsMapFragment"
-        app:iconSpaceReserved="false" />
-
-    <!--Graph -->
-
-    <Preference
-        android:key="graph_preferencescreen"
-        android:title="@string/Graph"
-        app:fragment="org.runnerup.features.SettingsGraphFragment"
-        app:iconSpaceReserved="false" />
-
     <!--Maintenance -->
 
     <Preference
         android:key="advanced_preferencescreen"
         android:title="@string/Maintenance"
         app:fragment="org.runnerup.features.SettingsMaintenanceFragment"
-        app:iconSpaceReserved="false" />
-
-    <!--About -->
-
-    <org.runnerup.ui.common.widget.AboutPreference
-        android:key="@string/pref_about"
-        android:title="@string/About_RunnerUp"
         app:iconSpaceReserved="false" />
 
 </PreferenceScreen>

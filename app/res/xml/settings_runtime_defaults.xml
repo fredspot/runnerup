@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Default values for prefs no longer exposed in Settings UI. -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="@string/pref_lock_run"
+        android:persistent="true"
+        app:iconSpaceReserved="false" />
+
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="@string/pref_pace_graph_smoothing"
+        android:persistent="true"
+        app:iconSpaceReserved="false" />
+
+    <org.runnerup.ui.common.widget.TextPreference
+        android:defaultValue="mm(31);kz(5,13);sg(5)"
+        android:inputType="none"
+        android:key="@string/pref_pace_graph_smoothing_filters"
+        android:persistent="true"
+        app:iconSpaceReserved="false" />
+
+    <org.runnerup.ui.common.widget.TextPreference
+        android:defaultValue="@string/mapboxDefaultStyle"
+        android:inputType="text"
+        android:key="@string/pref_mapbox_default_style"
+        android:persistent="true"
+        app:iconSpaceReserved="false" />
+
+</PreferenceScreen>

@@ -11,7 +11,31 @@ DUMP="/sdcard/runnerup_ui_dump.xml"
 LOCAL_DUMP="$(mktemp)"
 
 log() { echo "[device-smoke] $*"; }
+warn() { echo "[device-smoke] SKIP: $*" >&2; }
 fail() { echo "[device-smoke] FAIL: $*" >&2; exit 1; }
+
+prepare_ui() {
+  adb shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
+  adb shell cmd statusbar collapse >/dev/null 2>&1 || true
+  sleep 0.3
+}
+
+has_runnerup_node() {
+  local rid="$1"
+  python3 - "$PKG" "$DUMP" "$LOCAL_DUMP" "$rid" <<'PY'
+import re, sys, subprocess
+pkg, remote, local, rid = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+subprocess.run(["adb", "shell", "uiautomator", "dump", remote], check=True, capture_output=True)
+subprocess.run(["adb", "pull", remote, local], check=True, capture_output=True)
+raw = open(local, encoding="utf-8", errors="replace").read()
+if f'package="{pkg}"' not in raw:
+    sys.exit(1)
+needle = rid if ":" in rid else f"{pkg}:id/{rid}"
+nodes = re.findall(r"<node[^>]*package=\"" + re.escape(pkg) + r"\"[^>]*>", raw)
+xml = "\n".join(nodes)
+sys.exit(0 if re.search(re.escape(needle), xml) else 1)
+PY
+}
 
 require_device() {
   local count
@@ -26,6 +50,7 @@ require_device() {
 
 tap_rid() {
   local rid="$1"
+  prepare_ui
   python3 - "$PKG" "$DUMP" "$LOCAL_DUMP" "$rid" <<'PY'
 import re, sys, subprocess
 pkg, remote, local, rid = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
@@ -103,6 +128,7 @@ open_detail_fallback() {
 tap_nav_index() {
   # Bottom nav: 0=Run, 1=History, 2=BestTimes, 3=Statistics, 4=Settings
   local idx="$1"
+  prepare_ui
   if ! python3 - "$PKG" "$DUMP" "$LOCAL_DUMP" "$idx" <<'PY'
 import re, sys, subprocess
 pkg, remote, local, idx = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
@@ -191,25 +217,27 @@ main() {
   assert_activity_resumed "MainLayout"
 
   log "open first history card"
-  if tap_rid "history_row_card"; then
-    sleep 2
+  prepare_ui
+  if has_runnerup_node "history_row_card"; then
+    if tap_rid "history_row_card"; then
+      sleep 2
+    fi
+    if ! focused_app | grep -q DetailActivity; then
+      open_detail_fallback
+      sleep 3
+    fi
+    if focused_app | grep -q DetailActivity; then
+      assert_activity_resumed "DetailActivity"
+      log "back to main"
+      adb shell input keyevent KEYCODE_BACK >/dev/null
+      sleep 1
+      assert_activity_resumed "MainLayout"
+    else
+      fail "history_row_card visible but DetailActivity did not open"
+    fi
   else
-    log "history_row_card not in UI dump"
+    warn "Detail — no saved activities (history_row_card not in UI)"
   fi
-  if ! focused_app | grep -q DetailActivity; then
-    open_detail_fallback
-    sleep 3
-  fi
-  if focused_app | grep -q DetailActivity; then
-    assert_activity_resumed "DetailActivity"
-  else
-    log "WARNING: Detail not opened (empty history or tap miss); continuing smoke"
-  fi
-
-  log "back to main"
-  adb shell input keyevent KEYCODE_BACK >/dev/null
-  sleep 1
-  assert_activity_resumed "MainLayout"
 
   log "bottom nav: Run / Start (index 0)"
   tap_nav_index 0 || fail "Start tab not found"
