@@ -22,6 +22,7 @@ import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Color
 import android.view.View
+import android.os.Build
 import android.widget.ImageView
 import android.widget.LinearLayout
 import org.runnerup.R
@@ -112,6 +113,10 @@ class DetailInjuryController(
       imageView.setBackgroundColor(Color.TRANSPARENT)
       imageView.isFocusable = false
       imageView.isClickable = false
+      imageView.isDuplicateParentStateEnabled = false
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        imageView.defaultFocusHighlightEnabled = false
+      }
       imageView.setImageResource(icons[z])
       imageView.setColorFilter(colorForPain(pain))
       val lp =

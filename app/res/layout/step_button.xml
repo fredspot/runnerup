@@ -51,7 +51,7 @@
         android:layout_marginRight="0dp"
         android:focusable="false"
         android:clickable="false"
-        android:duplicateParentState="true"
+        android:background="@android:color/transparent"
         android:contentDescription="@string/Edit_step" />
 
     <TextView

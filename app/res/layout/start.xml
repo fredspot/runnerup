@@ -71,12 +71,6 @@
             android:layout_above="@id/status_layout"
             android:orientation="vertical">
 
-            <com.google.android.material.tabs.TabLayout
-                android:id="@+id/start_tab_layout"
-                style="@style/InnerTabLayout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
             <androidx.viewpager2.widget.ViewPager2
                 android:id="@+id/start_pager"
                 android:layout_width="match_parent"

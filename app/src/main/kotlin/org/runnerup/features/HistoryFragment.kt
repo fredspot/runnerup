@@ -346,6 +346,7 @@ class HistoryFragment : Fragment(R.layout.history) {
         itemView: View,
         onItemClick: (Long?) -> Unit,
     ) : RecyclerView.ViewHolder(itemView) {
+      private val cardView: View = itemView.findViewById(R.id.history_row_card)
       private val sectionTitle: TextView = itemView.findViewById(R.id.history_section_title)
       private val dateText: TextView = itemView.findViewById(R.id.history_list_date)
       private val distanceText: TextView = itemView.findViewById(R.id.history_list_distance)
@@ -356,10 +357,11 @@ class HistoryFragment : Fragment(R.layout.history) {
       private var activityId: Long? = null
 
       init {
-        itemView.setOnClickListener { onItemClick(activityId) }
+        cardView.setOnClickListener { onItemClick(activityId) }
       }
 
       fun bind(row: HistoryRow, formatter: Formatter?) {
+        cardView.isPressed = false
         val ae = row.entity
         activityId = ae.id
         val fmt = formatter ?: return

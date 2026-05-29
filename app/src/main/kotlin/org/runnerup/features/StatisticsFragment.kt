@@ -104,6 +104,8 @@ class StatisticsFragment : Fragment(R.layout.statistics) {
       }
 
       fun bind(position: Int) {
+        itemView.isPressed = false
+        iconView.isPressed = false
         iconView.setImageResource(CATEGORY_ICONS[position])
         labelView.setText(CATEGORY_LABELS[position])
       }

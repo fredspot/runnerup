@@ -51,8 +51,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import androidx.viewpager2.widget.ViewPager2;
-import com.google.android.material.tabs.TabLayout;
-import com.google.android.material.tabs.TabLayoutMediator;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -92,7 +90,6 @@ import org.runnerup.ui.common.widget.ClassicSpinner;
 import org.runnerup.ui.common.widget.SpinnerInterface.OnCloseDialogListener;
 import org.runnerup.ui.common.widget.SpinnerInterface.OnSetValueListener;
 import org.runnerup.ui.common.widget.TitleSpinner;
-import org.runnerup.ui.common.widget.WidgetUtil;
 import org.runnerup.core.workout.Dimension;
 import org.runnerup.core.workout.Sport;
 import org.runnerup.core.workout.Workout;
@@ -403,6 +400,10 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
         if (Objects.equals(i.getStringExtra("mode"), TAB_ADVANCED)) {
           if (startPager != null) {
             startPager.setCurrentItem(2, false);
+          }
+          ClassicSpinner modeSpinner = view.findViewById(R.id.workout_mode_spinner);
+          if (modeSpinner != null) {
+            modeSpinner.setViewSelection(2);
           }
           i.removeExtra("mode");
         }
@@ -728,25 +729,13 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
   private void setupStartTabs(View root) {
     startPager = root.findViewById(R.id.start_pager);
-    TabLayout tabLayout = root.findViewById(R.id.start_tab_layout);
     int[] layouts = {
       R.layout.start_basic, R.layout.start_interval, R.layout.start_advanced
     };
     startPager.setAdapter(new StartTabAdapter(layouts));
     startPager.setOffscreenPageLimit(layouts.length);
-    String[] titles = {
-      getString(org.runnerup.common.R.string.Basic),
-      getString(org.runnerup.common.R.string.Interval),
-      getString(org.runnerup.common.R.string.Advanced)
-    };
-    new TabLayoutMediator(
-            tabLayout,
-            startPager,
-            (tab, position) ->
-                tab.setCustomView(
-                    WidgetUtil.createHoloTabIndicator(
-                        requireContext(), titles[position])))
-        .attach();
+    // Workout mode is selected via workout_mode_spinner only (no duplicate tab bar).
+    startPager.setUserInputEnabled(false);
     startPager.registerOnPageChangeCallback(
         new ViewPager2.OnPageChangeCallback() {
           @Override

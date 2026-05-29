@@ -35,10 +35,10 @@
         android:layout_height="56dp"
         android:scaleType="fitCenter"
         android:tint="@color/colorAccent"
+        android:background="@android:color/transparent"
         android:layout_gravity="center_horizontal"
         android:focusable="false"
-        android:clickable="false"
-        android:duplicateParentState="true"/>
+        android:clickable="false"/>
 
     <TextView
         android:id="@+id/statistics_card_label"
