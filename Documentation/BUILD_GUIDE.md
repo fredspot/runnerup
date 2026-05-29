@@ -351,6 +351,39 @@ Phases 17–19 complete Kotlin-first `features/`: god-class slices on Start/Deta
 - `features/` target: **~85%+** Kotlin source files (Activities/Fragments 100% Kotlin).
 - Device smoke: optional HR settings path (`Settings → Sensors → Heart rate`); optional Statistics drill-down; Monthly Comparison remains optional SKIP.
 
+## Verification (modernization tranche 4 — Phases 20–22)
+
+Phases 20–22 stabilize post–19 Start/GPS UX, port low-risk `core/util` helpers, then `ui/common` widgets and the Wear module.
+
+### Phase 20 (stabilization)
+
+- `StartUiState` uses `updateNewStartButton()` only — do not call legacy `updateStartButtonView()` / `updateStartGpsButtonView()` (they hide `start_gps_button`).
+- `NotificationStateManager.forNotificationManager()` — UI code must not reference package-private `NotificationDisplayStrategy`.
+- `StartButtonPresentation` + JVM tests for Run-tab button label/enabled/background rules.
+- Device smoke asserts `start_gps_button` on Run tab.
+
+### Phase 21 (`core/util` wave 1)
+
+- Kotlin ports: `SafeParse`, `Bitfield`, `TickListener`, `FileNameHelper`, `WeekCalendarUtil`, `HRZoneBounds`, `HRZones`, `ViewUtil`, `RouteMarkerLabels`, `ActivitySummaryBinder` (as applicable).
+- **Deferred (Phase 24+):** `Formatter`, `GraphWrapper`, `KXmlSerializer`, `JsonWriter`, `BgTasks`, `BackupWorker`, `DriveBackupManager`.
+- Target: **~10+** Kotlin files under `core/util/` after Phase 21.
+
+### Tranche 4 completion checklist (Phases 20–22)
+
+- Run tab **Start GPS** button visible and smoke-tested (`StartButtonPresentation` + device smoke).
+- **0** Java under `ui/common/widget/` (all widgets Kotlin, including `SpinnerPresenter`).
+- **0** Java hosts under `wear/src/main/java/` (only `package-info.java` may remain); `:wear` uses `kotlin-android`.
+- `core/util/` wave 1: `SafeParse`, `Bitfield`, `TickListener`, `FileNameHelper`, `WeekCalendarUtil`, `HRZoneBounds`, `HRZones`, `ViewUtil`, `RouteMarkerLabels`, `ActivitySummaryBinder` (+ existing `CardPressHelper`, `StartGpsAccuracyFormatter`).
+- `features/` chart Views remain Java (`PaceChart`, `WeeklyKmChart`, `DistributionChart`, `HRZonesBar`).
+- `tracking/` / `sync/` / `data/` unchanged unless scope expands explicitly.
+
+### Post–19 pitfalls
+
+| Issue | Cause | Fix |
+|-------|--------|-----|
+| Startup crash on Run tab | `StartFragment` constructed `NotificationStateManager` with package-private strategy type | `NotificationStateManager.forNotificationManager()` |
+| Missing Start GPS button | `StartUiState` called legacy hide logic after `updateNewStartButton()` | Remove legacy visibility calls; only `updateNewStartButton()` |
+
 ---
 
 **Last Updated**: May 2026  

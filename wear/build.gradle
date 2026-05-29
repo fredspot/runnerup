@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
     namespace 'org.runnerup'
@@ -8,6 +9,17 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.toVersion("17")
         targetCompatibility JavaVersion.toVersion("17")
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/java']
+            kotlin.srcDirs = ['src/main/kotlin']
+        }
     }
 
     defaultConfig {
@@ -67,6 +79,8 @@ dependencies {
     }
 
     implementation project(':common')
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
     implementation "androidx.annotation:annotation:${rootProject.ext.annotation_version}"
 

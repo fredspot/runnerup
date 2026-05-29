@@ -38,7 +38,7 @@ class HRZonesListAdapter(ctx: Context, private val inflater: LayoutInflater) : B
     if (position == lastPosition) return lastString
 
     if (position < hrZones.count) {
-      val values = hrZones.getHRValues(position + 1)
+      val values = hrZones.getHRValues(position + 1) ?: return null
       val str = "Zone ${position + 1} (${values.first} - ${values.second})"
 
       lastPosition = position

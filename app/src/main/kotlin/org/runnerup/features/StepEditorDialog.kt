@@ -103,7 +103,7 @@ object StepEditorDialog {
     val durationDistance = layout.findViewById<TitleSpinner>(R.id.step_dialog_duration_distance)
     durationType.setOnSetValueListener(
         object : org.runnerup.ui.common.widget.SpinnerInterface.OnSetValueListener {
-          override fun preSetValue(newValue: String?): String? = null
+          override fun preSetValue(newValue: String): String = newValue
 
           override fun preSetValue(newValue: Int): Int {
             when (newValue) {
@@ -166,7 +166,7 @@ object StepEditorDialog {
 
     targetType.setOnSetValueListener(
         object : org.runnerup.ui.common.widget.SpinnerInterface.OnSetValueListener {
-          override fun preSetValue(newValue: String?): String? = null
+          override fun preSetValue(newValue: String): String = newValue
 
           override fun preSetValue(newValue: Int): Int {
             val target: Range? = step.targetValue
@@ -236,9 +236,10 @@ object StepEditorDialog {
         }
         DIMENSION.HRZ -> {
           step.targetType = Dimension.HR
-          val range: Pair<Int, Int> =
-              hrZonesAdapter.hrZones.getHRValues(targetHrz.valueInt + 1)
-          step.setTargetValue(range.first.toDouble(), range.second.toDouble())
+          val range = hrZonesAdapter.hrZones.getHRValues(targetHrz.valueInt + 1)
+          if (range != null) {
+            step.setTargetValue(range.first.toDouble(), range.second.toDouble())
+          }
         }
       }
       val scheme = audioCue.value.toString()

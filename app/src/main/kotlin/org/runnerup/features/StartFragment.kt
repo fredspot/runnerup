@@ -193,7 +193,7 @@ class StartFragment : Fragment(R.layout.start), TickListener, GpsInformation {
     advancedController.reloadAdapters()
     hrZonesAdapter?.reload()
     simpleTargetHrz?.setAdapter(hrZonesAdapter)
-    if (hrZonesAdapter?.hrZones?.isConfigured() != true) {
+    if (hrZonesAdapter?.hrZones?.isConfigured != true) {
       simpleTargetType?.addDisabledValue(DB.DIMENSION.HRZ)
     } else {
       simpleTargetType?.clearDisabled()

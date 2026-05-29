@@ -314,6 +314,20 @@ PY
   sleep 2
   assert_activity_resumed "MainLayout"
 
+  log "Run tab: start_gps_button visible"
+  prepare_ui
+  if has_runnerup_node "start_gps_button"; then
+    log "start_gps_button present"
+    if tap_rid "start_gps_button"; then
+      sleep 1
+      check_logcat_fatal
+    else
+      warn "start_gps_button visible but not tappable (SKIP tap)"
+    fi
+  else
+    fail "start_gps_button not found on Run tab"
+  fi
+
   log "tap workout mode spinner"
   tap_rid "workout_mode_spinner" || log "warning: workout_mode_spinner not tappable (optional)"
   sleep 1

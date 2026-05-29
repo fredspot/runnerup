@@ -106,64 +106,18 @@ internal class StartRunUiController(private val fragment: StartFragment) {
     }
   }
 
-  fun updateStartButtonView() {
-    val startButton = fragment.startButton ?: return
-    val gpsStatus = fragment.mGpsStatus ?: run {
-      startButton.visibility = View.GONE
-      return
-    }
-    val show =
-        gpsStatus.isStarted &&
-            (fragment.sportWithoutGps || (gpsStatus.isLogging && gpsStatus.isFixed)) &&
-            fragment.mTracker != null &&
-            fragment.trackerLifecycle.isTrackerBound() &&
-            fragment.mTracker?.state == TrackerState.CONNECTED &&
-            (!StartFragment.TAB_ADVANCED.contentEquals(
-                fragment.startLaunchController.currentWorkoutTabTag(),
-            ) || fragment.advancedController.advancedWorkout != null)
-    startButton.visibility = if (show) View.VISIBLE else View.GONE
-  }
-
-  fun updateStartGpsButtonView() {
-    val gpsEnable = fragment.gpsEnable ?: return
-    val gpsStatus = fragment.mGpsStatus ?: return
-    if (!gpsStatus.isStarted) {
-      gpsEnable.setText(
-          when {
-            fragment.sportWithoutGps -> org.runnerup.common.R.string.Start_tracker
-            gpsStatus.isEnabled -> org.runnerup.common.R.string.Start_GPS
-            else -> org.runnerup.common.R.string.Enable_GPS
-          },
-      )
-      gpsEnable.visibility = View.VISIBLE
-    } else {
-      gpsEnable.visibility = View.GONE
-    }
-  }
-
   fun updateNewStartButton() {
     val startButton = fragment.startButton ?: return
     val gpsStatus = fragment.mGpsStatus
-    val gpsStarted = gpsStatus?.isStarted == true
-    val gpsFixed = gpsStatus?.isFixed == true
-    val trackerConnected = fragment.mTracker?.state == TrackerState.CONNECTED
-    when {
-      gpsStarted && gpsFixed && trackerConnected -> {
-        startButton.text = "Start Activity"
-        startButton.setBackgroundResource(R.drawable.button_start_activity)
-        startButton.isEnabled = true
-      }
-      gpsStarted -> {
-        startButton.text = "Start Activity"
-        startButton.setBackgroundResource(R.drawable.button_start_gps_disabled)
-        startButton.isEnabled = false
-      }
-      else -> {
-        startButton.text = "Start GPS"
-        startButton.setBackgroundResource(R.drawable.button_start_gps)
-        startButton.isEnabled = true
-      }
-    }
+    val presentation =
+        StartButtonPresentation.resolve(
+            gpsStarted = gpsStatus?.isStarted == true,
+            gpsFixed = gpsStatus?.isFixed == true,
+            trackerConnected = fragment.mTracker?.state == TrackerState.CONNECTED,
+        )
+    startButton.text = presentation.label
+    startButton.setBackgroundResource(presentation.backgroundResId)
+    startButton.isEnabled = presentation.enabled
     startButton.visibility = View.VISIBLE
   }
 

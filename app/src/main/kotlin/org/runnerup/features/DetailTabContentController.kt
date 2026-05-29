@@ -130,7 +130,7 @@ internal class DetailTabContentController(
           activity.formatter,
           activity.mDB,
           activity.mID,
-          sport.getValueInt(),
+          sport.valueInt,
       )
     }
 

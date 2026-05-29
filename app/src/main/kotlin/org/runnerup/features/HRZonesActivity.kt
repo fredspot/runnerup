@@ -65,7 +65,7 @@ class HRZonesActivity : AppCompatActivity(), Constants {
     val hi = row.findViewById<EditText>(R.id.zonehi)
     hi.keyListener = null
     hi.isEnabled = false
-    val lim = hrZoneCalculator.getZoneLimits(zone)
+    val lim = hrZoneCalculator.getZoneLimits(zone) ?: return row
     tv.text =
         String.format(
             Locale.getDefault(),
@@ -246,9 +246,9 @@ class HRZonesActivity : AppCompatActivity(), Constants {
         val zoneCount = hrZoneCalculator.zoneCount
         val maxHR = SafeParse.parseInt(maxHRSpinner.value.toString(), 180)
         for (i in 0 until zoneCount) {
-          val `val` = hrZoneCalculator.computeHRZone(i + 1, maxHR)
-          zones[2 * i /*+ 0*/].setText(String.format(Locale.getDefault(), "%d", `val`.first))
-          zones[2 * i + 1].setText(String.format(Locale.getDefault(), "%d", `val`.second))
+          val zonePair = hrZoneCalculator.computeHRZone(i + 1, maxHR) ?: continue
+          zones[2 * i /*+ 0*/].setText(String.format(Locale.getDefault(), "%d", zonePair.first))
+          zones[2 * i + 1].setText(String.format(Locale.getDefault(), "%d", zonePair.second))
         }
       } catch (_: NumberFormatException) {
       }
