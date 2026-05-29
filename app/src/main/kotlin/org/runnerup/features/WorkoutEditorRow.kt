@@ -30,10 +30,6 @@ sealed class WorkoutEditorRow {
     override val isDraggable: Boolean = true
   }
 
-  data class RepeatAdd(val repeat: RepeatStep) : WorkoutEditorRow() {
-    override val isDraggable: Boolean = false
-  }
-
   fun topLevelStep(): Step? =
       when (this) {
         is TopStep -> step
@@ -51,47 +47,11 @@ sealed class WorkoutEditorRow {
           for (child in s.steps) {
             rows.add(RepeatChild(child, s))
           }
-          rows.add(RepeatAdd(s))
         } else {
           rows.add(TopStep(s))
         }
       }
       return rows
-    }
-
-    @JvmStatic
-    fun canSwap(a: WorkoutEditorRow, b: WorkoutEditorRow): Boolean {
-      if (!a.isDraggable || !b.isDraggable) {
-        return false
-      }
-      if (a is RepeatChild && b is RepeatChild) {
-        return a.repeat === b.repeat
-      }
-      if (a.topLevelStep() != null && b.topLevelStep() != null) {
-        return true
-      }
-      return false
-    }
-
-    @JvmStatic
-    fun move(workout: Workout, rows: List<WorkoutEditorRow>, from: Int, to: Int): Boolean {
-      val fromRow = rows.getOrNull(from) ?: return false
-      val toRow = rows.getOrNull(to) ?: return false
-      if (!canSwap(fromRow, toRow)) {
-        return false
-      }
-      if (fromRow is RepeatChild && toRow is RepeatChild) {
-        val list = fromRow.repeat.steps
-        val fromIdx = list.indexOf(fromRow.step)
-        val toIdx = list.indexOf(toRow.step)
-        return WorkoutEditorHelper.moveInList(list, fromIdx, toIdx)
-      }
-      val fromStep = fromRow.topLevelStep() ?: return false
-      val toStep = toRow.topLevelStep() ?: return false
-      val list = workout.steps
-      val fromIdx = list.indexOf(fromStep)
-      val toIdx = list.indexOf(toStep)
-      return WorkoutEditorHelper.moveInList(list, fromIdx, toIdx)
     }
   }
 }

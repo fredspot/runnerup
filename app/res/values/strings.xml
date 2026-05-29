@@ -128,9 +128,13 @@
   <string name="Step_cue_settings_hint">Tap a step to edit. Long-press for duplicate or delete. Drag the handle to reorder.</string>
   <string name="Reorder_step">Reorder step</string>
   <string name="Workout_step_actions">Step actions</string>
+  <string name="Workout_repeat_actions">Repeat block actions</string>
   <string name="Duplicate_step">Duplicate</string>
-  <string name="Add_step_inside_repeat">Add step inside repeat</string>
+  <string name="Duplicate_repeat_block">Duplicate repeat block</string>
   <string name="Repeat_block">Repeat block</string>
-  <string name="Workout_editor_steps_hint">Drag the ⋮⋮ handle to reorder. Move repeat blocks in the workout; move steps inside a repeat under that block. Long-press a step for duplicate or delete.</string>
+  <string name="Workout_editor_steps_hint">Drag the handle to reorder. Drop steps onto a repeat block to move them inside. Tap to edit; long-press to duplicate or delete.</string>
   <string name="Workout_steps">Steps</string>
+  <string name="Workout_editor_menu">Workout editor menu</string>
+  <string name="Rename_workout">Rename workout</string>
+  <string name="Workout_name_exists">A workout with this name already exists</string>
 </resources>

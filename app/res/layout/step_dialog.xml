@@ -3,6 +3,7 @@
     xmlns:runnerup="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="@color/backgroundPrimary"
     android:fillViewport="true">
 
     <LinearLayout
@@ -22,6 +23,7 @@
             android:id="@+id/step_dialog_intensity"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
             android:entries="@array/step_intensity_types"
             android:prompt="@string/Type"
             android:text="@string/Step_intensity"

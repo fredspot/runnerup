@@ -112,15 +112,29 @@ public class WorkoutSerializer {
 
   private static Intensity getIntensity(JSONObject obj) throws JSONException {
     String stepTypeKey = obj.getString("stepTypeKey");
-    if (stepTypeKey.equalsIgnoreCase("warmup")) return Intensity.WARMUP;
-    else if (stepTypeKey.equalsIgnoreCase("repeat")) return Intensity.REPEAT;
-    else if (stepTypeKey.equalsIgnoreCase("rest")) return Intensity.RESTING;
-    else if (stepTypeKey.equalsIgnoreCase("recovery")) return Intensity.RECOVERY;
-    else if (stepTypeKey.equalsIgnoreCase("cooldown")) return Intensity.COOLDOWN;
+    Intensity fromKey = intensityFromTypeKey(stepTypeKey);
+    if (fromKey != null) {
+      return fromKey;
+    }
+    String intensityTypeKey = getString(obj, "intensityTypeKey");
+    fromKey = intensityFromTypeKey(intensityTypeKey);
+    if (fromKey != null) {
+      return fromKey;
+    }
+    return Intensity.ACTIVE;
+  }
 
-    // @TODO look at intensityTypeKey too??
-    else if (stepTypeKey.equalsIgnoreCase("interval")) return Intensity.ACTIVE;
-    else if (stepTypeKey.equalsIgnoreCase("other")) return Intensity.ACTIVE;
+  private static Intensity intensityFromTypeKey(String key) {
+    if (key == null) {
+      return null;
+    }
+    if (key.equalsIgnoreCase("warmup")) return Intensity.WARMUP;
+    if (key.equalsIgnoreCase("repeat")) return Intensity.REPEAT;
+    if (key.equalsIgnoreCase("rest")) return Intensity.RESTING;
+    if (key.equalsIgnoreCase("recovery")) return Intensity.RECOVERY;
+    if (key.equalsIgnoreCase("cooldown")) return Intensity.COOLDOWN;
+    if (key.equalsIgnoreCase("interval") || key.equalsIgnoreCase("active")) return Intensity.ACTIVE;
+    if (key.equalsIgnoreCase("other")) return Intensity.ACTIVE;
     return null;
   }
 
@@ -400,6 +414,9 @@ public class WorkoutSerializer {
     Intensity intensity = getIntensity(obj);
     Pair<Dimension, Double> duration = getDuration(obj, intensity);
     Pair<Dimension, Range> target = getTarget(obj);
+    if (target.first != null && target.second == null) {
+      target = NullTargetPair;
+    }
     switch (intensity) {
       case REPEAT:
         {

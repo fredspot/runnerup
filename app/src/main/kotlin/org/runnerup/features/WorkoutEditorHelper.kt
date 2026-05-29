@@ -61,11 +61,6 @@ object WorkoutEditorHelper {
   }
 
   @JvmStatic
-  fun addStepInsideRepeat(repeat: RepeatStep) {
-    repeat.steps.add(Step())
-  }
-
-  @JvmStatic
   fun copyStep(source: Step): Step {
     if (source is RepeatStep) {
       val copy = RepeatStep()

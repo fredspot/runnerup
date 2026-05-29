@@ -21,7 +21,6 @@ import androidx.recyclerview.widget.RecyclerView
 import java.util.ArrayList
 import org.runnerup.R
 import org.runnerup.core.workout.Workout
-import org.runnerup.core.workout.Workout.StepListEntry
 import org.runnerup.core.workout.WorkoutSerializer
 import org.runnerup.ui.common.widget.SpinnerInterface.OnSetValueListener
 import org.runnerup.ui.common.widget.TitleSpinner
@@ -35,7 +34,7 @@ internal class StartAdvancedWorkoutController(private val fragment: StartFragmen
 
   private var advancedWorkoutSpinner: TitleSpinner? = null
   private var advancedWorkoutListAdapter: WorkoutListAdapter? = null
-  private var stepsAdapter: WorkoutStepsAdapter? = null
+  private var stepsAdapter: WorkoutEditorPreviewAdapter? = null
 
   fun bindAdvancedTab(view: View, inflater: LayoutInflater, mDB: android.database.sqlite.SQLiteDatabase) {
     advancedAudioListAdapter = AudioSchemeListAdapter(mDB, inflater, false)
@@ -61,8 +60,9 @@ internal class StartAdvancedWorkoutController(private val fragment: StartFragmen
     )
 
     val stepList = view.findViewById<RecyclerView>(R.id.advanced_step_list)
-    stepsAdapter = WorkoutStepsAdapter()
+    stepsAdapter = WorkoutEditorPreviewAdapter(fragment)
     stepList.layoutManager = LinearLayoutManager(fragment.requireContext())
+    stepsAdapter?.attachToRecyclerView(stepList)
     stepList.adapter = stepsAdapter
     stepList.itemAnimator = null
   }
@@ -85,7 +85,7 @@ internal class StartAdvancedWorkoutController(private val fragment: StartFragmen
     if ("" == workoutName) return
     try {
       advancedWorkout = WorkoutSerializer.readFile(ctx, workoutName)
-      stepsAdapter?.setSteps(advancedWorkout?.stepList ?: ArrayList())
+      stepsAdapter?.setWorkout(advancedWorkout)
     } catch (ex: Exception) {
       ex.printStackTrace()
       AlertDialog.Builder(fragment.requireActivity())
@@ -127,46 +127,4 @@ internal class StartAdvancedWorkoutController(private val fragment: StartFragmen
     }
   }
 
-  private inner class WorkoutStepsAdapter : RecyclerView.Adapter<StepHolder>() {
-    private var steps: List<StepListEntry> = ArrayList()
-
-    fun setSteps(newSteps: List<StepListEntry>) {
-      steps = newSteps
-      notifyDataSetChanged()
-    }
-
-    override fun getItemCount(): Int = steps.size
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): StepHolder {
-      val button = StepButton(fragment.requireContext(), null)
-      return StepHolder(button as View)
-    }
-
-    override fun onBindViewHolder(holder: StepHolder, position: Int) {
-      val entry = steps[position]
-      val button = holder.itemView as StepButton
-      button.setStep(entry.step)
-      val pxToDp = fragment.resources.displayMetrics.density
-      button.setPadding((entry.level * 8 * pxToDp + 0.5f).toInt(), 0, 0, 0)
-      button.setOnChangedListener(onWorkoutChanged)
-    }
-
-  }
-
-  private class StepHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
-
-  private val onWorkoutChanged = Runnable {
-    val name = advancedWorkoutSpinner?.value?.toString() ?: return@Runnable
-    val workout = advancedWorkout ?: return@Runnable
-    val ctx = fragment.requireActivity().applicationContext
-    try {
-      WorkoutSerializer.writeFile(ctx, name, workout)
-    } catch (ex: Exception) {
-      AlertDialog.Builder(fragment.requireContext())
-          .setTitle(org.runnerup.common.R.string.Failed_to_load_workout)
-          .setMessage(ex.toString())
-          .setPositiveButton(org.runnerup.common.R.string.OK) { dialog, _ -> dialog.dismiss() }
-          .show()
-    }
-  }
 }

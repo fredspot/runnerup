@@ -74,6 +74,30 @@ public class StepButton extends LinearLayout {
     mIntensityIcon = findViewById(R.id.step_icon);
     mDurationValue = findViewById(R.id.step_duration_value);
     mGoalValue = findViewById(R.id.step_goal_value);
+
+    onRepeatClickListener =
+        v ->
+            StepEditorDialog.showEditRepeatCount(
+                mContext,
+                step,
+                () -> {
+                  setStep(step);
+                  if (mOnChangedListener != null) {
+                    mOnChangedListener.run();
+                  }
+                });
+
+    onStepClickListener =
+        v ->
+            StepEditorDialog.showEditStep(
+                mContext,
+                step,
+                () -> {
+                  setStep(step);
+                  if (mOnChangedListener != null) {
+                    mOnChangedListener.run();
+                  }
+                });
   }
 
   @Override
@@ -87,15 +111,6 @@ public class StepButton extends LinearLayout {
 
   public void setOnChangedListener(Runnable runnable) {
     mOnChangedListener = runnable;
-  }
-
-  /** Flat row style when embedded in a {@code RunnerUpCard} (workout editor). */
-  public void setEditorCardStyle(boolean inCard) {
-    if (inCard) {
-      mLayout.setBackgroundResource(android.R.color.transparent);
-    } else {
-      mLayout.setBackgroundResource(R.drawable.title_spinner);
-    }
   }
 
   public void setStep(Step step) {
@@ -190,251 +205,6 @@ public class StepButton extends LinearLayout {
     return sb;
   }
 
-  private final OnClickListener onRepeatClickListener =
-      new OnClickListener() {
-
-        @Override
-        public void onClick(View v) {
-          final NumberPicker numberPicker = new NumberPicker(mContext, null);
-          numberPicker.setOrientation(VERTICAL);
-          numberPicker.setDigits(4);
-          numberPicker.setRange(0, 9999, true);
-          numberPicker.setValue(step.getRepeatCount());
-
-          final LinearLayout layout = new LinearLayout(mContext);
-          layout.setLayoutParams(
-              new LinearLayout.LayoutParams(
-                  LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
-          layout.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.CENTER_VERTICAL);
-          layout.addView(numberPicker);
-
-          new AlertDialog.Builder(mContext)
-              .setTitle(org.runnerup.common.R.string.repeat)
-              .setView(layout)
-              .setPositiveButton(
-                  org.runnerup.common.R.string.OK,
-                  (dialog, whichButton) -> {
-                    step.setRepeatCount(numberPicker.getValue());
-                    dialog.dismiss();
-                    setStep(step); // redraw
-                    if (mOnChangedListener != null) {
-                      mOnChangedListener.run();
-                    }
-                  })
-              .setNegativeButton(
-                  org.runnerup.common.R.string.Cancel, (dialog, whichButton) -> dialog.dismiss())
-              .show();
-        }
-      };
-
-  private final OnClickListener onStepClickListener =
-      new OnClickListener() {
-
-        @Override
-        public void onClick(View v) {
-          final LayoutInflater inflater = LayoutInflater.from(mContext);
-          @SuppressLint("InflateParams")
-          final View layout = inflater.inflate(R.layout.step_dialog, null);
-
-          final Runnable save = setupEditStep(inflater, layout);
-
-          new AlertDialog.Builder(mContext)
-              .setTitle(org.runnerup.common.R.string.Edit_step)
-              .setView(layout)
-              .setPositiveButton(
-                  org.runnerup.common.R.string.OK,
-                  (dialog, whichButton) -> {
-                    save.run();
-                    dialog.dismiss();
-                    setStep(step); // redraw
-                    if (mOnChangedListener != null) {
-                      mOnChangedListener.run();
-                    }
-                  })
-              .setNegativeButton(
-                  org.runnerup.common.R.string.Cancel, (dialog, whichButton) -> dialog.dismiss())
-              .show();
-        }
-      };
-
-  private Runnable setupEditStep(LayoutInflater inflator, View layout) {
-    final TitleSpinner stepType = layout.findViewById(R.id.step_dialog_intensity);
-    stepType.setValue(step.getIntensity().getValue());
-
-    final HRZonesListAdapter hrZonesAdapter = new HRZonesListAdapter(mContext, inflator);
-    final TitleSpinner durationType = layout.findViewById(R.id.step_dialog_duration_type);
-    final TitleSpinner durationTime = layout.findViewById(R.id.step_dialog_duration_time);
-    final TitleSpinner durationDistance = layout.findViewById(R.id.step_dialog_duration_distance);
-    durationType.setOnSetValueListener(
-        new TitleSpinner.OnSetValueListener() {
-          @Override
-          public String preSetValue(String newValue) throws IllegalArgumentException {
-            return null;
-          }
-
-          @Override
-          public int preSetValue(int newValue) throws IllegalArgumentException {
-            switch (newValue) {
-              case DIMENSION.TIME:
-                durationTime.setEnabled(true);
-                durationTime.setVisibility(View.VISIBLE);
-                durationTime.setValue(
-                    formatter.formatElapsedTime(
-                        Formatter.Format.TXT, (long) step.getDurationValue()));
-                durationDistance.setVisibility(View.GONE);
-                break;
-              case DIMENSION.DISTANCE:
-                durationTime.setVisibility(View.GONE);
-                durationDistance.setEnabled(true);
-                durationDistance.setVisibility(View.VISIBLE);
-                durationDistance.setValue(Long.toString((long) step.getDurationValue()));
-                break;
-              default:
-                durationTime.setEnabled(false);
-                durationDistance.setEnabled(false);
-                break;
-            }
-            return newValue;
-          }
-        });
-    if (step.getDurationType() == null) {
-      durationType.setValue(-1);
-    } else {
-      durationType.setValue(step.getDurationType().getValue());
-    }
-
-    final TitleSpinner targetType = layout.findViewById(R.id.step_dialog_target_type);
-    final TitleSpinner targetPaceLo = layout.findViewById(R.id.step_dialog_target_pace_lo);
-    final TitleSpinner targetPaceHi = layout.findViewById(R.id.step_dialog_target_pace_hi);
-    final TitleSpinner targetHrz = layout.findViewById(R.id.step_dialog_target_hrz);
-
-    final TitleSpinner audioCue = layout.findViewById(R.id.step_dialog_audio_cue);
-    final TitleSpinner hrCueSeconds = layout.findViewById(R.id.step_dialog_hr_cue_seconds);
-    final TitleSpinner hrCueAnnouncement = layout.findViewById(R.id.step_dialog_hr_cue_announcement);
-    final TitleSpinner paceCueSeconds = layout.findViewById(R.id.step_dialog_pace_cue_seconds);
-
-    AudioSchemeListAdapter audioAdapter =
-        new AudioSchemeListAdapter(
-            DBHelper.getReadableDatabase(mContext), inflator, false);
-    audioAdapter.reload();
-    audioCue.setAdapter(audioAdapter);
-    if (step.getAudioCueScheme() != null) {
-      audioCue.setValue(step.getAudioCueScheme());
-    } else {
-      audioCue.setValue(mContext.getString(org.runnerup.common.R.string.Default));
-    }
-    hrCueSeconds.setValue(Integer.toString(step.getHrCueIntervalSeconds()));
-    hrCueAnnouncement.setValue(step.getHrCueAnnouncement());
-    paceCueSeconds.setValue(Integer.toString(step.getPaceCueIntervalSeconds()));
-
-    if (!hrZonesAdapter.hrZones.isConfigured()) {
-      targetType.addDisabledValue(DIMENSION.HRZ);
-    } else {
-      targetHrz.setAdapter(hrZonesAdapter);
-    }
-
-    targetType.setOnSetValueListener(
-        new TitleSpinner.OnSetValueListener() {
-          @Override
-          public String preSetValue(String newValue) throws IllegalArgumentException {
-            return null;
-          }
-
-          @Override
-          public int preSetValue(int newValue) throws IllegalArgumentException {
-            Range target = step.getTargetValue();
-            switch (newValue) {
-              case DIMENSION.PACE:
-                targetPaceLo.setEnabled(true);
-                targetPaceHi.setEnabled(true);
-                targetPaceLo.setVisibility(View.VISIBLE);
-                targetPaceHi.setVisibility(View.VISIBLE);
-                if (target != null) {
-                  targetPaceLo.setValue(
-                      formatter.formatPace(Formatter.Format.TXT_SHORT, target.minValue));
-                  targetPaceHi.setValue(
-                      formatter.formatPace(Formatter.Format.TXT_SHORT, target.maxValue));
-                }
-                targetHrz.setVisibility(View.GONE);
-                break;
-              case DIMENSION.HR:
-              case DIMENSION.HRZ:
-                targetPaceLo.setVisibility(View.GONE);
-                targetPaceHi.setVisibility(View.GONE);
-                targetHrz.setEnabled(true);
-                targetHrz.setVisibility(View.VISIBLE);
-                if (target != null) {
-                  // the zones are off (i) due to 0-base in java arrays
-                  // to 1 base in user HR zones numbering, and (b) there are 2 values
-                  // per zone (min and max values)
-                  int matchedZone =
-                      hrZonesAdapter.hrZones.match(target.minValue, target.maxValue) - 2;
-                  if (matchedZone < 0) {
-                    matchedZone = 0;
-                  }
-                  targetHrz.setValue(matchedZone);
-                } else {
-                  targetHrz.setValue(0);
-                }
-                break;
-              default:
-                targetPaceLo.setEnabled(false);
-                targetPaceHi.setEnabled(false);
-                targetHrz.setEnabled(false);
-                break;
-            }
-            return newValue;
-          }
-        });
-    if (step.getTargetType() == null) {
-      targetType.setValue(-1);
-    } else if (step.getTargetType().getValue() == DIMENSION.HR) {
-      targetType.setValue(DIMENSION.HRZ);
-    } else {
-      targetType.setValue(step.getTargetType().getValue());
-    }
-
-    return () -> {
-      step.setIntensity(Intensity.valueOf(stepType.getValueInt()));
-      step.setDurationType(Dimension.valueOf(durationType.getValueInt()));
-      switch (durationType.getValueInt()) {
-        case DIMENSION.DISTANCE:
-          step.setDurationValue(
-              SafeParse.parseDouble(durationDistance.getValue().toString(), 1000));
-          break;
-        case DIMENSION.TIME:
-          step.setDurationValue(SafeParse.parseSeconds(durationTime.getValue().toString(), 60));
-          break;
-      }
-      step.setTargetType(Dimension.valueOf(targetType.getValueInt()));
-      switch (targetType.getValueInt()) {
-        case DIMENSION.PACE:
-          {
-            double unitMeters = Formatter.getUnitMeters(mContext);
-            double paceLo =
-                (double) SafeParse.parseSeconds(targetPaceLo.getValue().toString(), 5 * 60);
-            double paceHi =
-                (double) SafeParse.parseSeconds(targetPaceHi.getValue().toString(), 5 * 60);
-            step.setTargetValue(paceLo / unitMeters, paceHi / unitMeters);
-            break;
-          }
-        case DIMENSION.HRZ:
-          step.setTargetType(Dimension.HR);
-          Pair<Integer, Integer> range =
-              hrZonesAdapter.hrZones.getHRValues(targetHrz.getValueInt() + 1);
-          step.setTargetValue(range.first, range.second);
-      }
-      String scheme = audioCue.getValue().toString();
-      if (scheme.contentEquals(mContext.getString(org.runnerup.common.R.string.Default))) {
-        step.setAudioCueScheme(null);
-      } else {
-        step.setAudioCueScheme(scheme);
-      }
-      step.setHrCueIntervalSeconds(
-          SafeParse.parseInt(hrCueSeconds.getValue().toString(), 0));
-      step.setHrCueAnnouncement(hrCueAnnouncement.getValueInt());
-      step.setPaceCueIntervalSeconds(
-          SafeParse.parseInt(paceCueSeconds.getValue().toString(), 0));
-    };
-  }
+  private OnClickListener onRepeatClickListener;
+  private OnClickListener onStepClickListener;
 }

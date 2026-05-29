@@ -95,6 +95,21 @@
         <item name="android:textStyle">bold</item>
     </style>
 
+    <!-- Match Run tab Start GPS (rounded blue, white bold label). -->
+    <style name="RunPrimaryButton" parent="Widget.AppCompat.Button">
+        <item name="android:background">@drawable/button_start_gps</item>
+        <item name="android:textColor">@color/button_text_colors</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:elevation">4dp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <style name="RunSecondaryButton" parent="RunPrimaryButton">
+        <item name="android:background">@drawable/button_scan_grey</item>
+    </style>
+
     <style name="RunHeader" parent="AppTheme">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
@@ -195,6 +210,12 @@
         <item name="android:textColorPrimary">@color/colorText</item>
         <item name="android:textColorSecondary">@color/colorTextSecondary</item>
         <item name="android:background">@color/backgroundCard</item>
+        <item name="android:windowBackground">@drawable/dialog_background_rounded</item>
+        <item name="buttonBarButtonStyle">@style/AlertDialogButton</item>
+    </style>
+
+    <style name="AlertDialogButton" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
+        <item name="android:textColor">@color/colorAccent</item>
     </style>
 
 </resources>

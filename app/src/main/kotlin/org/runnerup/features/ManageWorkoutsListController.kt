@@ -13,7 +13,6 @@ import android.content.ContentValues
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.RadioButton
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -28,13 +27,12 @@ import java.util.HashSet
 class ManageWorkoutsListController(
     recyclerView: RecyclerView,
     private val onHeaderClick: (String, Boolean) -> Unit,
-    private val onWorkoutSelected: (WorkoutRef) -> Unit,
+    private val onWorkoutLongPress: (WorkoutRef) -> Unit,
 ) {
   private val expandedProviders = HashSet<String>()
   private val providers = ArrayList<ContentValues>()
   private val workouts = HashMap<String, ArrayList<WorkoutRef>>()
   private val rows = ArrayList<ListRow>()
-  private var selectedWorkoutName: String? = null
 
   private val adapter = WorkoutListAdapter()
 
@@ -42,12 +40,6 @@ class ManageWorkoutsListController(
     recyclerView.layoutManager = LinearLayoutManager(recyclerView.context)
     recyclerView.adapter = adapter
     CardPressHelper.prepareRowHost(recyclerView)
-  }
-
-  fun setSelectedWorkoutName(name: String?) {
-    if (selectedWorkoutName == name) return
-    selectedWorkoutName = name
-    adapter.notifyDataSetChanged()
   }
 
   fun isProviderExpanded(provider: String): Boolean = expandedProviders.contains(provider)
@@ -154,17 +146,13 @@ class ManageWorkoutsListController(
 
     inner class WorkoutHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
       private val card: View = itemView.findViewById(R.id.manage_workout_row_card)
-      private val radio: RadioButton = itemView.findViewById(R.id.download_workout_checkbox)
       private val title: TextView = itemView.findViewById(R.id.manage_workout_row_title)
 
       fun bind(row: ListRow.Workout) {
         title.text = row.ref.workoutName
-        val selected =
-            selectedWorkoutName != null &&
-                selectedWorkoutName == row.ref.workoutName
-        radio.isChecked = selected
-        card.isSelected = selected
-        card.setOnClickListener { onWorkoutSelected(row.ref) }
+        card.setOnClickListener(null)
+        card.isClickable = true
+        WorkoutEditorLongPress.bind(card, Runnable { onWorkoutLongPress(row.ref) })
       }
     }
   }
