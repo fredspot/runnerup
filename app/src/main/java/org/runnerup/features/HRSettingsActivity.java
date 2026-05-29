@@ -18,7 +18,6 @@
 package org.runnerup.features;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -33,13 +32,10 @@ import android.os.Handler;
 import android.provider.Settings;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -114,7 +110,7 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
           new ActivityResultContracts.StartActivityForResult(),
           result -> startScan());
 
-  private DeviceAdapter deviceAdapter = null;
+  private HRSettingsDeviceController deviceController = null;
   private boolean mIsScanning = false;
 
   private final OnClickListener hrZonesClick =
@@ -128,7 +124,7 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
         close();
         mIsScanning = true;
         log("select HR-provider");
-        selectProvider();
+        deviceController.selectProvider();
       };
 
   @Override
@@ -145,7 +141,87 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
     }
 
     providers = HRManager.getHRProviderList(this);
-    deviceAdapter = new DeviceAdapter(this);
+    deviceController =
+        new HRSettingsDeviceController(
+            this,
+            new HRSettingsDeviceController.Host() {
+              @Override
+              public List<HRProvider> getProviders() {
+                return providers;
+              }
+
+              @Override
+              public HRProvider getHrProvider() {
+                return hrProvider;
+              }
+
+              @Override
+              public void setHrProvider(HRProvider provider) {
+                hrProvider = provider;
+              }
+
+              @Override
+              public void setScanning(boolean scanning) {
+                mIsScanning = scanning;
+              }
+
+              @Override
+              public boolean isScanning() {
+                return mIsScanning;
+              }
+
+              @Override
+              public void log(String msg) {
+                HRSettingsActivity.this.log(msg);
+              }
+
+              @Override
+              public void loadAndOpen() {
+                load();
+                open();
+              }
+
+              @Override
+              public void openProvider() {
+                open();
+              }
+
+              @Override
+              public void updateView() {
+                HRSettingsActivity.this.updateView();
+              }
+
+              @Override
+              public boolean checkPermissions() {
+                return HRSettingsActivity.this.checkPermissions();
+              }
+
+              @Override
+              public void connectFromScan() {
+                connect();
+              }
+
+              @Override
+              public String getBtName() {
+                return btName;
+              }
+
+              @Override
+              public String getBtAddress() {
+                return btAddress;
+              }
+
+              @Override
+              public void setBtSelection(String name, String address) {
+                btName = name;
+                btAddress = address;
+              }
+
+              @Override
+              public void launchBluetoothSettings() {
+                bluetoothSettingsLauncher.launch(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
+              }
+            });
 
     if (providers.isEmpty()) {
       notSupported();
@@ -405,174 +481,12 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
     }
   }
 
-  private void selectProvider() {
-    if (providers.size() == 0) {
-      return;
-    }
-
-    if (providers.size() == 1) {
-      hrProvider =
-          HRManager.getHRProvider(HRSettingsActivity.this, providers.get(0).getProviderName());
-      open();
-      return;
-    }
-
-    final CharSequence[] items = new CharSequence[providers.size()];
-    final CharSequence[] itemNames = new CharSequence[providers.size()];
-    for (int i = 0; i < items.length; i++) {
-      items[i] = providers.get(i).getProviderName();
-      itemNames[i] = providers.get(i).getName();
-    }
-
-    hrProvider = null;
-    new AlertDialog.Builder(this)
-        .setTitle(org.runnerup.common.R.string.Select_type_of_Bluetooth_device)
-        .setPositiveButton(
-            org.runnerup.common.R.string.OK,
-            (dialog, which) -> {
-              if (hrProvider == null && items.length > 0) {
-                // Select the first in the list
-                hrProvider = HRManager.getHRProvider(HRSettingsActivity.this, items[0].toString());
-              }
-              log("hrProvider = " + (hrProvider == null ? "null" : hrProvider.getProviderName()));
-              open();
-            })
-        .setNegativeButton(
-            org.runnerup.common.R.string.Cancel,
-            (dialog, which) -> {
-              mIsScanning = false;
-              hrProvider = null;
-              load();
-              open();
-              dialog.dismiss();
-            })
-        .setSingleChoiceItems(
-            itemNames,
-            0,
-            (arg0, arg1) -> {
-              hrProvider = HRManager.getHRProvider(HRSettingsActivity.this, items[arg1].toString());
-              log("hrProvider = " + (hrProvider == null ? "null" : hrProvider.getProviderName()));
-            })
-        .show();
-  }
-
   private boolean checkPermissions() {
-    List<String> requiredPerms = new ArrayList<>();
-    List<String> requestPerms = new ArrayList<>();
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-      // No extra BT permissions required
-      return false;
-    }
-
-    // Connect for paired, Scan for BLE
-    requiredPerms.add(Manifest.permission.BLUETOOTH_CONNECT);
-    requiredPerms.add(Manifest.permission.BLUETOOTH_SCAN);
-    boolean isDeniedPermission = false;
-
-    for (final String perm : requiredPerms) {
-      if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, perm)) {
-          // A denied permission, show motivation in a popup
-          String s = "Permission " + perm + " is explicitly denied";
-          Log.i(getClass().getName(), s);
-          isDeniedPermission = true;
-        } else {
-          requestPerms.add(perm);
-        }
-      }
-    }
-
-    if (requestPerms.size() == 0 && !isDeniedPermission) {
-      return false;
-    }
-    final String[] permissions = new String[requestPerms.size()];
-    requestPerms.toArray(permissions);
-
-    AlertDialog.Builder builder =
-        new AlertDialog.Builder(HRSettingsActivity.this)
-            .setTitle(org.runnerup.common.R.string.Bluetooth_permission_required)
-            .setMessage(getString(org.runnerup.common.R.string.Request_permission_text))
-            .setNegativeButton(
-                org.runnerup.common.R.string.Cancel, (dialog, which) -> dialog.dismiss());
-    if (requestPerms.size() > 0) {
-      // Let Android request the permissions
-      // Note that the result is not used, the user is dropped back to initial view when a request
-      // is done.
-      builder.setPositiveButton(
-          org.runnerup.common.R.string.OK,
-          (dialog, id) ->
-              ActivityCompat.requestPermissions(this, permissions, REQUEST_BLUETOOTH_PERM));
-    } else if (isDeniedPermission) {
-      // Open settings for the app (no direct shortcut to permissions)
-      Intent intent =
-          new Intent()
-              .setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-              .setData(Uri.fromParts("package", getPackageName(), null));
-      builder.setPositiveButton(
-          org.runnerup.common.R.string.OK, (dialog, id) -> startActivity(intent));
-    }
-    builder.show();
-
-    return true;
+    return HRSettingsBluetoothPermissions.checkPermissions(this);
   }
 
   private void startScan() {
-    if (hrProvider == null) {
-      log("hrProvider null in .startScan(), aborting");
-      updateView();
-      return;
-    }
-
-    log(hrProvider.getProviderName() + ".startScan()");
-    updateView();
-    deviceAdapter.deviceList.clear();
-
-    if (checkPermissions()) {
-      // User have to click again
-      return;
-    }
-
-    hrProvider.startScan();
-
-    AlertDialog.Builder builder =
-        new AlertDialog.Builder(this)
-            .setTitle(org.runnerup.common.R.string.Scanning)
-            .setPositiveButton(
-                org.runnerup.common.R.string.Connect,
-                (dialog, which) -> {
-                  log(hrProvider.getProviderName() + ".stopScan()");
-                  hrProvider.stopScan();
-                  connect();
-                  updateView();
-                  dialog.dismiss();
-                })
-            .setNegativeButton(
-                org.runnerup.common.R.string.Cancel,
-                (dialog, which) -> {
-                  log(hrProvider.getProviderName() + ".stopScan()");
-                  hrProvider.stopScan();
-                  load();
-                  open();
-                  dialog.dismiss();
-                  updateView();
-                })
-            .setSingleChoiceItems(
-                deviceAdapter,
-                -1,
-                (arg0, arg1) -> {
-                  HRDeviceRef hrDevice = deviceAdapter.deviceList.get(arg1);
-                  btAddress = hrDevice.getAddress();
-                  btName = hrDevice.getName();
-                });
-    if (hrProvider.includePairingBLE()) {
-      builder.setNeutralButton(
-          "Pairing",
-          (dialog, which) -> {
-            dialog.cancel();
-            bluetoothSettingsLauncher.launch(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
-          });
-    }
-    builder.show();
+    deviceController.startScan();
   }
 
   private void connect() {
@@ -708,15 +622,7 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
 
   @Override
   public void onScanResult(HRDeviceRef device) {
-    log(
-        hrProvider.getProviderName()
-            + "::onScanResult("
-            + device.getAddress()
-            + ", "
-            + device.getName()
-            + ")");
-    deviceAdapter.deviceList.add(device);
-    deviceAdapter.notifyDataSetChanged();
+    deviceController.onScanResult(device);
   }
 
   @Override
@@ -751,53 +657,5 @@ public class HRSettingsActivity extends AppCompatActivity implements HRClient {
   @Override
   public void log(HRProvider src, String msg) {
     log(src.getProviderName() + ": " + msg);
-  }
-
-  @SuppressLint("InflateParams")
-  class DeviceAdapter extends BaseAdapter {
-
-    final ArrayList<HRDeviceRef> deviceList = new ArrayList<>();
-    final LayoutInflater inflater;
-
-    // --Commented out by Inspection (2017-08-11 13:06):Resources resources = null;
-
-    DeviceAdapter(Context ctx) {
-      inflater = (LayoutInflater) ctx.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-      // resources = ctx.getResources();
-    }
-
-    @Override
-    public int getCount() {
-      return deviceList.size();
-    }
-
-    @Override
-    public Object getItem(int position) {
-      return deviceList.get(position);
-    }
-
-    @Override
-    public long getItemId(int position) {
-      return 0;
-    }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-      View row;
-      if (convertView == null) {
-        // Note: Parent is AlertDialog so parent in inflate must be null
-        row = inflater.inflate(android.R.layout.simple_list_item_single_choice, null);
-      } else {
-        row = convertView;
-      }
-      TextView tv = row.findViewById(android.R.id.text1);
-      // tv.setTextColor(ContextCompat.getColor(this, R.color.black));
-
-      HRDeviceRef btDevice = deviceList.get(position);
-      tv.setTag(btDevice);
-      tv.setText(btDevice.getName());
-
-      return tv;
-    }
   }
 }

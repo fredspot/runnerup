@@ -270,8 +270,6 @@
         <activity android:name=".features.UploadActivity"
             android:theme="@style/AppTheme"/>
 
-        <!-- ManageWorkoutsActivity completely disabled - not used -->
-        <!--
         <activity
             android:exported="false"
             android:name=".features.ManageWorkoutsActivity"
@@ -282,7 +280,6 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".features.MainLayout"/>
         </activity>
-        -->
 
         <provider
             android:name=".core.content.WorkoutFileProvider"

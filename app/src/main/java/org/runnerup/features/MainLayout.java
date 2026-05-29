@@ -126,37 +126,9 @@ public class MainLayout extends AppCompatActivity {
       whatsNew();
     }
 
-    // Import workouts/schemes. No permission needed
-    handleBundled(getApplicationContext().getAssets(), "bundled", getFilesDir().getPath() + "/..");
-
-    // if we were called from an intent-filter because user opened "runnerup.db.export", load it
-    final String filePath;
-    final Uri data = getIntent().getData();
-    if (data != null) {
-      if ("content".equals(data.getScheme())) {
-        Cursor cursor =
-            this.getContentResolver()
-                .query(
-                    data,
-                    new String[] {android.provider.MediaStore.Images.ImageColumns.DATA},
-                    null,
-                    null,
-                    null);
-        cursor.moveToFirst();
-        filePath = cursor.getString(0);
-        cursor.close();
-      } else {
-        filePath = data.getPath();
-      }
-    } else {
-      filePath = null;
-    }
-
-    if (filePath != null) {
-      // No check for permissions or that this is within scooped storage (>=SDK29)
-      Log.i(getClass().getSimpleName(), "Importing database from " + filePath);
-      DBHelper.importDatabase(MainLayout.this, filePath);
-    }
+    MainLayoutBootstrap.installBundledAssets(
+        this, "bundled", getFilesDir().getPath() + "/..");
+    MainLayoutBootstrap.importDatabaseFromIntent(this, getIntent().getData());
 
     // Apply system bars insets to avoid UI overlap
     ViewUtil.Insets(findViewById(R.id.main_root), true);
@@ -264,99 +236,6 @@ public class MainLayout extends AppCompatActivity {
     }
 
     return null;
-  }
-
-  private void handleBundled(AssetManager mgr, String srcBase, String dstBase) {
-    String[] list;
-
-    try {
-      list = mgr.list(srcBase);
-    } catch (IOException e) {
-      e.printStackTrace();
-      list = null;
-    }
-    if (list != null) {
-      for (String add : list) {
-        boolean isFile = false;
-
-        String src = srcBase + File.separator + add;
-        String dst = dstBase + File.separator + add;
-        try {
-          InputStream is = mgr.open(src);
-          is.close();
-          isFile = true;
-        } catch (Exception ex) {
-          // Normal, src is directory for first call
-        }
-
-        Log.v(getClass().getName(), "Found: " + src + ", " + dst + ", isFile: " + isFile);
-
-        if (!isFile) {
-          // The request is hierarchical, source is still on a directory level
-          File dstDir = new File(dstBase);
-          //noinspection ResultOfMethodCallIgnored
-          dstDir.mkdir();
-          if (!dstDir.isDirectory()) {
-            Log.w(
-                getClass().getName(),
-                "Failed to copy " + src + " as \"" + dstBase + "\" is not a directory!");
-            continue;
-          }
-          handleBundled(mgr, src, dst);
-        } else {
-          // Source is a file, ready to copy
-          File dstFile = new File(dst);
-          if (dstFile.isDirectory() || dstFile.isFile()) {
-            Log.v(
-                getClass().getName(),
-                "Skip: "
-                    + dst
-                    + ", isDirectory(): "
-                    + dstFile.isDirectory()
-                    + ", isFile(): "
-                    + dstFile.isFile());
-            continue;
-          }
-
-          // Only copy if the key do not exist already
-          String key = "install_bundled_" + add;
-          SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-          if (pref.contains(key)) {
-            Log.v(getClass().getName(), "Skip already existing pref: " + key);
-            continue;
-          }
-
-          pref.edit().putBoolean(key, true).apply();
-
-          Log.v(getClass().getName(), "Copying: " + dst);
-          InputStream input = null;
-          try {
-            input = mgr.open(src);
-            FileUtil.copy(input, dst);
-            handleHooks(add);
-          } catch (IOException e) {
-            e.printStackTrace();
-          } finally {
-            FileUtil.close(input);
-          }
-        }
-      }
-    }
-  }
-
-  private void handleHooks(String key) {
-    if (key.contains("_audio_cues.xml")) {
-      String name = key.substring(0, key.indexOf("_audio_cues.xml"));
-
-      SQLiteDatabase mDB = DBHelper.getWritableDatabase(this);
-
-      ContentValues tmp = new ContentValues();
-      tmp.put(DB.AUDIO_SCHEMES.NAME, name);
-      tmp.put(DB.AUDIO_SCHEMES.SORT_ORDER, 0);
-      mDB.insert(DB.AUDIO_SCHEMES.TABLE, null, tmp);
-
-      DBHelper.closeDB(mDB);
-    }
   }
 
   private final OnClickListener onRateClick =

@@ -110,6 +110,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   private StartTrackerBinding trackerBinding;
   org.runnerup.tracking.GpsStatus mGpsStatus = null;
   private StartGpsController gpsController;
+  private StartPermissionsController permissionsController;
+  private StartStatusController statusController;
   private StartHrController hrController;
   private StartWorkoutPickerController workoutController;
   private StartIntervalController intervalController;
@@ -152,11 +154,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   NotificationStateManager notificationStateManager;
   GpsSearchingState gpsSearchingState;
   GpsBoundState gpsBoundState;
-  // Id to identify a permission request.
-  // Note that the result is not used, the user is dropped back to initial view when a request is
-  // done.
-  private static final int REQUEST_LOCATION = 3000;
-
   private final ActivityResultLauncher<Intent> runActivityLauncher =
       registerForActivityResult(
           new ActivityResultContracts.StartActivityForResult(),
@@ -185,6 +182,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     ensureTrackerBound();
     mGpsStatus = new org.runnerup.tracking.GpsStatus(context);
     gpsController = new StartGpsController(this);
+    permissionsController = new StartPermissionsController(this);
+    statusController = new StartStatusController(this);
     hrController = new StartHrController(this);
     workoutController = new StartWorkoutPickerController(this);
     intervalController = new StartIntervalController(this);
@@ -248,7 +247,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     wearOsIndicator = view.findViewById(R.id.wearos_indicator);
     wearOsMessage = view.findViewById(R.id.wearos_message);
 
-    view.findViewById(R.id.status_layout).setOnClickListener(v -> toggleStatusDetails());
+    view.findViewById(R.id.status_layout)
+        .setOnClickListener(v -> statusController.toggleStatusDetails(expandIcon, startButton));
 
     // ViewPager2 tab pages are inflated after layout; bind tab widgets once pages exist.
     scheduleBindStartTabContentViews(view);
@@ -479,7 +479,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
   private void onGpsTrackerBound() {
     // check and request permissions at startup
-    boolean missingEssentialPermission = checkPermissions(false);
+    boolean missingEssentialPermission = permissionsController.checkPermissions(false);
     mTracker.setWithoutGps(sportWithoutGps);
     if (!missingEssentialPermission && getAutoStartGps()) {
       gpsController.startGps();
@@ -620,6 +620,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
         getCurrentWorkoutTabTag(),
         simpleTargetType.getValueInt(),
         advancedController.advancedWorkout,
+        advancedController.getSelectedWorkoutName(),
         getString(R.string.pref_basic_audio),
         getString(R.string.pref_interval_audio),
         getString(R.string.pref_advanced_audio));
@@ -650,7 +651,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
           workoutController.startWorkout();
         } else {
           // GPS not ready, start GPS search
-          if (checkPermissions(true)) {
+          if (permissionsController.checkPermissions(true)) {
             return;
           }
           gpsController.startGps();
@@ -660,8 +661,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
 
   private final OnClickListener gpsEnableClick =
       v -> {
-        if (checkPermissions(true)) {
-          // Handle view update etc in permission callback
+        if (permissionsController.checkPermissions(true)) {
           return;
         }
 
@@ -670,195 +670,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
         }
         updateView();
       };
-
-  private List<String> getPermissions() {
-    List<String> requiredPerms = new ArrayList<>();
-    requiredPerms.add(Manifest.permission.ACCESS_FINE_LOCATION);
-    requiredPerms.add(Manifest.permission.ACCESS_COARSE_LOCATION);
-
-    Context ctx = requireContext();
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      requiredPerms.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
-
-      final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(ctx);
-      boolean enabled =
-          prefs.getBoolean(
-              this.getString(org.runnerup.R.string.pref_use_cadence_step_sensor), true);
-      if (enabled && TrackerCadence.isAvailable(ctx)) {
-        requiredPerms.add(Manifest.permission.ACTIVITY_RECOGNITION);
-      }
-    }
-
-    PackageManager packageManager = requireContext().getPackageManager();
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S /* Android12, sdk31*/
-        && (packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
-            || packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH))) {
-      final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(ctx);
-      final String btDeviceName = prefs.getString(getString(R.string.pref_bt_name), null);
-      if (btDeviceName != null && !btDeviceName.isEmpty()) {
-        requiredPerms.add(Manifest.permission.BLUETOOTH_CONNECT);
-        requiredPerms.add(Manifest.permission.BLUETOOTH_SCAN);
-      }
-    }
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      requiredPerms.add(Manifest.permission.POST_NOTIFICATIONS);
-    }
-
-    return requiredPerms;
-  }
-
-  /**
-   * Check that required permissions are allowed
-   *
-   * @param popup
-   * @return
-   */
-  private boolean checkPermissions(boolean popup) {
-    boolean missingEssentialPermission = false;
-    boolean missingAnyPermission = false;
-    List<String> requiredPerms = getPermissions();
-    List<String> requestPerms = new ArrayList<>();
-    Context ctx = requireContext();
-
-    for (final String perm : requiredPerms) {
-      if (ContextCompat.checkSelfPermission(ctx, perm) != PackageManager.PERMISSION_GRANTED) {
-        missingAnyPermission = true;
-        // Filter non essential permissions for result
-        boolean nonEssential =
-            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                    && perm.equals(Manifest.permission.ACTIVITY_RECOGNITION)
-                || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                    && (perm.equals(Manifest.permission.BLUETOOTH_CONNECT)
-                        || perm.equals(Manifest.permission.BLUETOOTH_SCAN))
-                || Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                    && perm.equals(Manifest.permission.POST_NOTIFICATIONS));
-        missingEssentialPermission = missingEssentialPermission || !nonEssential;
-        if (ActivityCompat.shouldShowRequestPermissionRationale(requireActivity(), perm)) {
-          // A denied permission, show motivation in a popup
-          String s = "Permission " + perm + " is explicitly denied";
-          Log.i(getClass().getName(), s);
-        } else {
-          requestPerms.add(perm);
-        }
-      }
-    }
-
-    if (missingAnyPermission) {
-      final String[] permissions = new String[requestPerms.size()];
-      requestPerms.toArray(permissions);
-
-      if (popup && missingEssentialPermission || requestPerms.size() > 0) {
-        // Essential or requestable permissions missing
-        String baseMessage =
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                ? getString(org.runnerup.common.R.string.GPS_permission_text_Android12)
-                : Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                    ? getString(org.runnerup.common.R.string.GPS_permission_text)
-                    : getString(org.runnerup.common.R.string.GPS_permission_text_pre_Android10);
-
-        AlertDialog.Builder builder =
-            new AlertDialog.Builder(ctx)
-                .setTitle(org.runnerup.common.R.string.GPS_permission_required)
-                .setNegativeButton(
-                    org.runnerup.common.R.string.Cancel, (dialog, which) -> dialog.dismiss());
-        if (requestPerms.size() > 0) {
-          // Let Android request the permissions
-          builder
-              .setPositiveButton(
-                  org.runnerup.common.R.string.OK,
-                  (dialog, id) ->
-                      ActivityCompat.requestPermissions(
-                          requireActivity(), permissions, REQUEST_LOCATION))
-              .setMessage(
-                  baseMessage
-                      + "\n"
-                      + getString(org.runnerup.common.R.string.Request_permission_text));
-        } else {
-          // Open settings for the app (no direct shortcut to permissions)
-          Intent intent =
-              new Intent()
-                  .setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                  .setData(Uri.fromParts("package", ctx.getPackageName(), null));
-          builder
-              .setPositiveButton(
-                  org.runnerup.common.R.string.OK, (dialog, id) -> startActivity(intent))
-              .setMessage(
-                  baseMessage
-                      + "\n\n"
-                      + getString(org.runnerup.common.R.string.Request_permission_text));
-        }
-        builder.show();
-      }
-    }
-
-    // https://developer.android.com/training/monitoring-device-state/doze-standby#support_for_other_use_cases
-    // Permission REQUEST_IGNORE_BATTERY_OPTIMIZATIONS requires special approval in Play
-    final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(ctx);
-    final Resources res = this.getResources();
-    final boolean suppressOptimizeBatteryPopup =
-        prefs.getBoolean(res.getString(R.string.pref_suppress_battery_optimization_popup), false);
-    PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
-    if ((popup || getAutoStartGps())
-        && !suppressOptimizeBatteryPopup
-        && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-        && !pm.isIgnoringBatteryOptimizations(ctx.getPackageName())) {
-      Intent intent;
-      int msgId;
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        // Around Android 9 the Battery usage setting is available in the app setting too, which is
-        // easier to
-        // change than in the system settings
-        intent =
-            new Intent()
-                .setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                .setData(Uri.fromParts("package", ctx.getPackageName(), null));
-        msgId = org.runnerup.common.R.string.Battery_optimization_check_text_Android9;
-      } else {
-        intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
-        msgId = org.runnerup.common.R.string.Battery_optimization_check_text;
-      }
-
-      new AlertDialog.Builder(ctx)
-          .setTitle(org.runnerup.common.R.string.Battery_optimization_check)
-          .setMessage(msgId)
-          .setPositiveButton(
-              org.runnerup.common.R.string.OK, (dialog, which) -> this.startActivity(intent))
-          .setNeutralButton(
-              org.runnerup.common.R.string.Do_not_show_again,
-              (dialog, which) ->
-                  prefs
-                      .edit()
-                      .putBoolean(
-                          res.getString(R.string.pref_suppress_battery_optimization_popup), true)
-                      .apply())
-          .setNegativeButton(
-              org.runnerup.common.R.string.Cancel, (dialog, which) -> dialog.dismiss())
-          .show();
-    }
-
-    return missingEssentialPermission;
-  }
-
-  private void toggleStatusDetails() {
-    statusDetailsShown = !statusDetailsShown;
-    float bottomMargin;
-
-    if (statusDetailsShown) {
-      expandIcon.setImageResource(R.drawable.ic_expand_down_white_24dp);
-      bottomMargin = getResources().getDimension(R.dimen.fab_margin_68row);
-    } else {
-      expandIcon.setImageResource(R.drawable.ic_expand_up_white_24dp);
-      bottomMargin = getResources().getDimension(R.dimen.fab_margin_44row);
-    }
-
-    ViewGroup.MarginLayoutParams params =
-        (ViewGroup.MarginLayoutParams) startButton.getLayoutParams();
-    params.setMargins(params.leftMargin, params.topMargin, params.rightMargin, (int) bottomMargin);
-    startButton.setLayoutParams(params);
-
-    updateView();
-  }
 
   public void updateView() {
     if (uiState != null) {
@@ -950,7 +761,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
       }
     }
 
-    hrMessage.setText(getHRDetailString());
+    hrMessage.setText(statusController.buildHrDetailString());
     hrIndicator.setVisibility(View.VISIBLE);
     if (statusDetailsShown) {
       hrMessage.setVisibility(View.VISIBLE);
@@ -1039,73 +850,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   }
 
   public String getGpsAccuracyString(float accuracy) {
-    String res = "";
-    if (accuracy > 0) {
-      String accString = formatter.formatElevation(Formatter.Format.TXT_LONG, accuracy);
-      if (mTracker.getCurrentElevation() != null) {
-        res =
-            String.format(
-                Locale.getDefault(),
-                getString(org.runnerup.common.R.string.GPS_accuracy_elevation),
-                accString,
-                formatter.formatElevation(
-                    Formatter.Format.TXT_LONG, mTracker.getCurrentElevation()));
-      } else {
-        res =
-            String.format(
-                Locale.getDefault(),
-                getString(org.runnerup.common.R.string.GPS_accuracy_no_elevation),
-                accString);
-      }
-    }
-    if (BuildConfig.DEBUG && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      // Extra info in debug builds
-      if (mTracker != null) {
-        Location l = mTracker.getLastKnownLocation();
-
-        if (l != null) {
-          res +=
-              String.format(
-                  Locale.getDefault(),
-                  " [%1$s, %2$s/%3$s/s, %4$.1f/%5$.1f deg]",
-                  formatter.formatElevation(
-                      Formatter.Format.TXT_LONG, l.getVerticalAccuracyMeters()),
-                  formatter.formatElevation(Formatter.Format.TXT_SHORT, l.getSpeed()),
-                  formatter.formatElevation(
-                      Formatter.Format.TXT_LONG, l.getSpeedAccuracyMetersPerSecond()),
-                  l.getBearing(),
-                  l.getBearingAccuracyDegrees());
-        }
-      }
-    }
-    return res;
-  }
-
-  private String getHRDetailString() {
-    StringBuilder str = new StringBuilder();
-
-    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(requireContext());
-    final String btDeviceName = prefs.getString(getString(R.string.pref_bt_name), null);
-
-    if (btDeviceName != null) {
-      str.append(btDeviceName);
-    } else if (MockHRProvider.NAME.contentEquals(
-        prefs.getString(getString(R.string.pref_bt_provider), ""))) {
-      str.append("mock: ").append(prefs.getString(getString(R.string.pref_bt_address), "???"));
-    }
-
-    if (mTracker.isComponentConnected(TrackerHRM.NAME)) {
-      Integer hrVal = mTracker.getCurrentHRValue();
-      if (hrVal != null) {
-        str.append(" ").append(hrVal);
-        Integer batteryLevel = mTracker.getCurrentBatteryLevel();
-
-        if (batteryLevel != HRProvider.BATTERY_LEVEL_UNAVAILABLE) {
-          str.append(" ").append(batteryLevel).append("%");
-        }
-      }
-    }
-    return str.toString();
+    return statusController.formatGpsAccuracy(accuracy);
   }
 
   private void ensureTrackerBound() {

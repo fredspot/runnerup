@@ -32,6 +32,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import java.util.Locale;
 import org.runnerup.R;
+import org.runnerup.data.DBHelper;
 import org.runnerup.common.util.Constants.DB.DIMENSION;
 import org.runnerup.core.util.Formatter;
 import org.runnerup.core.util.SafeParse;
@@ -88,6 +89,15 @@ public class StepButton extends LinearLayout {
     mOnChangedListener = runnable;
   }
 
+  /** Flat row style when embedded in a {@code RunnerUpCard} (workout editor). */
+  public void setEditorCardStyle(boolean inCard) {
+    if (inCard) {
+      mLayout.setBackgroundResource(android.R.color.transparent);
+    } else {
+      mLayout.setBackgroundResource(R.drawable.title_spinner);
+    }
+  }
+
   public void setStep(Step step) {
     this.step = step;
 
@@ -139,26 +149,45 @@ public class StepButton extends LinearLayout {
 
     Dimension goalType = step.getTargetType();
     if (goalType == null) {
-      mGoalValue.setText(step.getIntensity().getTextId());
+      CharSequence base = getResources().getText(step.getIntensity().getTextId());
+      mGoalValue.setText(appendCueSummary(base));
     } else {
       String prefix;
       if (goalType == Dimension.HR || goalType == Dimension.HRZ)
         prefix = "HR "; // todo should use a string
       else prefix = "";
 
-      mGoalValue.setText(
-          (String.format(
+      String targetText =
+          String.format(
               Locale.getDefault(),
               "%s%s-%s",
               prefix,
               formatter.format(
                   Formatter.Format.TXT_SHORT, goalType, step.getTargetValue().minValue),
               formatter.format(
-                  Formatter.Format.TXT_LONG, goalType, step.getTargetValue().maxValue))));
+                  Formatter.Format.TXT_LONG, goalType, step.getTargetValue().maxValue));
+      mGoalValue.setText(appendCueSummary(targetText));
     }
     if (editStepButton) {
       mLayout.setOnClickListener(onStepClickListener);
     }
+  }
+
+  private CharSequence appendCueSummary(CharSequence base) {
+    if (!step.hasPeriodicCues() && step.getAudioCueScheme() == null) {
+      return base;
+    }
+    StringBuilder sb = new StringBuilder(base);
+    if (step.getPaceCueIntervalSeconds() > 0) {
+      sb.append(" · ").append(step.getPaceCueIntervalSeconds()).append("s pace");
+    }
+    if (step.getHrCueIntervalSeconds() > 0) {
+      sb.append(" · ").append(step.getHrCueIntervalSeconds()).append("s HR");
+    }
+    if (step.getAudioCueScheme() != null) {
+      sb.append(" · ").append(step.getAudioCueScheme());
+    }
+    return sb;
   }
 
   private final OnClickListener onRepeatClickListener =
@@ -279,6 +308,25 @@ public class StepButton extends LinearLayout {
     final TitleSpinner targetPaceHi = layout.findViewById(R.id.step_dialog_target_pace_hi);
     final TitleSpinner targetHrz = layout.findViewById(R.id.step_dialog_target_hrz);
 
+    final TitleSpinner audioCue = layout.findViewById(R.id.step_dialog_audio_cue);
+    final TitleSpinner hrCueSeconds = layout.findViewById(R.id.step_dialog_hr_cue_seconds);
+    final TitleSpinner hrCueAnnouncement = layout.findViewById(R.id.step_dialog_hr_cue_announcement);
+    final TitleSpinner paceCueSeconds = layout.findViewById(R.id.step_dialog_pace_cue_seconds);
+
+    AudioSchemeListAdapter audioAdapter =
+        new AudioSchemeListAdapter(
+            DBHelper.getReadableDatabase(mContext), inflator, false);
+    audioAdapter.reload();
+    audioCue.setAdapter(audioAdapter);
+    if (step.getAudioCueScheme() != null) {
+      audioCue.setValue(step.getAudioCueScheme());
+    } else {
+      audioCue.setValue(mContext.getString(org.runnerup.common.R.string.Default));
+    }
+    hrCueSeconds.setValue(Integer.toString(step.getHrCueIntervalSeconds()));
+    hrCueAnnouncement.setValue(step.getHrCueAnnouncement());
+    paceCueSeconds.setValue(Integer.toString(step.getPaceCueIntervalSeconds()));
+
     if (!hrZonesAdapter.hrZones.isConfigured()) {
       targetType.addDisabledValue(DIMENSION.HRZ);
     } else {
@@ -376,6 +424,17 @@ public class StepButton extends LinearLayout {
               hrZonesAdapter.hrZones.getHRValues(targetHrz.getValueInt() + 1);
           step.setTargetValue(range.first, range.second);
       }
+      String scheme = audioCue.getValue().toString();
+      if (scheme.contentEquals(mContext.getString(org.runnerup.common.R.string.Default))) {
+        step.setAudioCueScheme(null);
+      } else {
+        step.setAudioCueScheme(scheme);
+      }
+      step.setHrCueIntervalSeconds(
+          SafeParse.parseInt(hrCueSeconds.getValue().toString(), 0));
+      step.setHrCueAnnouncement(hrCueAnnouncement.getValueInt());
+      step.setPaceCueIntervalSeconds(
+          SafeParse.parseInt(paceCueSeconds.getValue().toString(), 0));
     };
   }
 }

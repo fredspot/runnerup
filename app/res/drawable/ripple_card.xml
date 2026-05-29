@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Deprecated: use @style/RunnerUpCard (@drawable/card_selectable) instead. -->
+<!-- Deprecated: use @style/RunnerUpCard (card_background + card_ripple_overlay). -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
     android:color="@color/colorControlHighlight">
     <item android:drawable="@drawable/card_background" />

@@ -125,6 +125,41 @@ open_detail_fallback() {
   tap_screen_ratio 500 280
 }
 
+tap_text_contains() {
+  local needle="$1"
+  prepare_ui
+  python3 - "$PKG" "$DUMP" "$LOCAL_DUMP" "$needle" <<'PY'
+import re, sys, subprocess
+pkg, remote, local, needle = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+subprocess.run(["adb", "shell", "uiautomator", "dump", remote], check=True, capture_output=True)
+subprocess.run(["adb", "pull", remote, local], check=True, capture_output=True)
+raw = open(local, encoding="utf-8", errors="replace").read()
+pkg_pat = re.escape(pkg)
+nodes = re.findall(r"<node[^>]*package=\"" + pkg_pat + r"\"[^>]*>", raw)
+xml = "\n".join(nodes) if nodes else raw
+needle_l = needle.lower()
+for m in re.finditer(
+    r'text="([^"]*)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml
+):
+    text, x1, y1, x2, y2 = m.group(1), *map(int, m.groups()[1:])
+    if needle_l in text.lower():
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        subprocess.run(["adb", "shell", "input", "tap", str(cx), str(cy)], check=True)
+        print(cx, cy)
+        sys.exit(0)
+for m in re.finditer(
+    r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*text="([^"]*)"', xml
+):
+    x1, y1, x2, y2, text = map(int, m.groups()[:4]), m.group(5)
+    if needle_l in text.lower():
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        subprocess.run(["adb", "shell", "input", "tap", str(cx), str(cy)], check=True)
+        print(cx, cy)
+        sys.exit(0)
+sys.exit(1)
+PY
+}
+
 tap_nav_index() {
   # Bottom nav: 0=Run, 1=History, 2=BestTimes, 3=Statistics, 4=Settings
   local idx="$1"
@@ -325,6 +360,38 @@ PY
   tap_nav_index 4 || warn "Settings tab not found (SKIP)"
   sleep 2
   assert_activity_resumed "MainLayout"
+
+  log "Settings: Workout → Manage workouts (optional)"
+  prepare_ui
+  if tap_text_contains "Workout" 2>/dev/null; then
+    sleep 1
+    if tap_text_contains "Manage workouts" 2>/dev/null || tap_text_contains "Manage_workouts" 2>/dev/null; then
+      sleep 2
+      if focused_app | grep -q ManageWorkoutsActivity; then
+        assert_activity_resumed "ManageWorkoutsActivity"
+        if has_runnerup_node "expandable_list_view" 2>/dev/null; then
+          log "Manage workouts list visible"
+        else
+          warn "Manage workouts — list id not found (layout may differ)"
+        fi
+        adb shell input keyevent KEYCODE_BACK >/dev/null
+        sleep 1
+        adb shell input keyevent KEYCODE_BACK >/dev/null
+        sleep 1
+        assert_activity_resumed "MainLayout"
+      else
+        warn "Manage workouts preference did not open activity (SKIP)"
+        adb shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+        sleep 1
+      fi
+    else
+      warn "Manage workouts preference not tappable (SKIP)"
+      adb shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+      sleep 1
+    fi
+  else
+    warn "Settings Workout entry not found (SKIP)"
+  fi
 
   check_logcat_fatal
   log "PASS"

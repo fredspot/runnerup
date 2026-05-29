@@ -13,12 +13,12 @@ import android.content.ContentValues
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CompoundButton
 import android.widget.RadioButton
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.runnerup.R
+import org.runnerup.core.util.CardPressHelper
 import org.runnerup.sync.SyncManager.WorkoutRef
 import java.util.ArrayList
 import java.util.HashMap
@@ -28,27 +28,26 @@ import java.util.HashSet
 class ManageWorkoutsListController(
     recyclerView: RecyclerView,
     private val onHeaderClick: (String, Boolean) -> Unit,
-    private val onWorkoutChecked: (CompoundButton, Boolean) -> Unit,
+    private val onWorkoutSelected: (WorkoutRef) -> Unit,
 ) {
-  interface SelectionState {
-    fun currentSelection(): CompoundButton?
-  }
-
   private val expandedProviders = HashSet<String>()
   private val providers = ArrayList<ContentValues>()
   private val workouts = HashMap<String, ArrayList<WorkoutRef>>()
   private val rows = ArrayList<ListRow>()
-  private var selectionState: SelectionState? = null
+  private var selectedWorkoutName: String? = null
 
   private val adapter = WorkoutListAdapter()
 
   init {
     recyclerView.layoutManager = LinearLayoutManager(recyclerView.context)
     recyclerView.adapter = adapter
+    CardPressHelper.prepareRowHost(recyclerView)
   }
 
-  fun setSelectionState(state: SelectionState) {
-    selectionState = state
+  fun setSelectedWorkoutName(name: String?) {
+    if (selectedWorkoutName == name) return
+    selectedWorkoutName = name
+    adapter.notifyDataSetChanged()
   }
 
   fun isProviderExpanded(provider: String): Boolean = expandedProviders.contains(provider)
@@ -125,7 +124,10 @@ class ManageWorkoutsListController(
           HeaderHolder(inflater.inflate(R.layout.manage_workouts_list_category, parent, false))
         }
         else -> {
-          WorkoutHolder(inflater.inflate(R.layout.manage_workouts_list_row, parent, false))
+          val row = inflater.inflate(R.layout.manage_workouts_list_row, parent, false)
+          val card = row.findViewById<View>(R.id.manage_workout_row_card)
+          CardPressHelper.prepareCard(card)
+          WorkoutHolder(row)
         }
       }
     }
@@ -151,15 +153,18 @@ class ManageWorkoutsListController(
     }
 
     inner class WorkoutHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-      private val checkbox: RadioButton = itemView.findViewById(R.id.download_workout_checkbox)
+      private val card: View = itemView.findViewById(R.id.manage_workout_row_card)
+      private val radio: RadioButton = itemView.findViewById(R.id.download_workout_checkbox)
+      private val title: TextView = itemView.findViewById(R.id.manage_workout_row_title)
 
       fun bind(row: ListRow.Workout) {
-        checkbox.setOnCheckedChangeListener(null)
-        checkbox.tag = row.ref
-        val selected = selectionState?.currentSelection()
-        checkbox.isChecked = selected != null && selected.tag === row.ref
-        checkbox.text = row.ref.workoutName
-        checkbox.setOnCheckedChangeListener(onWorkoutChecked)
+        title.text = row.ref.workoutName
+        val selected =
+            selectedWorkoutName != null &&
+                selectedWorkoutName == row.ref.workoutName
+        radio.isChecked = selected
+        card.isSelected = selected
+        card.setOnClickListener { onWorkoutSelected(row.ref) }
       }
     }
   }

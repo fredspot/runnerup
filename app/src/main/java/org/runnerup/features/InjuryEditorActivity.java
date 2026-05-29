@@ -3,17 +3,19 @@ package org.runnerup.features;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
-import android.widget.ListView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
@@ -36,7 +38,7 @@ public class InjuryEditorActivity extends AppCompatActivity implements Constants
   private SQLiteDatabase db;
   private TitleSpinner phaseSpinner;
   private TitleSpinner zoneSpinner;
-  private ListView tendonList;
+  private RecyclerView tendonList;
   private TendonAdapter adapter;
   private final ArrayList<TendonRow> rows = new ArrayList<>();
   private final Map<Long, Integer> existingInjuries = new HashMap<>(); // tendonId -> pain
@@ -76,6 +78,10 @@ public class InjuryEditorActivity extends AppCompatActivity implements Constants
     zoneSpinner = findViewById(R.id.zone_spinner);
     tendonList = findViewById(R.id.tendon_list);
 
+    int spacingPx = (int) (12 * getResources().getDisplayMetrics().density);
+    tendonList.setLayoutManager(new LinearLayoutManager(this));
+    tendonList.addItemDecoration(new TendonSpacingDecoration(spacingPx));
+
     setupPhaseSpinner();
     setupZoneSpinner();
     loadExistingInjuries();
@@ -88,28 +94,34 @@ public class InjuryEditorActivity extends AppCompatActivity implements Constants
     phaseSpinner.setArrayEntries(phases);
     phaseSpinner.setViewSelection(currentPhase);
     phaseSpinner.setViewValue(currentPhase);
-    phaseSpinner.setViewOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-      @Override
-      public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-        if (position >= 0 && position <= 2 && position != currentPhase) {
-          saveCurrentInjuries();
-          currentPhase = position;
-          loadExistingInjuries();
-          loadTendonsForZone();
-          adapter.notifyDataSetChanged();
-        }
-      }
-      @Override
-      public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-    });
+    phaseSpinner.setViewOnItemSelectedListener(
+        new android.widget.AdapterView.OnItemSelectedListener() {
+          @Override
+          public void onItemSelected(
+              android.widget.AdapterView<?> parent, View view, int position, long id) {
+            if (position >= 0 && position <= 2 && position != currentPhase) {
+              saveCurrentInjuries();
+              currentPhase = position;
+              loadExistingInjuries();
+              loadTendonsForZone();
+              adapter.notifyDataSetChanged();
+            }
+          }
+
+          @Override
+          public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
   }
 
   private void setupZoneSpinner() {
     String[] zones = {"Knee", "Calves", "Ankle/Foot", "Hip"};
-    final int[] zoneValues = {DB.TENDON.ZONE_KNEE, DB.TENDON.ZONE_CALVES,
-        DB.TENDON.ZONE_ANKLE_FOOT, DB.TENDON.ZONE_HIP};
+    final int[] zoneValues = {
+      DB.TENDON.ZONE_KNEE,
+      DB.TENDON.ZONE_CALVES,
+      DB.TENDON.ZONE_ANKLE_FOOT,
+      DB.TENDON.ZONE_HIP
+    };
     zoneSpinner.setArrayEntries(zones);
-    // Find current zone index
     int zoneIndex = 0;
     for (int i = 0; i < zoneValues.length; i++) {
       if (zoneValues[i] == currentZone) {
@@ -119,30 +131,40 @@ public class InjuryEditorActivity extends AppCompatActivity implements Constants
     }
     zoneSpinner.setViewSelection(zoneIndex);
     zoneSpinner.setViewValue(zoneIndex);
-    zoneSpinner.setViewOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-      @Override
-      public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-        if (position >= 0 && position < zoneValues.length && zoneValues[position] != currentZone) {
-          saveCurrentInjuries();
-          currentZone = zoneValues[position];
-          loadExistingInjuries();
-          loadTendonsForZone();
-          adapter.notifyDataSetChanged();
-        }
-      }
-      @Override
-      public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-    });
+    zoneSpinner.setViewOnItemSelectedListener(
+        new android.widget.AdapterView.OnItemSelectedListener() {
+          @Override
+          public void onItemSelected(
+              android.widget.AdapterView<?> parent, View view, int position, long id) {
+            if (position >= 0
+                && position < zoneValues.length
+                && zoneValues[position] != currentZone) {
+              saveCurrentInjuries();
+              currentZone = zoneValues[position];
+              loadExistingInjuries();
+              loadTendonsForZone();
+              adapter.notifyDataSetChanged();
+            }
+          }
+
+          @Override
+          public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
   }
 
   private void loadExistingInjuries() {
     existingInjuries.clear();
     String[] cols = {DB.ACTIVITY_INJURY.TENDON_ID, DB.ACTIVITY_INJURY.PAIN};
-    String where = DB.ACTIVITY_INJURY.ACTIVITY_ID + " = ? AND " +
-        DB.ACTIVITY_INJURY.PHASE + " = ? AND " +
-        DB.ACTIVITY_INJURY.ZONE + " = ?";
-    String[] args = {String.valueOf(activityId), String.valueOf(currentPhase),
-        String.valueOf(currentZone)};
+    String where =
+        DB.ACTIVITY_INJURY.ACTIVITY_ID
+            + " = ? AND "
+            + DB.ACTIVITY_INJURY.PHASE
+            + " = ? AND "
+            + DB.ACTIVITY_INJURY.ZONE
+            + " = ?";
+    String[] args = {
+      String.valueOf(activityId), String.valueOf(currentPhase), String.valueOf(currentZone)
+    };
     try (Cursor c = db.query(DB.ACTIVITY_INJURY.TABLE, cols, where, args, null, null, null)) {
       while (c.moveToNext()) {
         long tendonId = c.getLong(0);
@@ -180,15 +202,18 @@ public class InjuryEditorActivity extends AppCompatActivity implements Constants
       return;
     }
     try {
-      // Delete existing injuries for this phase/zone
-      String where = DB.ACTIVITY_INJURY.ACTIVITY_ID + " = ? AND " +
-          DB.ACTIVITY_INJURY.PHASE + " = ? AND " +
-          DB.ACTIVITY_INJURY.ZONE + " = ?";
-      String[] args = {String.valueOf(activityId), String.valueOf(currentPhase),
-          String.valueOf(currentZone)};
+      String where =
+          DB.ACTIVITY_INJURY.ACTIVITY_ID
+              + " = ? AND "
+              + DB.ACTIVITY_INJURY.PHASE
+              + " = ? AND "
+              + DB.ACTIVITY_INJURY.ZONE
+              + " = ?";
+      String[] args = {
+        String.valueOf(activityId), String.valueOf(currentPhase), String.valueOf(currentZone)
+      };
       db.delete(DB.ACTIVITY_INJURY.TABLE, where, args);
 
-      // Insert injuries with pain > 0
       for (TendonRow row : rows) {
         if (row.pain > 0) {
           ContentValues v = new ContentValues();
@@ -224,78 +249,99 @@ public class InjuryEditorActivity extends AppCompatActivity implements Constants
   @Override
   protected void onDestroy() {
     super.onDestroy();
-    // Don't close db here - it's a shared singleton
-    // DBHelper.closeDB(db);
   }
 
-  private class TendonAdapter extends BaseAdapter {
+  private static void updatePainText(TextView tv, int pain) {
+    if (pain == 0) {
+      tv.setText("-");
+    } else {
+      tv.setText(String.valueOf(pain));
+    }
+  }
+
+  private class TendonAdapter extends RecyclerView.Adapter<TendonAdapter.Holder> {
+
     @Override
-    public int getCount() {
+    public int getItemCount() {
       return rows.size();
     }
 
+    @NonNull
     @Override
-    public Object getItem(int position) {
-      return rows.get(position);
+    public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+      View view =
+          LayoutInflater.from(InjuryEditorActivity.this)
+              .inflate(R.layout.injury_tendon_row, parent, false);
+      return new Holder(view);
     }
 
     @Override
-    public long getItemId(int position) {
-      return rows.get(position).tendonId;
-    }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-      if (convertView == null) {
-        convertView = LayoutInflater.from(InjuryEditorActivity.this)
-            .inflate(R.layout.injury_tendon_row, parent, false);
-      }
-
+    public void onBindViewHolder(@NonNull Holder holder, int position) {
       TendonRow row = rows.get(position);
-      TextView nameView = convertView.findViewById(R.id.tendon_name);
-      TextView descView = convertView.findViewById(R.id.tendon_desc);
-      SeekBar painSeek = convertView.findViewById(R.id.tendon_pain_seek);
-      TextView painVal = convertView.findViewById(R.id.tendon_pain_val);
-
-      nameView.setText(row.name);
+      holder.nameView.setText(row.name);
       if (row.description != null && !row.description.isEmpty()) {
-        descView.setText(row.description);
-        descView.setVisibility(View.VISIBLE);
+        holder.descView.setText(row.description);
+        holder.descView.setVisibility(View.VISIBLE);
       } else {
-        descView.setVisibility(View.GONE);
+        holder.descView.setVisibility(View.GONE);
       }
 
-      painSeek.setMax(10);
-      painSeek.setProgress(row.pain);
-      updatePainText(painVal, row.pain);
+      holder.painSeek.setOnSeekBarChangeListener(null);
+      holder.painSeek.setMax(10);
+      holder.painSeek.setProgress(row.pain);
+      updatePainText(holder.painVal, row.pain);
 
-      painSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-        @Override
-        public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-          if (fromUser) {
-            row.pain = progress;
-            updatePainText(painVal, progress);
-            saveCurrentInjuries();
-          }
-        }
+      holder.painSeek.setOnSeekBarChangeListener(
+          new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+              if (fromUser) {
+                row.pain = progress;
+                updatePainText(holder.painVal, progress);
+                saveCurrentInjuries();
+              }
+            }
 
-        @Override
-        public void onStartTrackingTouch(SeekBar seekBar) {
-        }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
 
-        @Override
-        public void onStopTrackingTouch(SeekBar seekBar) {
-        }
-      });
-
-      return convertView;
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+          });
     }
 
-    private void updatePainText(TextView tv, int pain) {
-      if (pain == 0) {
-        tv.setText("-");
-      } else {
-        tv.setText(String.valueOf(pain));
+    class Holder extends RecyclerView.ViewHolder {
+      final TextView nameView;
+      final TextView descView;
+      final SeekBar painSeek;
+      final TextView painVal;
+
+      Holder(View itemView) {
+        super(itemView);
+        nameView = itemView.findViewById(R.id.tendon_name);
+        descView = itemView.findViewById(R.id.tendon_desc);
+        painSeek = itemView.findViewById(R.id.tendon_pain_seek);
+        painVal = itemView.findViewById(R.id.tendon_pain_val);
+      }
+    }
+  }
+
+  private static class TendonSpacingDecoration extends RecyclerView.ItemDecoration {
+    private final int spacePx;
+
+    TendonSpacingDecoration(int spacePx) {
+      this.spacePx = spacePx;
+    }
+
+    @Override
+    public void getItemOffsets(
+        @NonNull Rect outRect,
+        @NonNull View view,
+        @NonNull RecyclerView parent,
+        @NonNull RecyclerView.State state) {
+      int position = parent.getChildAdapterPosition(view);
+      if (position > 0) {
+        outRect.top = spacePx;
       }
     }
   }

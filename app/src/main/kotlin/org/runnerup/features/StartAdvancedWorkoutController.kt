@@ -67,6 +67,8 @@ internal class StartAdvancedWorkoutController(private val fragment: StartFragmen
     stepList.itemAnimator = null
   }
 
+  fun getSelectedWorkoutName(): String? = advancedWorkoutSpinner?.value?.toString()
+
   fun reloadAdapters() {
     advancedAudioListAdapter?.reload()
     advancedWorkoutListAdapter?.reload()

@@ -33,8 +33,6 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.CompoundButton;
-import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.Toast;
@@ -86,7 +84,7 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
   private final HashSet<String> loadedProviders = new HashSet<>();
 
   private boolean uploading = false;
-  private CompoundButton currentlySelectedWorkout = null;
+  private SyncManager.WorkoutRef currentlySelectedWorkout = null;
   private Button deleteButton = null;
   private Button shareButton = null;
   private Button editButton = null;
@@ -99,9 +97,14 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
-    android.util.Log.d("ManageWorkoutsActivity", "onCreate() called - this should NOT happen automatically!");
-    android.util.Log.d("ManageWorkoutsActivity", "Stack trace:", new Exception("Stack trace for debugging"));
     setContentView(R.layout.manage_workouts);
+
+    if (getSupportActionBar() != null) {
+      getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+      getSupportActionBar()
+          .setBackgroundDrawable(
+              androidx.core.content.ContextCompat.getDrawable(this, R.color.backgroundPrimary));
+    }
 
     PHONE_STRING = getResources().getString(org.runnerup.common.R.string.my_phone);
 
@@ -123,11 +126,10 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
               onWorkoutListHeaderClick(provider, expanded);
               return kotlin.Unit.INSTANCE;
             },
-            (button, checked) -> {
-              onWorkoutChecked.onCheckedChanged(button, checked);
+            ref -> {
+              selectWorkout(ref);
               return kotlin.Unit.INSTANCE;
             });
-    listController.setSelectionState(() -> currentlySelectedWorkout);
 
     deleteButton = findViewById(R.id.delete_workout_button);
     deleteButton.setOnClickListener(deleteButtonClick);
@@ -291,6 +293,18 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
     listLocal();
   }
 
+  private void selectWorkout(WorkoutRef ref) {
+    currentlySelectedWorkout = ref;
+    listController.setSelectedWorkoutName(ref.workoutName);
+    handleButtons();
+  }
+
+  private void clearWorkoutSelection() {
+    currentlySelectedWorkout = null;
+    listController.setSelectedWorkoutName(null);
+    handleButtons();
+  }
+
   private void handleButtons() {
     if (currentlySelectedWorkout == null) {
       deleteButton.setEnabled(false);
@@ -300,7 +314,7 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
       return;
     }
 
-    WorkoutRef selected = (WorkoutRef) currentlySelectedWorkout.getTag();
+    WorkoutRef selected = currentlySelectedWorkout;
     if (PHONE_STRING.contentEquals(selected.synchronizer)) {
       deleteButton.setEnabled(true);
       shareButton.setEnabled(true);
@@ -390,13 +404,9 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
   private void onWorkoutListHeaderClick(String provider, boolean expanded) {
     if (expanded) {
       listController.collapseProvider(provider);
-      if (currentlySelectedWorkout != null) {
-        WorkoutRef ref = (WorkoutRef) currentlySelectedWorkout.getTag();
-        if (ref.synchronizer.contentEquals(provider)) {
-          currentlySelectedWorkout.setChecked(false);
-          currentlySelectedWorkout = null;
-          handleButtons();
-        }
+      if (currentlySelectedWorkout != null
+          && currentlySelectedWorkout.synchronizer.contentEquals(provider)) {
+        clearWorkoutSelection();
       }
       return;
     }
@@ -464,7 +474,7 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
       v -> {
         if (currentlySelectedWorkout == null) return;
 
-        final WorkoutRef selected = (WorkoutRef) currentlySelectedWorkout.getTag();
+        final WorkoutRef selected = currentlySelectedWorkout;
         new AlertDialog.Builder(ManageWorkoutsActivity.this)
             .setTitle(
                 getString(org.runnerup.common.R.string.Delete_workout) + " " + selected.workoutName)
@@ -482,6 +492,12 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
             .show();
       };
 
+  @Override
+  public boolean onSupportNavigateUp() {
+    finish();
+    return true;
+  }
+
   private void deleteWorkout(WorkoutRef selected) {
     File f = WorkoutSerializer.getFile(this, selected.workoutName);
     //noinspection ResultOfMethodCallIgnored
@@ -491,29 +507,16 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
         pref.getString(getResources().getString(R.string.pref_advanced_workout), ""))) {
       pref.edit().putString(getResources().getString(R.string.pref_advanced_workout), "").apply();
     }
-    currentlySelectedWorkout = null;
+    clearWorkoutSelection();
     listLocal();
   }
-
-  private final OnCheckedChangeListener onWorkoutChecked =
-      (arg0, isChecked) -> {
-        if (currentlySelectedWorkout != null) {
-          currentlySelectedWorkout.setChecked(false);
-        }
-        if (isChecked) {
-          currentlySelectedWorkout = arg0;
-        } else {
-          currentlySelectedWorkout = null;
-        }
-        handleButtons();
-      };
 
   private final OnClickListener shareButtonClick =
       v -> {
         if (currentlySelectedWorkout == null) return;
 
         final AppCompatActivity context = ManageWorkoutsActivity.this;
-        final WorkoutRef selected = (WorkoutRef) currentlySelectedWorkout.getTag();
+        final WorkoutRef selected = currentlySelectedWorkout;
         final String name = selected.workoutName;
         final Intent intent = new Intent(Intent.ACTION_SEND);
 
@@ -535,7 +538,7 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
       v -> {
         if (currentlySelectedWorkout == null) return;
 
-        final WorkoutRef selected = (WorkoutRef) currentlySelectedWorkout.getTag();
+        final WorkoutRef selected = currentlySelectedWorkout;
         final Intent intent = new Intent(ManageWorkoutsActivity.this, CreateAdvancedWorkout.class);
 
         intent.putExtra(WORKOUT_NAME, selected.workoutName);

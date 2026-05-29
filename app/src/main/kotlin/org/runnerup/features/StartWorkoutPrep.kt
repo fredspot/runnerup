@@ -47,34 +47,34 @@ object StartWorkoutPrep {
       tabTag: String,
       basicTargetTypeValue: Int,
       advancedWorkout: Workout?,
+      advancedWorkoutName: String?,
       prefKeyBasicAudio: String,
       prefKeyIntervalAudio: String,
       prefKeyAdvancedAudio: String,
   ): Workout? {
     val ctx = context.applicationContext
-    val (workout, audioPref) =
-        when (tabTag) {
-          TAB_BASIC -> {
-            val audio =
-                WorkoutBuilder.getAudioCuePreferences(ctx, pref, prefKeyBasicAudio)
-            val target = Dimension.valueOf(basicTargetTypeValue)
-            Pair(WorkoutBuilder.createDefaultWorkout(resources, pref, target), audio)
-          }
-          TAB_INTERVAL -> {
-            val audio =
-                WorkoutBuilder.getAudioCuePreferences(ctx, pref, prefKeyIntervalAudio)
-            Pair(WorkoutBuilder.createDefaultIntervalWorkout(resources, pref), audio)
-          }
-          TAB_ADVANCED -> {
-            val audio =
-                WorkoutBuilder.getAudioCuePreferences(ctx, pref, prefKeyAdvancedAudio)
-            Pair(advancedWorkout, audio)
-          }
-          else -> Pair(null, null)
-        }
+    var workout: Workout? = null
+    var audioPref: SharedPreferences? = null
+
+    when (tabTag) {
+      TAB_BASIC -> {
+        audioPref = WorkoutBuilder.getAudioCuePreferences(ctx, pref, prefKeyBasicAudio)
+        val target = Dimension.valueOf(basicTargetTypeValue)
+        workout = WorkoutBuilder.createDefaultWorkout(resources, pref, target)
+      }
+      TAB_INTERVAL -> {
+        audioPref = WorkoutBuilder.getAudioCuePreferences(ctx, pref, prefKeyIntervalAudio)
+        workout = WorkoutBuilder.createDefaultIntervalWorkout(resources, pref)
+      }
+      TAB_ADVANCED -> {
+        audioPref = WorkoutBuilder.getAudioCuePreferences(ctx, pref, prefKeyAdvancedAudio)
+        workout = advancedWorkout
+      }
+    }
+
     if (workout != null && audioPref != null) {
       WorkoutBuilder.prepareWorkout(resources, pref, workout)
-      WorkoutBuilder.addAudioCuesToWorkout(resources, workout, audioPref, pref)
+      WorkoutBuilder.addAudioCuesToWorkout(ctx, resources, workout, audioPref, pref)
     }
     return workout
   }

@@ -123,4 +123,14 @@
   <string name="injury_before">Before</string>
   <string name="injury_during">During</string>
   <string name="injury_after">After</string>
+  <string name="Workout_cue_settings">Cues and targets</string>
+  <string name="Step_cue_settings">Step cues (0 = off)</string>
+  <string name="Step_cue_settings_hint">Tap a step to edit. Long-press for duplicate or delete. Drag the handle to reorder.</string>
+  <string name="Reorder_step">Reorder step</string>
+  <string name="Workout_step_actions">Step actions</string>
+  <string name="Duplicate_step">Duplicate</string>
+  <string name="Add_step_inside_repeat">Add step inside repeat</string>
+  <string name="Repeat_block">Repeat block</string>
+  <string name="Workout_editor_steps_hint">Drag the ⋮⋮ handle to reorder. Move repeat blocks in the workout; move steps inside a repeat under that block. Long-press a step for duplicate or delete.</string>
+  <string name="Workout_steps">Steps</string>
 </resources>

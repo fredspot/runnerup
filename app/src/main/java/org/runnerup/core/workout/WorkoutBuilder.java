@@ -23,6 +23,7 @@ import android.content.res.Resources;
 import android.text.format.DateUtils;
 import android.util.Log;
 import android.util.Pair;
+import androidx.preference.PreferenceManager;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -282,10 +283,125 @@ public class WorkoutBuilder {
   }
 
   public static void addAudioCuesToWorkout(
-      Resources res, Workout w, SharedPreferences audioPrefs, SharedPreferences prefs) {
+      Context ctx, Resources res, Workout w, SharedPreferences audioPrefs, SharedPreferences prefs) {
     final boolean muteMusic = audioPrefs.getBoolean(res.getString(R.string.pref_mute_bool), false);
     w.setMute(muteMusic);
-    addAudioCuesToWorkout(res, w.steps, audioPrefs, prefs, w.getWorkoutType());
+    addAudioCuesToWorkout(ctx, res, w.steps, audioPrefs, prefs, w.getWorkoutType());
+  }
+
+  public static SharedPreferences getAudioCuePreferencesForScheme(Context ctx, String schemeName) {
+    String defaultVal = ctx.getString(org.runnerup.common.R.string.Default);
+    if (schemeName == null || schemeName.contentEquals(defaultVal)) {
+      return PreferenceManager.getDefaultSharedPreferences(ctx);
+    }
+    return ctx.getSharedPreferences(schemeName + AudioCueSettingsActivity.SUFFIX, Context.MODE_PRIVATE);
+  }
+
+  private static SharedPreferences resolveStepAudioPrefs(
+      Context ctx, Step step, SharedPreferences defaultAudioPrefs) {
+    String scheme = step.getAudioCueScheme();
+    if (scheme != null && !scheme.isEmpty()) {
+      return getAudioCuePreferencesForScheme(ctx, scheme);
+    }
+    return defaultAudioPrefs;
+  }
+
+  private static int resolveHrCueSeconds(
+      Resources res, Step step, SharedPreferences prefs, int workoutType) {
+    if (step.getHrCueIntervalSeconds() > 0) {
+      return step.getHrCueIntervalSeconds();
+    }
+    if (workoutType == Constants.WORKOUT_TYPE.INTERVAL && step.getIntensity() == Intensity.ACTIVE) {
+      return SafeParse.parseInt(
+          prefs.getString(res.getString(R.string.pref_interval_hr_cue_interval_seconds), "0"), 0);
+    }
+    return 0;
+  }
+
+  private static int resolvePaceCueSeconds(
+      Resources res, Step step, SharedPreferences prefs, int workoutType) {
+    if (step.getPaceCueIntervalSeconds() > 0) {
+      return step.getPaceCueIntervalSeconds();
+    }
+    if (workoutType == Constants.WORKOUT_TYPE.INTERVAL && step.getIntensity() == Intensity.ACTIVE) {
+      return SafeParse.parseInt(
+          prefs.getString(res.getString(R.string.pref_interval_pace_cue_interval_seconds), "0"),
+          0);
+    }
+    return 0;
+  }
+
+  private static int resolveHrCueAnnouncement(
+      Resources res, Step step, SharedPreferences prefs, int workoutType, int hrCueEvery) {
+    if (hrCueEvery <= 0) {
+      return 0;
+    }
+    if (step.getHrCueIntervalSeconds() > 0) {
+      return step.getHrCueAnnouncement();
+    }
+    if (workoutType == Constants.WORKOUT_TYPE.INTERVAL) {
+      return prefs.getInt(res.getString(R.string.pref_interval_hr_cue_announcement), 0);
+    }
+    return step.getHrCueAnnouncement();
+  }
+
+  /** Advanced warm-up/cool-down with no per-step cue overrides stay quiet. */
+  private static boolean advancedStepUsesMinimalCues(Step step, int workoutType) {
+    if (workoutType != Constants.WORKOUT_TYPE.ADVANCED) {
+      return false;
+    }
+    Intensity intensity = step.getIntensity();
+    if (intensity != Intensity.WARMUP && intensity != Intensity.COOLDOWN) {
+      return false;
+    }
+    return !step.hasPeriodicCues() && step.getAudioCueScheme() == null;
+  }
+
+  private static void addPeriodicCuesForStep(
+      Resources res, Step step, SharedPreferences prefs, int workoutType) {
+    if (step.getIntensity() != Intensity.ACTIVE) {
+      return;
+    }
+    int hrCueEvery = resolveHrCueSeconds(res, step, prefs, workoutType);
+    int paceCueEvery = resolvePaceCueSeconds(res, step, prefs, workoutType);
+    if (hrCueEvery <= 0 && paceCueEvery <= 0) {
+      return;
+    }
+    if (hrCueEvery > 0) {
+      hrCueEvery = Math.min(600, Math.max(1, hrCueEvery));
+      int announcement = resolveHrCueAnnouncement(res, step, prefs, workoutType, hrCueEvery);
+      if (announcement < 0 || announcement > 2) {
+        announcement = 0;
+      }
+      ArrayList<Feedback> hrActions = new ArrayList<>();
+      if (announcement == 0 || announcement == 2) {
+        hrActions.add(new AudioFeedback(Scope.CURRENT, Dimension.HR));
+      }
+      if (announcement == 1 || announcement == 2) {
+        hrActions.add(new AudioFeedback(Scope.CURRENT, Dimension.HRZ));
+      }
+      if (!hrActions.isEmpty()) {
+        IntervalTrigger hrCue = new IntervalTrigger();
+        hrCue.first = hrCueEvery;
+        hrCue.interval = hrCueEvery;
+        hrCue.scope = Scope.STEP;
+        hrCue.dimension = Dimension.TIME;
+        hrCue.triggerAction = hrActions;
+        hrCue.triggerSuppression.add(EndOfLapSuppression.EmptyLapSuppression);
+        step.triggers.add(hrCue);
+      }
+    }
+    if (paceCueEvery > 0) {
+      paceCueEvery = Math.min(600, Math.max(1, paceCueEvery));
+      IntervalTrigger paceCue = new IntervalTrigger();
+      paceCue.first = paceCueEvery;
+      paceCue.interval = paceCueEvery;
+      paceCue.scope = Scope.STEP;
+      paceCue.dimension = Dimension.TIME;
+      paceCue.triggerAction.add(new RecentPaceAudioFeedback());
+      paceCue.triggerSuppression.add(EndOfLapSuppression.EmptyLapSuppression);
+      step.triggers.add(paceCue);
+    }
   }
 
   /**
@@ -297,16 +413,12 @@ public class WorkoutBuilder {
    * @param prefs
    */
   private static void addAudioCuesToWorkout(
+      Context ctx,
       Resources res,
       ArrayList<Step> steps,
       SharedPreferences audioPrefs,
       SharedPreferences prefs,
       int workoutType) {
-    final boolean skip_startstop_cue =
-        audioPrefs.getBoolean(res.getString(R.string.cueinfo_skip_startstop), false);
-    final boolean isLapStartedCue =
-        audioPrefs.getBoolean(res.getString(R.string.pref_lap_started), true);
-
     Step[] stepArr = new Step[steps.size()];
     steps.toArray(stepArr);
     for (int i = 0; i < stepArr.length; i++) {
@@ -315,7 +427,7 @@ public class WorkoutBuilder {
 
       if (step.getIntensity() == Intensity.REPEAT) {
         RepeatStep repeat = (RepeatStep) step;
-        addAudioCuesToWorkout(res, repeat.steps, audioPrefs, prefs, workoutType);
+        addAudioCuesToWorkout(ctx, res, repeat.steps, audioPrefs, prefs, workoutType);
         // After audio cues are attached to inner steps, optionally announce "interval N of M" at
         // the start of every active inner step. Insert the trigger first so the count is spoken
         // before the existing "lap started" cue.
@@ -337,15 +449,24 @@ public class WorkoutBuilder {
         continue;
       }
 
-      if (step.getIntensity() != Intensity.RESTING) {
+      SharedPreferences stepAudioPrefs = resolveStepAudioPrefs(ctx, step, audioPrefs);
+      final boolean minimalCues = advancedStepUsesMinimalCues(step, workoutType);
+      final boolean skipStep =
+          minimalCues
+              || stepAudioPrefs.getBoolean(res.getString(R.string.cueinfo_skip_startstop), false);
+      final boolean lapStartedCue =
+          !minimalCues
+              && stepAudioPrefs.getBoolean(res.getString(R.string.pref_lap_started), true);
+
+      if (!minimalCues && step.getIntensity() != Intensity.RESTING) {
         // Periodic distance/time and end of lap/step
         // Some suppressions for each intensity for related lap started/completed
         // endOfLap is related to the autolap
         boolean endOfLap = step.getIntensity() == Intensity.ACTIVE || step.getAutolap() > 0;
-        ArrayList<Trigger> defaultTriggers = createDefaultTriggers(res, audioPrefs, endOfLap);
+        ArrayList<Trigger> defaultTriggers = createDefaultTriggers(res, stepAudioPrefs, endOfLap);
 
-        if (workoutType == Constants.WORKOUT_TYPE.INTERVAL
-            && step.getIntensity() == Intensity.ACTIVE
+        if (step.getIntensity() == Intensity.ACTIVE
+            && resolvePaceCueSeconds(res, step, prefs, workoutType) > 0
             && !defaultTriggers.isEmpty()) {
           sanitizeIntervalWorkPaceFeedback(defaultTriggers.get(0).triggerAction);
         }
@@ -353,7 +474,7 @@ public class WorkoutBuilder {
         step.triggers.addAll(defaultTriggers);
       }
 
-      if (!skip_startstop_cue) {
+      if (!skipStep && !minimalCues) {
         addPauseStopResumeTriggers(step.triggers);
       }
 
@@ -367,13 +488,14 @@ public class WorkoutBuilder {
         trigger.triggerAction.add(new CountdownFeedback(Scope.STEP, step.durationType));
         step.triggers.add(trigger);
 
-        // Audio feedback
-        createAudioCountdown(step);
+        if (!minimalCues) {
+          createAudioCountdown(step);
+        }
       }
 
       switch (step.getIntensity()) {
         case ACTIVE:
-          if (isLapStartedCue) {
+          if (lapStartedCue) {
             EventTrigger ev = new EventTrigger();
             ev.event = Event.STARTED;
             ev.scope = Scope.STEP;
@@ -410,7 +532,7 @@ public class WorkoutBuilder {
 
         case WARMUP:
         case COOLDOWN:
-          if (isLapStartedCue) {
+          if (lapStartedCue) {
             EventTrigger ev = new EventTrigger();
             ev.event = Event.STARTED;
             ev.scope = Scope.STEP;
@@ -429,14 +551,16 @@ public class WorkoutBuilder {
           break;
       }
 
-      if (audioPrefs.getBoolean(res.getString(R.string.pref_cue_hrm_connection), false)) {
+      if (!minimalCues
+          && stepAudioPrefs.getBoolean(res.getString(R.string.pref_cue_hrm_connection), false)) {
         HRMStateTrigger hrmState = new HRMStateTrigger();
         hrmState.triggerAction.add(new HRMStateChangeFeedback(hrmState));
         step.triggers.add(hrmState);
       }
 
       final boolean coaching =
-          audioPrefs.getBoolean(res.getString(R.string.cueinfo_target_coaching), true);
+          !minimalCues
+              && stepAudioPrefs.getBoolean(res.getString(R.string.cueinfo_target_coaching), true);
       if (coaching && step.getTargetType() != null) {
         final Range range = step.getTargetValue();
         final int averageSeconds =
@@ -455,56 +579,7 @@ public class WorkoutBuilder {
         step.triggers.add(tr);
       }
 
-      if (workoutType == Constants.WORKOUT_TYPE.INTERVAL
-          && step.getIntensity() == Intensity.ACTIVE) {
-        int hrCueEvery =
-            SafeParse.parseInt(
-                prefs.getString(
-                    res.getString(R.string.pref_interval_hr_cue_interval_seconds), "0"),
-                0);
-        if (hrCueEvery > 0) {
-          hrCueEvery = Math.min(600, Math.max(1, hrCueEvery));
-          int announcement =
-              prefs.getInt(res.getString(R.string.pref_interval_hr_cue_announcement), 0);
-          if (announcement < 0 || announcement > 2) {
-            announcement = 0;
-          }
-          ArrayList<Feedback> hrActions = new ArrayList<>();
-          if (announcement == 0 || announcement == 2) {
-            hrActions.add(new AudioFeedback(Scope.CURRENT, Dimension.HR));
-          }
-          if (announcement == 1 || announcement == 2) {
-            hrActions.add(new AudioFeedback(Scope.CURRENT, Dimension.HRZ));
-          }
-          if (!hrActions.isEmpty()) {
-            IntervalTrigger hrCue = new IntervalTrigger();
-            hrCue.first = hrCueEvery;
-            hrCue.interval = hrCueEvery;
-            hrCue.scope = Scope.STEP;
-            hrCue.dimension = Dimension.TIME;
-            hrCue.triggerAction = hrActions;
-            hrCue.triggerSuppression.add(EndOfLapSuppression.EmptyLapSuppression);
-            step.triggers.add(hrCue);
-          }
-        }
-
-        int paceCueEvery =
-            SafeParse.parseInt(
-                prefs.getString(
-                    res.getString(R.string.pref_interval_pace_cue_interval_seconds), "0"),
-                0);
-        if (paceCueEvery > 0) {
-          paceCueEvery = Math.min(600, Math.max(1, paceCueEvery));
-          IntervalTrigger paceCue = new IntervalTrigger();
-          paceCue.first = paceCueEvery;
-          paceCue.interval = paceCueEvery;
-          paceCue.scope = Scope.STEP;
-          paceCue.dimension = Dimension.TIME;
-          paceCue.triggerAction.add(new RecentPaceAudioFeedback());
-          paceCue.triggerSuppression.add(EndOfLapSuppression.EmptyLapSuppression);
-          step.triggers.add(paceCue);
-        }
-      }
+      addPeriodicCuesForStep(res, step, prefs, workoutType);
 
       checkDuplicateTriggers(step);
     }

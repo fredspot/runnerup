@@ -291,9 +291,38 @@ git lfs version
 - [Gradle Build Tool](https://gradle.org/)
 - [Android SDK Manager](https://developer.android.com/studio/command-line/sdkmanager)
 
+## Verification (modernization tranche 1)
+
+After UI changes, run JVM tests and optional device smoke on a connected phone:
+
+```bash
+./gradlew app:test common:test
+./scripts/check-card-ripple.sh
+adb devices
+./gradlew :app:installLatestDebug
+./scripts/device-smoke.sh
+```
+
+Set `RUNNERUP_PKG` if not using the default debug package (`org.runnerup.debug`).
+
+### Card press rules
+
+- Rounded list cards use `@style/RunnerUpCard` (`card_background` + `card_ripple_overlay` foreground), not `?attr/selectableItemBackground` on the card face.
+- Apply `CardPressHelper.prepareCard()` / `prepareRowHost()` from Kotlin when binding clickable rows.
+- RecyclerViews with bottom FAB or action bars should use `android:clipToPadding="false"` on the list (see `history.xml`).
+- CI/local guard: `./scripts/check-card-ripple.sh` fails if layouts regress to rectangular system ripples on cards.
+
+### Tranche 1 completion checklist
+
+- No standalone `ListView` screens in feature activities (preference internals only).
+- No `onActivityResult` / `startActivityForResult` under `app/src/main`.
+- Primary tabs and settings lists on `RecyclerView`.
+- Card ripple architecture centralized (`CardPressHelper`, `RunnerUpCard`).
+- Device smoke covers History → Detail → Laps, Start spinner, Best Times, Statistics (optional Monthly Comparison), Settings, and Settings → Workout → Manage workouts.
+
 ---
 
-**Last Updated**: January 2025  
+**Last Updated**: May 2026  
 **Tested On**: Ubuntu 22.04 LTS, OpenJDK 17, Android SDK 35  
 **Build Status**: ✅ Successfully tested with `./gradlew assembleLatestDebug`  
 **APK Location**: `app/build/outputs/apk/latest/debug/app-latest-debug.apk`

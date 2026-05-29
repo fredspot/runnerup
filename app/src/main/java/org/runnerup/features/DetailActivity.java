@@ -84,13 +84,13 @@ import org.runnerup.core.workout.Sport;
 
 public class DetailActivity extends AppCompatActivity implements Constants {
 
-  private long mID = 0;
-  private SQLiteDatabase mDB = null;
+  long mID = 0;
+  SQLiteDatabase mDB = null;
   private final DetailSyncController syncController = new DetailSyncController();
-  private final DetailGraphController graphController = new DetailGraphController();
-  private final DetailSaveModeController saveModeController = new DetailSaveModeController(this);
-  private final DetailMenuController menuController = new DetailMenuController(this);
-  private final DetailLapListController.Host lapListHost =
+  final DetailGraphController graphController = new DetailGraphController();
+  final DetailSaveModeController saveModeController = new DetailSaveModeController(this);
+  final DetailMenuController menuController = new DetailMenuController(this);
+  final DetailLapListController.Host lapListHost =
       new DetailLapListController.Host() {
         @Override
         public String labelForIntensity(int intensity) {
@@ -139,35 +139,36 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   private ContentValues[] laps = null;
   private WorkoutStepGrouper.LapDisplayEntry[] lapDisplayEntries = null;
   private final ArrayList<ContentValues> reports = new ArrayList<>();
-  private DetailLapListController.LapListAdapter lapListAdapter;
+  DetailLapListController.LapListAdapter lapListAdapter;
 
   private boolean uploading = false;
 
-  private Button saveButton = null;
+  Button saveButton = null;
   private Button uploadButton = null;
-  private Button resumeButton = null;
+  Button resumeButton = null;
   private TextView activityTime = null;
   private TextView activityPace = null;
   private View activityPaceSeparator = null;
   private TextView activityDistance = null;
 
-  private TitleSpinner sport = null;
-  private TitleSpinner manualDistance = null;
-  private EditText notes = null;
-  private DetailInjuryController injuryController = null;
-  private View rootView;
-  private ViewPager2 detailPager;
-  private boolean detailTabContentBound = false;
+  TitleSpinner sport = null;
+  TitleSpinner manualDistance = null;
+  EditText notes = null;
+  DetailInjuryController injuryController = null;
+  View rootView;
+  ViewPager2 detailPager;
+  boolean detailTabContentBound = false;
+  final DetailTabContentController tabContentController = new DetailTabContentController(this);
   private View mapTab;
   private int mapTabIndex = -1;
 
-  private MapWrapper mapWrapper = null;
+  MapWrapper mapWrapper = null;
 
   private SyncManager syncManager = null;
-  private Formatter formatter = null;
+  Formatter formatter = null;
 
   private long mStartTime = 0; // activity start time in unix timestamp
-  private ContentValues headerData = new ContentValues();
+  ContentValues headerData = new ContentValues();
   private ActivityResultLauncher<Intent> accountListLauncher;
   private ActivityResultLauncher<Intent> configureLauncher;
 
@@ -294,120 +295,11 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   }
 
   private void scheduleBindDetailTabContent(Bundle savedInstanceState) {
-    if (detailPager == null) {
-      return;
-    }
-    detailPager
-        .getViewTreeObserver()
-        .addOnGlobalLayoutListener(
-            new ViewTreeObserver.OnGlobalLayoutListener() {
-              @Override
-              public void onGlobalLayout() {
-                if (detailTabContentBound || isFinishing()) {
-                  removeListener();
-                  return;
-                }
-                if (findViewById(R.id.summary_sport) != null) {
-                  removeListener();
-                  bindDetailTabContent(savedInstanceState);
-                }
-              }
-
-              private void removeListener() {
-                ViewTreeObserver observer = detailPager.getViewTreeObserver();
-                if (observer.isAlive()) {
-                  observer.removeOnGlobalLayoutListener(this);
-                }
-              }
-            });
+    tabContentController.scheduleBind(savedInstanceState);
   }
 
   private void bindDetailTabContent(Bundle savedInstanceState) {
-    if (detailTabContentBound || isFinishing()) {
-      return;
-    }
-    sport = findViewById(R.id.summary_sport);
-    manualDistance = findViewById(R.id.summary_manual_distance);
-    notes = findViewById(R.id.notes_text);
-    RecyclerView lapList = findViewById(R.id.laplist);
-    if (sport == null || manualDistance == null || notes == null || lapList == null) {
-      return;
-    }
-    detailTabContentBound = true;
-
-    sport.setOnSetValueListener(
-        new OnSetValueListener() {
-          @Override
-          public String preSetValue(String newValue) throws IllegalArgumentException {
-            return newValue;
-          }
-
-          @Override
-          public int preSetValue(int newValue) throws IllegalArgumentException {
-            updateViewForSport(newValue);
-            ViewCompat.requestApplyInsets(rootView);
-            headerData.put(DB.ACTIVITY.SPORT, newValue);
-            return newValue;
-          }
-        });
-    sport.setArrayEntries(Sport.getStringArray(getResources()));
-
-    manualDistance.setOnSetValueListener(
-        new OnSetValueListener() {
-          @Override
-          public String preSetValue(String newValue) throws IllegalArgumentException {
-            double dist = SafeParse.parseDouble(newValue, 0);
-            headerData.put(DB.ACTIVITY.DISTANCE, dist);
-            updateHeader(headerData, /* fromManualDistance= */true);
-            return newValue;
-          }
-
-          @Override
-          public int preSetValue(int newValue) throws IllegalArgumentException {
-            return newValue;
-          }
-        });
-    injuryController = new DetailInjuryController(this, mDB, () -> mID);
-    injuryController.bindViews(this);
-    menuController.bind(mDB, mID, sport);
-
-    if (USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0) {
-      Object mapView = findViewById(R.id.mapview);
-      if (mapView != null) {
-        mapWrapper = new MapWrapper(this, mDB, mID, formatter, mapView);
-        mapWrapper.onCreate(savedInstanceState);
-      }
-    }
-
-    fillHeaderData();
-    requery();
-
-    lapList.setLayoutManager(new LinearLayoutManager(this));
-    lapListAdapter = DetailLapListController.createAdapter(this, lapListHost);
-    lapList.setAdapter(lapListAdapter);
-
-    LinearLayout graphTabLayout = findViewById(R.id.tab_graph);
-    LinearLayout hrzonesBarLayout = findViewById(R.id.hrzonesBarLayout);
-    if (graphTabLayout != null && hrzonesBarLayout != null) {
-      graphController.attach(
-          this, graphTabLayout, hrzonesBarLayout, formatter, mDB, mID, sport.getValueInt());
-    }
-
-    Button discardButton = findViewById(R.id.discard_button);
-    saveModeController.bind(
-        saveModeController.mode,
-        saveButton,
-        discardButton,
-        resumeButton,
-        notes,
-        sport,
-        manualDistance,
-        headerData,
-        mDB,
-        mID,
-        rootView);
-
-    injuryController.renderIcons();
+    tabContentController.bind(savedInstanceState);
   }
 
   void updateViewForSport(int sportValue) {
@@ -743,7 +635,7 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     updateHeader(tmp, /* fromManualDistance= */false);
   }
 
-  private void updateHeader(ContentValues data, boolean fromManualDistance) {
+  void updateHeader(ContentValues data, boolean fromManualDistance) {
     DetailHeaderBinder.bind(
         formatter,
         activityDistance,

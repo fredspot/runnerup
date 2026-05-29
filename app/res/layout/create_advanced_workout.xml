@@ -1,81 +1,122 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                xmlns:runnerup="http://schemas.android.com/apk/res-auto"
-                xmlns:tools="http://schemas.android.com/tools"
-                android:id="@+id/create_advanced_workout_view"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                tools:context="org.runnerup.features.CreateAdvancedWorkout">
-
-  <org.runnerup.ui.common.widget.TitleSpinner
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:id="@+id/new_workout_spinner"
-    android:text="@string/Workout"
-    runnerup:type="spinner_txt"
-    android:orientation="horizontal" />
-
-  <ListView
-    android:id="@+id/new_advnced_workout_steps"
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:runnerup="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/create_advanced_workout_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingTop="8dp"
-    android:scrollbarAlwaysDrawVerticalTrack="true"
-    android:layout_below="@id/new_workout_spinner"
-    android:layout_above="@id/create_button_table"/>
+    android:background="@color/backgroundPrimary"
+    android:orientation="vertical"
+    tools:context="org.runnerup.features.CreateAdvancedWorkout">
 
-  <TableLayout
-    android:id="@+id/create_button_table"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_alignParentBottom="true"
-    >
-
-    <TableRow
-      android:layout_width="fill_parent"
-      android:layout_height="fill_parent"
-      >
-
-      <Button
-        android:layout_width="0dp"
+    <org.runnerup.ui.common.widget.TitleSpinner
+        android:id="@+id/new_workout_spinner"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/Add_step"
-        android:id="@+id/add_step_button"
-        style="@style/ButtonText"
-        android:background="@drawable/btn_blue"
-        android:layout_weight="1"/>
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/Workout"
+        runnerup:type="spinner_txt" />
 
-      <Button
-        android:layout_width="0dp"
+    <TextView
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/Add_repeat"
-        android:id="@+id/add_repeat_button"
-        style="@style/ButtonText"
-        android:background="@drawable/btn_blue"
-        android:layout_weight="1"/>
-    </TableRow>
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="4dp"
+        android:text="@string/Workout_steps"
+        android:textAppearance="@style/ListCategoryHeading"
+        android:textColor="@color/colorText" />
 
-    <TableRow
-      android:layout_width="fill_parent"
-      android:layout_height="fill_parent">
-
-      <Button
-        android:layout_width="0dp"
+    <TextView
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/Save"
-        android:id="@+id/workout_save_button"
-        style="@style/ButtonText"
-        android:background="@drawable/btn_green"
-        android:layout_weight="1"/>
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/Workout_editor_steps_hint"
+        android:textColor="@color/colorTextSecondary"
+        android:textSize="14sp" />
 
-      <Button
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="@string/Discard"
-        android:id="@+id/workout_discard_button"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/new_advnced_workout_steps"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
         android:layout_weight="1"
-        style="@style/ButtonText"
-        android:background="@drawable/btn_red"/>
-    </TableRow>
-  </TableLayout>
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
+        android:scrollbarStyle="outsideOverlay" />
 
-</RelativeLayout>
+    <LinearLayout
+        android:id="@+id/create_button_table"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/activity_margin"
+        android:paddingEnd="@dimen/activity_margin"
+        android:paddingTop="8dp"
+        android:paddingBottom="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/add_step_button"
+                style="@style/ButtonText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/btn_blue"
+                android:text="@string/Add_step"
+                android:textSize="16sp" />
+
+            <Button
+                android:id="@+id/add_repeat_button"
+                style="@style/ButtonText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/btn_blue"
+                android:text="@string/Add_repeat"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/workout_save_button"
+                style="@style/ButtonText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/btn_green"
+                android:text="@string/Save"
+                android:textSize="16sp" />
+
+            <Button
+                android:id="@+id/workout_discard_button"
+                style="@style/ButtonText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/btn_red"
+                android:text="@string/Discard"
+                android:textSize="16sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

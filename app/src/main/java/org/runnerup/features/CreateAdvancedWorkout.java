@@ -3,20 +3,15 @@ package org.runnerup.features;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.Button;
-import android.widget.ListView;
-import android.widget.TableRow;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import org.json.JSONException;
 import org.runnerup.R;
 import org.runnerup.core.util.ViewUtil;
@@ -30,8 +25,7 @@ public class CreateAdvancedWorkout extends AppCompatActivity {
 
   private Workout advancedWorkout = null;
   private TitleSpinner advancedWorkoutSpinner = null;
-  private final WorkoutStepsAdapter advancedWorkoutStepsAdapter = new WorkoutStepsAdapter();
-  private boolean dontAskAgain = false;
+  private WorkoutEditorStepsAdapter advancedWorkoutStepsAdapter = null;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -49,11 +43,11 @@ public class CreateAdvancedWorkout extends AppCompatActivity {
     advancedWorkoutSpinner.setValue(advWorkoutName);
     advancedWorkoutSpinner.setEnabled(false);
 
-    dontAskAgain = false;
-
-    ListView advancedStepList = findViewById(R.id.new_advnced_workout_steps);
-    advancedStepList.setDividerHeight(0);
+    RecyclerView advancedStepList = findViewById(R.id.new_advnced_workout_steps);
+    advancedStepList.setLayoutManager(new LinearLayoutManager(this));
+    advancedWorkoutStepsAdapter = new WorkoutEditorStepsAdapter(this, onWorkoutChanged);
     advancedStepList.setAdapter(advancedWorkoutStepsAdapter);
+    advancedWorkoutStepsAdapter.attachToRecyclerView(advancedStepList);
 
     Button addStepButton = findViewById(R.id.add_step_button);
     addStepButton.setOnClickListener(addStepButtonClick);
@@ -68,8 +62,6 @@ public class CreateAdvancedWorkout extends AppCompatActivity {
     discardWorkoutButton.setOnClickListener(discardWorkoutButtonClick);
 
     if (workoutExists) {
-      // Avoid users inadvertently deleting existing workouts while editing:
-      // (discard button should only be available when creating a workout)
       discardWorkoutButton.setVisibility(View.GONE);
     }
 
@@ -79,7 +71,20 @@ public class CreateAdvancedWorkout extends AppCompatActivity {
       handleWorkoutFileException(e);
     }
 
+    if (getSupportActionBar() != null) {
+      getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+      getSupportActionBar()
+          .setBackgroundDrawable(
+              androidx.core.content.ContextCompat.getDrawable(this, R.color.backgroundPrimary));
+    }
+
     ViewUtil.Insets(findViewById(R.id.create_advanced_workout_view), true);
+  }
+
+  @Override
+  public boolean onSupportNavigateUp() {
+    finish();
+    return true;
   }
 
   private void createAdvancedWorkout(String name, boolean workoutExists)
@@ -90,145 +95,12 @@ public class CreateAdvancedWorkout extends AppCompatActivity {
       advancedWorkout = new Workout();
       WorkoutSerializer.writeFile(getApplicationContext(), name, advancedWorkout);
     }
-    advancedWorkoutStepsAdapter.steps = advancedWorkout.getStepList();
-    advancedWorkoutStepsAdapter.notifyDataSetChanged();
+    refreshStepList();
   }
 
-  final class WorkoutStepsAdapter extends BaseAdapter {
-
-    List<Workout.StepListEntry> steps = new ArrayList<>();
-
-    @Override
-    public int getCount() {
-      return steps.size();
-    }
-
-    @Override
-    public Object getItem(int position) {
-      return steps.get(position);
-    }
-
-    @Override
-    public long getItemId(int position) {
-      return 0;
-    }
-
-    private class ViewHolderWorkoutStepsAdapter {
-      private StepButton button;
-      private Button add;
-      private Button del;
-    }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-      View view = convertView;
-      ViewHolderWorkoutStepsAdapter viewHolder;
-
-      if (view == null) {
-        viewHolder = new ViewHolderWorkoutStepsAdapter();
-
-        LayoutInflater inflater = getLayoutInflater();
-        view = inflater.inflate(R.layout.advanced_workout_row, parent, false);
-
-        viewHolder.button = view.findViewById(R.id.workout_step_button);
-        viewHolder.button.setOnChangedListener(onWorkoutChanged);
-
-        viewHolder.add = view.findViewById(R.id.add_button);
-        viewHolder.add.setOnClickListener(onAddButtonClick);
-
-        viewHolder.del = view.findViewById(R.id.del_button);
-        viewHolder.del.setOnClickListener(onDeleteButtonClick);
-
-        view.setTag(viewHolder);
-      } else {
-        viewHolder = (ViewHolderWorkoutStepsAdapter) view.getTag();
-      }
-
-      Workout.StepListEntry entry = steps.get(position);
-      viewHolder.button.setStep(entry.step);
-      float pxToDp = getResources().getDisplayMetrics().density;
-      viewHolder.button.setPadding((int) (entry.level * 8 * pxToDp + 0.5f), 0, 0, 0);
-
-      return view;
-    }
+  private void refreshStepList() {
+    advancedWorkoutStepsAdapter.setWorkout(advancedWorkout);
   }
-
-  private final View.OnClickListener onAddButtonClick =
-      view -> {
-        TableRow row = (TableRow) view.getParent();
-        final StepButton stepButton = row.findViewById(R.id.workout_step_button);
-
-        Step currentStep = stepButton.getStep();
-        if (currentStep instanceof RepeatStep rs) {
-          rs.getSteps().add(new Step());
-        } else {
-
-          int index = advancedWorkout.getSteps().indexOf(currentStep);
-          if (index < 0) {
-            for (Step se : advancedWorkout.getSteps()) {
-              if (se instanceof RepeatStep) {
-                index = ((RepeatStep) se).getSteps().indexOf(currentStep);
-                ((RepeatStep) se).getSteps().add(index + 1, new Step());
-              }
-            }
-          } else {
-            advancedWorkout.getSteps().add(index + 1, new Step());
-          }
-        }
-        advancedWorkoutStepsAdapter.steps = advancedWorkout.getStepList();
-        advancedWorkoutStepsAdapter.notifyDataSetChanged();
-      };
-
-  private final View.OnClickListener onDeleteButtonClick =
-      new View.OnClickListener() {
-
-        @Override
-        public void onClick(View view) {
-          TableRow row = (TableRow) view.getParent();
-          final StepButton stepButton = row.findViewById(R.id.workout_step_button);
-
-          if (!dontAskAgain) {
-            new AlertDialog.Builder(CreateAdvancedWorkout.this)
-                .setMultiChoiceItems(
-                    new String[] {"Don't ask again"},
-                    new boolean[] {dontAskAgain},
-                    (dialog, indexSelected, isChecked) -> dontAskAgain = isChecked)
-                .setTitle(org.runnerup.common.R.string.Are_you_sure)
-                .setPositiveButton(
-                    org.runnerup.common.R.string.Yes,
-                    (dialog, which) -> {
-                      dialog.dismiss();
-                      deleteStep(stepButton);
-                    })
-                .setNegativeButton(
-                    org.runnerup.common.R.string.No, (dialog, which) -> dialog.dismiss())
-                .show();
-          } else {
-            deleteStep(stepButton);
-          }
-        }
-
-        private void deleteStep(StepButton button) {
-          Step s = button.getStep();
-          for (Step se : advancedWorkout.getSteps()) {
-            if (se instanceof RepeatStep) {
-              for (Step subStep : ((RepeatStep) se).getSteps()) {
-                if (subStep.equals(s)) {
-                  ((RepeatStep) se).getSteps().remove(s);
-                  break;
-                }
-              }
-            }
-            if (se.equals(s)) {
-              advancedWorkout.getSteps().remove(se);
-              break;
-            }
-          }
-
-          advancedWorkoutStepsAdapter.steps = advancedWorkout.getStepList();
-          advancedWorkoutStepsAdapter.notifyDataSetChanged();
-        }
-      };
 
   private final Runnable onWorkoutChanged =
       () -> {
@@ -251,15 +123,13 @@ public class CreateAdvancedWorkout extends AppCompatActivity {
   private final View.OnClickListener addStepButtonClick =
       v -> {
         advancedWorkout.addStep(new Step());
-        advancedWorkoutStepsAdapter.steps = advancedWorkout.getStepList();
-        advancedWorkoutStepsAdapter.notifyDataSetChanged();
+        refreshStepList();
       };
 
   private final View.OnClickListener addRepeatStepButtonClick =
       view -> {
         advancedWorkout.addStep(new RepeatStep());
-        advancedWorkoutStepsAdapter.steps = advancedWorkout.getStepList();
-        advancedWorkoutStepsAdapter.notifyDataSetChanged();
+        refreshStepList();
       };
 
   private final View.OnClickListener saveWorkoutButtonClick =

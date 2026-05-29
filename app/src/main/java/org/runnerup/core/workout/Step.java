@@ -48,6 +48,49 @@ public class Step implements TickComponent {
   /** Triggers */
   final ArrayList<Trigger> triggers = new ArrayList<>();
 
+  /** Per-step audio/cue overrides (0 = off). Persisted in workout JSON when set. */
+  private int hrCueIntervalSeconds = 0;
+
+  private int paceCueIntervalSeconds = 0;
+  private int hrCueAnnouncement = 0;
+  private String audioCueScheme = null;
+
+  public int getHrCueIntervalSeconds() {
+    return hrCueIntervalSeconds;
+  }
+
+  public void setHrCueIntervalSeconds(int seconds) {
+    hrCueIntervalSeconds = Math.max(0, seconds);
+  }
+
+  public int getPaceCueIntervalSeconds() {
+    return paceCueIntervalSeconds;
+  }
+
+  public void setPaceCueIntervalSeconds(int seconds) {
+    paceCueIntervalSeconds = Math.max(0, seconds);
+  }
+
+  public int getHrCueAnnouncement() {
+    return hrCueAnnouncement;
+  }
+
+  public void setHrCueAnnouncement(int mode) {
+    hrCueAnnouncement = mode;
+  }
+
+  public String getAudioCueScheme() {
+    return audioCueScheme;
+  }
+
+  public void setAudioCueScheme(String scheme) {
+    audioCueScheme = (scheme == null || scheme.isEmpty()) ? null : scheme;
+  }
+
+  public boolean hasPeriodicCues() {
+    return hrCueIntervalSeconds > 0 || paceCueIntervalSeconds > 0;
+  }
+
   /**
    * Phase 2: id of this step's row in the {@code step} table, written by
    * {@link Workout#persistSchedule}. {@code 0} means "not persisted" (e.g. older callers or

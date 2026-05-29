@@ -422,10 +422,53 @@ public class WorkoutSerializer {
         js.step.durationValue = duration.second;
         js.step.targetType = target.first;
         js.step.targetValue = target.second;
+        readRunnerUpCueSettings(obj, js.step);
         break;
     }
 
     return js;
+  }
+
+  private static final String KEY_HR_CUE = "runnerupHrCueIntervalSeconds";
+  private static final String KEY_PACE_CUE = "runnerupPaceCueIntervalSeconds";
+  private static final String KEY_HR_ANNOUNCE = "runnerupHrCueAnnouncement";
+  private static final String KEY_AUDIO_SCHEME = "runnerupAudioCueScheme";
+
+  private static void readRunnerUpCueSettings(JSONObject obj, Step step) {
+    Integer hr = getInt(obj, KEY_HR_CUE);
+    if (hr != null) {
+      step.setHrCueIntervalSeconds(hr);
+    }
+    Integer pace = getInt(obj, KEY_PACE_CUE);
+    if (pace != null) {
+      step.setPaceCueIntervalSeconds(pace);
+    }
+    Integer announce = getInt(obj, KEY_HR_ANNOUNCE);
+    if (announce != null) {
+      step.setHrCueAnnouncement(announce);
+    }
+    String scheme = getString(obj, KEY_AUDIO_SCHEME);
+    if (scheme != null) {
+      step.setAudioCueScheme(scheme);
+    }
+  }
+
+  private static void putRunnerUpCueSettings(JSONObject obj, Step step) throws JSONException {
+    if (step.getIntensity() == Intensity.REPEAT) {
+      return;
+    }
+    if (step.getHrCueIntervalSeconds() > 0) {
+      obj.put(KEY_HR_CUE, step.getHrCueIntervalSeconds());
+    }
+    if (step.getPaceCueIntervalSeconds() > 0) {
+      obj.put(KEY_PACE_CUE, step.getPaceCueIntervalSeconds());
+    }
+    if (step.getHrCueIntervalSeconds() > 0) {
+      obj.put(KEY_HR_ANNOUNCE, step.getHrCueAnnouncement());
+    }
+    if (step.getAudioCueScheme() != null) {
+      obj.put(KEY_AUDIO_SCHEME, step.getAudioCueScheme());
+    }
   }
 
   public static File getFile(Context ctx, String name) {
@@ -516,6 +559,7 @@ public class WorkoutSerializer {
     putIntensity(obj, step.getIntensity());
     putDuration(obj, step, step.getDurationType(), step.getDurationValue());
     putTarget(obj, step, step.getTargetType(), step.getTargetValue());
+    putRunnerUpCueSettings(obj, step);
     return obj;
   }
 }
