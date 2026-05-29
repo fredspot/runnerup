@@ -45,26 +45,28 @@ import androidx.appcompat.content.res.AppCompatResources;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.content.ContextCompat;
 import androidx.cursoradapter.widget.CursorAdapter;
-import androidx.loader.app.LoaderManager.LoaderCallbacks;
-import androidx.loader.content.Loader;
 import org.runnerup.R;
 import org.runnerup.common.util.Constants;
+import org.runnerup.core.util.BgTasks;
+import org.runnerup.core.util.Bitfield;
+import org.runnerup.core.util.ViewUtil;
 import org.runnerup.data.DBHelper;
 import org.runnerup.sync.SyncManager;
 import org.runnerup.sync.Synchronizer;
 import org.runnerup.sync.Synchronizer.Status;
-import org.runnerup.core.util.Bitfield;
-import org.runnerup.core.util.SimpleCursorLoader;
-import org.runnerup.core.util.ViewUtil;
 
-public class AccountListActivity extends AppCompatActivity
-    implements Constants, LoaderCallbacks<Cursor> {
+public class AccountListActivity extends AppCompatActivity implements Constants {
 
   private SQLiteDatabase mDB = null;
   private SyncManager mSyncManager = null;
   private boolean mShowDisabled = false;
   private CursorAdapter mCursorAdapter;
+  private int loadGeneration = 0;
   private static final int EDIT_REQUEST = 1001;
+
+  private static final String[] ACCOUNT_PROJECTION = {
+    "_id", DB.ACCOUNT.NAME, DB.ACCOUNT.AUTH_CONFIG, DB.ACCOUNT.FORMAT, DB.ACCOUNT.FLAGS
+  };
 
   /** Called when the activity is first created. */
   @Override
@@ -93,17 +95,17 @@ public class AccountListActivity extends AppCompatActivity
           } else {
             ((Button) view).setText(org.runnerup.common.R.string.Show_disabled_accounts);
           }
-          getSupportLoaderManager().restartLoader(0, null, AccountListActivity.this);
+          reloadAccounts();
         });
     listView.addFooterView(showDisabledBtn);
 
     // adapter
     mCursorAdapter = new AccountListAdapter(this, null);
     listView.setAdapter(mCursorAdapter);
-    getSupportLoaderManager().initLoader(0, null, this);
+    reloadAccounts();
 
     listView.setOnItemClickListener(configureItemClick);
-    
+
     // Style for dark theme
     listView.setBackgroundColor(getResources().getColor(R.color.backgroundPrimary, null));
     listView.setDivider(getResources().getDrawable(android.R.color.transparent, null));
@@ -113,7 +115,8 @@ public class AccountListActivity extends AppCompatActivity
     if (getSupportActionBar() != null) {
       getSupportActionBar().setTitle("Accounts");
       getSupportActionBar().setBackgroundDrawable(
-          new android.graphics.drawable.ColorDrawable(getResources().getColor(R.color.backgroundPrimary, null)));
+          new android.graphics.drawable.ColorDrawable(
+              getResources().getColor(R.color.backgroundPrimary, null)));
     }
     ViewUtil.Insets(findViewById(R.id.account_list_view), true);
   }
@@ -121,6 +124,8 @@ public class AccountListActivity extends AppCompatActivity
   @Override
   public void onDestroy() {
     super.onDestroy();
+    loadGeneration++;
+    mCursorAdapter.swapCursor(null);
     DBHelper.closeDB(mDB);
     mSyncManager.close();
   }
@@ -133,41 +138,51 @@ public class AccountListActivity extends AppCompatActivity
     return true;
   }
 
-  @NonNull
-  @Override
-  public Loader<Cursor> onCreateLoader(int arg0, Bundle arg1) {
-    String[] from =
-        new String[] {
-          "_id", DB.ACCOUNT.NAME, DB.ACCOUNT.AUTH_CONFIG, DB.ACCOUNT.FORMAT, DB.ACCOUNT.FLAGS
-        };
-    String showDisabled = null;
-    if (!mShowDisabled) {
-      showDisabled = DB.ACCOUNT.ENABLED + "==1 or " + DB.ACCOUNT.AUTH_CONFIG + " is not null";
-    }
+  private void reloadAccounts() {
+    final int gen = ++loadGeneration;
+    BgTasks.runDb(
+        this::queryAccountsCursor,
+        cursor -> {
+          if (gen != loadGeneration || isFinishing()) {
+            if (cursor != null) {
+              cursor.close();
+            }
+            return;
+          }
+          mCursorAdapter.swapCursor(cursor);
+        });
+  }
 
-    return new SimpleCursorLoader(
-        this,
-        mDB,
-        DB.ACCOUNT.TABLE,
-        from,
-        showDisabled,
-        null,
+  private Cursor queryAccountsCursor() {
+    String selection = null;
+    if (!mShowDisabled) {
+      selection = DB.ACCOUNT.ENABLED + "==1 or " + DB.ACCOUNT.AUTH_CONFIG + " is not null";
+    }
+    String sortOrder =
         DB.ACCOUNT.AUTH_CONFIG
             + " is null, "
             + DB.ACCOUNT.NAME
             + " collate nocase,"
             + DB.ACCOUNT.ENABLED
-            + " desc ");
-  }
-
-  @Override
-  public void onLoadFinished(@NonNull Loader<Cursor> arg0, Cursor arg1) {
-    mCursorAdapter.swapCursor(arg1);
-  }
-
-  @Override
-  public void onLoaderReset(@NonNull Loader<Cursor> arg0) {
-    mCursorAdapter.swapCursor(null);
+            + " desc ";
+    try {
+      Cursor cursor =
+          mDB.query(
+              DB.ACCOUNT.TABLE,
+              ACCOUNT_PROJECTION,
+              selection,
+              null,
+              null,
+              null,
+              sortOrder);
+      if (cursor != null) {
+        cursor.getCount();
+      }
+      return cursor;
+    } catch (IllegalStateException ex) {
+      android.util.Log.e(getClass().getName(), "Query failed:", ex);
+      return null;
+    }
   }
 
   class AccountListAdapter extends CursorAdapter {
@@ -370,7 +385,7 @@ public class AccountListActivity extends AppCompatActivity
       this.mCursorAdapter.notifyDataSetChanged();
     } else if (requestCode == EDIT_REQUEST) {
       mSyncManager.clear();
-      getSupportLoaderManager().restartLoader(0, null, this);
+      reloadAccounts();
     }
   }
 }

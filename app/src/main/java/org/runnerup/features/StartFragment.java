@@ -756,48 +756,23 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   }
 
   private String getCurrentWorkoutTabTag() {
-    if (startPager == null) {
-      return TAB_BASIC;
-    }
-    switch (startPager.getCurrentItem()) {
-      case 1:
-        return TAB_INTERVAL;
-      case 2:
-        return TAB_ADVANCED;
-      default:
-        return TAB_BASIC;
-    }
+    int index = startPager != null ? startPager.getCurrentItem() : 0;
+    return StartWorkoutPrep.tabTagForPageIndex(index);
   }
 
   Workout performPrepareWorkout() {
     Context ctx = requireActivity().getApplicationContext();
     SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(ctx);
-    SharedPreferences audioPref;
-    Workout w;
-
-    String tabTag = getCurrentWorkoutTabTag();
-    if (TAB_BASIC.contentEquals(tabTag)) {
-      audioPref =
-          WorkoutBuilder.getAudioCuePreferences(ctx, pref, getString(R.string.pref_basic_audio));
-      Dimension target = Dimension.valueOf(simpleTargetType.getValueInt());
-      w = WorkoutBuilder.createDefaultWorkout(getResources(), pref, target);
-    } else if (TAB_INTERVAL.contentEquals(tabTag)) {
-      audioPref =
-          WorkoutBuilder.getAudioCuePreferences(ctx, pref, getString(R.string.pref_interval_audio));
-      w = WorkoutBuilder.createDefaultIntervalWorkout(getResources(), pref);
-    } else if (TAB_ADVANCED.contentEquals(tabTag)) {
-      audioPref =
-          WorkoutBuilder.getAudioCuePreferences(ctx, pref, getString(R.string.pref_advanced_audio));
-      w = advancedWorkout;
-    } else {
-      w = null;
-      audioPref = null;
-    }
-    if (w != null) {
-      WorkoutBuilder.prepareWorkout(getResources(), pref, w);
-      WorkoutBuilder.addAudioCuesToWorkout(getResources(), w, audioPref, pref);
-    }
-    return w;
+    return StartWorkoutPrep.prepareWorkout(
+        ctx,
+        getResources(),
+        pref,
+        getCurrentWorkoutTabTag(),
+        simpleTargetType.getValueInt(),
+        advancedWorkout,
+        getString(R.string.pref_basic_audio),
+        getString(R.string.pref_interval_audio),
+        getString(R.string.pref_advanced_audio));
   }
 
   void performStartWorkout() {

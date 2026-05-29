@@ -50,10 +50,12 @@
         <org.runnerup.ui.common.widget.ClassicSpinner
             android:id="@+id/workout_mode_spinner"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:contentDescription="@string/Sport"
             android:background="@drawable/spinner_background"
-            android:dropDownSelector="@color/colorAccent"
+            android:popupBackground="@drawable/spinner_dropdown_popup"
+            android:dropDownSelector="@android:color/transparent"
+            android:gravity="center"
             android:minWidth="120dp"
             android:minHeight="48dp"
             android:spinnerMode="dropdown" />

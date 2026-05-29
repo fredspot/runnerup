@@ -100,6 +100,17 @@ echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android
 
 CI runs on push to `master` via GitHub Actions (`.github/workflows/ci.yml`).
 
+### Device smoke test (connected phone)
+
+After installing a debug build, run a short UI path and check logcat for fatals:
+
+```bash
+./gradlew :app:installLatestDebug
+./scripts/device-smoke.sh
+```
+
+Optional: `RUNNERUP_PKG=org.runnerup.debug ./scripts/device-smoke.sh`
+
 ## Build Process
 
 ### 1. Navigate to Project Directory

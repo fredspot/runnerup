@@ -18,6 +18,7 @@
 package org.runnerup.ui.common.widget;
 
 import android.content.Context;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.widget.AdapterView;
 import android.widget.SpinnerAdapter;
@@ -28,7 +29,9 @@ public class ClassicSpinner extends AppCompatSpinner implements SpinnerInterface
 
   public ClassicSpinner(Context context, AttributeSet attrs) {
     super(context, attrs);
-
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      setDefaultFocusHighlightEnabled(false);
+    }
     mPresenter = new SpinnerPresenter(context, attrs, this);
   }
 
