@@ -63,15 +63,15 @@ internal class DetailTabContentController(
     activity.manualDistance = activity.findViewById(R.id.summary_manual_distance)
     activity.notes = activity.findViewById(R.id.notes_text)
     val lapList: RecyclerView? = activity.findViewById(R.id.laplist)
-    if (activity.sport == null ||
-        activity.manualDistance == null ||
-        activity.notes == null ||
-        lapList == null) {
+    val sport = activity.sport
+    val manualDistance = activity.manualDistance
+    val notes = activity.notes
+    if (sport == null || manualDistance == null || notes == null || lapList == null) {
       return
     }
     activity.detailTabContentBound = true
 
-    activity.sport.setOnSetValueListener(
+    sport.setOnSetValueListener(
         object : OnSetValueListener {
           override fun preSetValue(newValue: String): String = newValue
 
@@ -83,9 +83,9 @@ internal class DetailTabContentController(
           }
         },
     )
-    activity.sport.setArrayEntries(Sport.getStringArray(activity.resources))
+    sport.setArrayEntries(Sport.getStringArray(activity.resources))
 
-    activity.manualDistance.setOnSetValueListener(
+    manualDistance.setOnSetValueListener(
         object : OnSetValueListener {
           override fun preSetValue(newValue: String): String {
             val dist = SafeParse.parseDouble(newValue, 0.0)
@@ -97,17 +97,18 @@ internal class DetailTabContentController(
           override fun preSetValue(newValue: Int): Int = newValue
         },
     )
-    activity.injuryController =
-        DetailInjuryController(activity, activity.mDB) { activity.mID }
-    activity.injuryController.bindViews(activity)
-    activity.menuController.bind(activity.mDB, activity.mID, activity.sport)
+    val injuryController = DetailInjuryController(activity, activity.mDB) { activity.mID }
+    activity.injuryController = injuryController
+    injuryController.bindViews(activity)
+    activity.menuController.bind(activity.mDB, activity.mID, sport)
 
     if (BuildConfig.USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0) {
       val mapView = activity.findViewById<android.view.View>(R.id.mapview)
       if (mapView != null) {
-        activity.mapWrapper =
+        val mapWrapper =
             MapWrapper(activity, activity.mDB, activity.mID, activity.formatter, mapView)
-        activity.mapWrapper.onCreate(savedInstanceState)
+        activity.mapWrapper = mapWrapper
+        mapWrapper.onCreate(savedInstanceState)
       }
     }
 
@@ -129,7 +130,7 @@ internal class DetailTabContentController(
           activity.formatter,
           activity.mDB,
           activity.mID,
-          activity.sport.getValueInt(),
+          sport.getValueInt(),
       )
     }
 
@@ -139,15 +140,15 @@ internal class DetailTabContentController(
         activity.saveButton,
         discardButton,
         activity.resumeButton,
-        activity.notes,
-        activity.sport,
-        activity.manualDistance,
+        notes,
+        sport,
+        manualDistance,
         activity.headerData,
         activity.mDB,
         activity.mID,
         activity.rootView,
     )
 
-    activity.injuryController.renderIcons()
+    injuryController.renderIcons()
   }
 }

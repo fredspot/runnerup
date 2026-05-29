@@ -157,7 +157,7 @@ internal class StartPermissionsController(
     val suppressOptimizeBatteryPopup =
         prefs.getBoolean(res.getString(R.string.pref_suppress_battery_optimization_popup), false)
     val pm = ctx.getSystemService(Context.POWER_SERVICE) as PowerManager
-    if ((popup || fragment.getAutoStartGps()) &&
+    if ((popup || fragment.autoStartGps) &&
         !suppressOptimizeBatteryPopup &&
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
         !pm.isIgnoringBatteryOptimizations(ctx.packageName)) {

@@ -12,13 +12,13 @@ package org.runnerup.features
 /** Heart-rate indicator and battery notification for [StartFragment]. */
 internal class StartHrController(private val fragment: StartFragment) {
 
-  fun updateHrView(): Boolean = fragment.performUpdateHrView()
+  fun updateHrView(): Boolean = fragment.runUiController.updateHrView()
 
   fun updateHrIndicator() {
-    fragment.performUpdateHrIndicator()
+    fragment.runUiController.updateHrIndicator()
   }
 
   fun notificationBatteryLevel(batteryLevel: Int) {
-    fragment.performNotificationBatteryLevel(batteryLevel)
+    fragment.runUiController.notificationBatteryLevel(batteryLevel)
   }
 }

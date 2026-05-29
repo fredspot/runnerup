@@ -136,7 +136,7 @@ class MainLayout : AppCompatActivity() {
           }
           val fragment = getCurrentFragment()
           if (fragment is StartFragment) {
-            if (!fragment.autoStartGps && fragment.isGpsLogging) {
+            if (!fragment.autoStartGps && fragment.isGpsLogging()) {
               fragment.stopGps()
               fragment.updateView()
               return

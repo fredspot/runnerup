@@ -141,7 +141,7 @@ class AudioCueSettingsFragment : PreferenceFragmentCompat() {
     if (settingsName == null) {
       spinner.setValue(0)
     } else {
-      val idx = adapter!!.find(settingsName)
+      val idx = adapter!!.find(settingsName!!)
       spinner.setValue(idx)
     }
     spinner.setOnSetValueListener(onSetValueListener)

@@ -43,6 +43,13 @@ public class NotificationStateManager {
     this.strategy = strategy;
   }
 
+  /** UI-layer factory; avoids exposing package-private {@link NotificationDisplayStrategy}. */
+  public static NotificationStateManager forNotificationManager(
+      NotificationManager notificationManager) {
+    return new NotificationStateManager(
+        new NotificationManagerDisplayStrategy(notificationManager));
+  }
+
   public void displayNotificationState(NotificationState state) {
     if (state == null) throw new IllegalArgumentException("state is null");
 

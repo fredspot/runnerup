@@ -26,12 +26,13 @@ internal class StartLaunchController(private val fragment: StartFragment) {
   fun prepareWorkout(): Workout? {
     val ctx = fragment.requireActivity().applicationContext
     val pref = PreferenceManager.getDefaultSharedPreferences(ctx)
+    val targetType = fragment.simpleTargetType ?: return null
     return StartWorkoutPrep.prepareWorkout(
         ctx,
         fragment.resources,
         pref,
         currentWorkoutTabTag(),
-        fragment.simpleTargetType.valueInt,
+        targetType.valueInt,
         fragment.advancedController.advancedWorkout,
         fragment.advancedController.getSelectedWorkoutName(),
         fragment.getString(R.string.pref_basic_audio),
@@ -41,10 +42,12 @@ internal class StartLaunchController(private val fragment: StartFragment) {
   }
 
   fun startWorkout() {
-    fragment.mGpsStatus.stop(fragment)
-    fragment.unregisterStartEventListener()
-    fragment.mTracker.setWorkout(prepareWorkout())
-    fragment.mTracker.start()
+    val gpsStatus = fragment.mGpsStatus ?: return
+    val tracker = fragment.mTracker ?: return
+    gpsStatus.stop(fragment)
+    fragment.trackerLifecycle.unregisterStartEventListener()
+    tracker.setWorkout(prepareWorkout())
+    tracker.start()
     fragment.runActivityPending = true
     val intent = Intent(fragment.requireContext(), RunActivity::class.java)
     fragment.runActivityLauncher.launch(intent)

@@ -55,31 +55,34 @@ internal class StartTabContentBinder(private val fragment: StartFragment) {
     fragment.startTabContentBound = true
     val context = fragment.requireContext()
     val inflater = fragment.layoutInflater
-    fragment.simpleAudioListAdapter = AudioSchemeListAdapter(fragment.mDB, inflater, false)
-    fragment.simpleAudioListAdapter.reload()
+    val db = fragment.mDB
+    fragment.simpleAudioListAdapter = AudioSchemeListAdapter(db, inflater, false)
+    val simpleAudioListAdapter = fragment.simpleAudioListAdapter!!
+    simpleAudioListAdapter.reload()
     val simpleAudioSpinner = view.findViewById<TitleSpinner>(R.id.basic_audio_cue_spinner)
     if (simpleAudioSpinner == null) {
       fragment.startTabContentBound = false
       return
     }
-    simpleAudioSpinner.setAdapter(fragment.simpleAudioListAdapter)
+    simpleAudioSpinner.setAdapter(simpleAudioListAdapter)
     simpleAudioSpinner.setOnSetValueListener(
-        StartConfigureAudioListener(fragment, fragment.simpleAudioListAdapter),
+        StartConfigureAudioListener(fragment, simpleAudioListAdapter),
     )
     fragment.simpleTargetType = view.findViewById(R.id.tab_basic_target_type)
     fragment.simpleTargetPaceValue = view.findViewById(R.id.tab_basic_target_pace_max)
     fragment.hrZonesAdapter = HRZonesListAdapter(context, inflater)
+    val hrZonesAdapter = fragment.hrZonesAdapter!!
     fragment.simpleTargetHrz = view.findViewById(R.id.tab_basic_target_hrz)
-    fragment.simpleTargetHrz.setAdapter(fragment.hrZonesAdapter)
-    fragment.simpleTargetType.setOnCloseDialogListener(simpleTargetTypeClick)
+    fragment.simpleTargetHrz?.setAdapter(hrZonesAdapter)
+    fragment.simpleTargetType?.setOnCloseDialogListener(simpleTargetTypeClick)
 
     fragment.intervalController.bindIntervalTab(
         view,
         inflater,
-        fragment.mDB,
+        db,
         onSetTimeValidator,
     )
-    fragment.advancedController.bindAdvancedTab(view, inflater, fragment.mDB)
+    fragment.advancedController.bindAdvancedTab(view, inflater, db)
 
     fragment.requireActivity().intent?.let { intent ->
       if (intent.hasExtra("mode") &&

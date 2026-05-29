@@ -398,6 +398,53 @@ PY
     warn "Settings Workout entry not found (SKIP)"
   fi
 
+  log "Settings: Sensors → Heart rate (optional)"
+  prepare_ui
+  if tap_text_contains "Sensors" 2>/dev/null; then
+    sleep 1
+    if tap_text_contains "Heart rate" 2>/dev/null || tap_text_contains "Heart Rate" 2>/dev/null; then
+      sleep 2
+      if focused_app | grep -q HRSettingsActivity; then
+        assert_activity_resumed "HRSettingsActivity"
+        log "HRSettingsActivity opened"
+        adb shell input keyevent KEYCODE_BACK >/dev/null
+        sleep 1
+        adb shell input keyevent KEYCODE_BACK >/dev/null
+        sleep 1
+        assert_activity_resumed "MainLayout"
+      else
+        warn "Heart rate preference did not open HRSettingsActivity (SKIP)"
+        adb shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+        sleep 1
+      fi
+    else
+      warn "Heart rate preference not tappable (SKIP)"
+      adb shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+      sleep 1
+    fi
+  else
+    warn "Settings Sensors entry not found (SKIP)"
+  fi
+
+  log "bottom nav: Statistics (index 3) — YearlyStats drill-down (optional)"
+  tap_nav_index 3 || warn "Statistics tab not found (SKIP)"
+  sleep 2
+  assert_activity_resumed "MainLayout"
+  prepare_ui
+  if tap_screen_ratio 270 520 2>/dev/null; then
+    sleep 2
+    if focused_app | grep -qE 'YearlyStatsActivity|StatisticsDetailActivity'; then
+      log "Statistics drill-down opened"
+      adb shell input keyevent KEYCODE_BACK >/dev/null
+      sleep 1
+      assert_activity_resumed "MainLayout"
+    else
+      warn "Statistics card tap did not open drill-down (SKIP)"
+    fi
+  else
+    warn "Statistics drill-down not tappable (SKIP)"
+  fi
+
   check_logcat_fatal
   log "PASS"
 }

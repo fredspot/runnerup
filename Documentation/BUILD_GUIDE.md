@@ -339,6 +339,18 @@ Phases 14–16 continue incremental Kotlin conversion (workout hosts, god-class 
 - `StartFragment` / `DetailActivity` remain Java shells (tracker/sync core unchanged).
 - Device smoke: Manage Workouts FAB check optional (SKIP if layout differs); Monthly Comparison remains optional SKIP.
 
+## Verification (modernization tranche 3 — Phases 17–19)
+
+Phases 17–19 complete Kotlin-first `features/`: god-class slices on Start/Detail, all stats/settings Activities, then `StartFragment` + `DetailActivity` Kotlin shells.
+
+### Tranche 3 completion checklist (Phases 17–19)
+
+- `StartTrackerLifecycle`, `StartRunUiController`, `DetailHeaderController`, `DetailSaveFlowController`, `DetailTabsController` extracted.
+- All feature Activities and Fragments are Kotlin (`StartFragment`, `DetailActivity`, stats drill-downs, `SettingsContainerFragment`, adapters).
+- **Intentional Java in `features/`:** chart custom Views only — `PaceChart`, `WeeklyKmChart`, `DistributionChart`, `HRZonesBar`.
+- `features/` target: **~85%+** Kotlin source files (Activities/Fragments 100% Kotlin).
+- Device smoke: optional HR settings path (`Settings → Sensors → Heart rate`); optional Statistics drill-down; Monthly Comparison remains optional SKIP.
+
 ---
 
 **Last Updated**: May 2026  

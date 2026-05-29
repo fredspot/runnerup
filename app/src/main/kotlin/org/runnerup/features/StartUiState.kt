@@ -4,19 +4,19 @@ package org.runnerup.features
 internal class StartUiState(
     private val fragment: StartFragment,
     private val gps: StartGpsController,
-    private val hr: StartHrController,
+    private val runUi: StartRunUiController,
 ) {
 
   fun updateView() {
     if (fragment.view == null) {
       return
     }
-    fragment.performUpdateNewStartButton()
+    runUi.updateNewStartButton()
     gps.updateGpsView()
-    hr.updateHrIndicator()
+    runUi.updateHrIndicator()
     gps.updateSatelliteInfo()
-    val hrPresent = hr.updateHrView()
-    val wearPresent = fragment.performUpdateWearOsView()
-    fragment.performUpdateNoDevicesConnected(!hrPresent && !wearPresent)
+    val hrPresent = runUi.updateHrView()
+    val wearPresent = runUi.updateWearOsView()
+    runUi.updateNoDevicesConnected(!hrPresent && !wearPresent)
   }
 }

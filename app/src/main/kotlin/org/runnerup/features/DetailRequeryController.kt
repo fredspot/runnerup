@@ -52,9 +52,10 @@ internal class DetailRequeryController(private val activity: DetailActivity) {
         .use { c ->
           activity.laps = DBHelper.toArray(c)
         }
-    activity.intervalWorkout = DetailLapListController.isIntervalWorkout(activity.laps)
+    val laps = activity.laps ?: emptyArray()
+    activity.intervalWorkout = DetailLapListController.isIntervalWorkout(laps)
     activity.lapHrPresent = false
-    for (v in activity.laps) {
+    for (v in laps) {
       if (v.containsKey(DB.LAP.AVG_HR) && v.getAsInteger(DB.LAP.AVG_HR) > 0) {
         activity.lapHrPresent = true
         break
@@ -65,7 +66,7 @@ internal class DetailRequeryController(private val activity: DetailActivity) {
       }
     }
     activity.lapDisplayEntries =
-        DetailLapListController.buildDisplayEntries(activity.laps, activity.lapListHost)
+        DetailLapListController.buildDisplayEntries(laps, activity.lapListHost)
   }
 
   private fun loadReports() {
