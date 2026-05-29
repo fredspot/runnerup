@@ -60,6 +60,18 @@ internal class RunWorkoutListController(
     }
   }
 
+  fun populateFromWorkout(workout: org.runnerup.core.workout.Workout) {
+    rows.clear()
+    for (entry in workout.getStepList()) {
+      val row = WorkoutRow()
+      row.level = entry.level
+      row.step = entry.step
+      row.lap = null
+      rows.add(row)
+    }
+    notifyDataSetChanged()
+  }
+
   fun onCurrentStepChanged(step: Step?) {
     if (step == currentStep) {
       return

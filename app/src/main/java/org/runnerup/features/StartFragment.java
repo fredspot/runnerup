@@ -114,12 +114,14 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   private StartStatusController statusController;
   private StartHrController hrController;
   private StartWorkoutPickerController workoutController;
-  private StartIntervalController intervalController;
-  private StartAdvancedWorkoutController advancedController;
+  StartIntervalController intervalController;
+  StartAdvancedWorkoutController advancedController;
   private StartUiState uiState;
+  StartTabContentBinder startTabContentBinder;
+  StartLaunchController startLaunchController;
 
-  private ViewPager2 startPager = null;
-  private boolean startTabContentBound = false;
+  ViewPager2 startPager = null;
+  boolean startTabContentBound = false;
   private Button startButton = null;
 
   private ImageView expandIcon = null;
@@ -154,7 +156,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   NotificationStateManager notificationStateManager;
   GpsSearchingState gpsSearchingState;
   GpsBoundState gpsBoundState;
-  private final ActivityResultLauncher<Intent> runActivityLauncher =
+  final ActivityResultLauncher<Intent> runActivityLauncher =
       registerForActivityResult(
           new ActivityResultContracts.StartActivityForResult(),
           result -> {
@@ -189,6 +191,8 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     intervalController = new StartIntervalController(this);
     advancedController = new StartAdvancedWorkoutController(this);
     uiState = new StartUiState(this, gpsController, hrController);
+    startTabContentBinder = new StartTabContentBinder(this);
+    startLaunchController = new StartLaunchController(this);
     NotificationManager notificationManager =
         ContextCompat.getSystemService(context, NotificationManager.class);
     notificationStateManager =
@@ -251,7 +255,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
         .setOnClickListener(v -> statusController.toggleStatusDetails(expandIcon, startButton));
 
     // ViewPager2 tab pages are inflated after layout; bind tab widgets once pages exist.
-    scheduleBindStartTabContentViews(view);
+    startTabContentBinder.scheduleBind(view);
 
     mWearNotifier = new TrackerWear.WearNotifier(requireActivity().getApplicationContext());
     mWearNotifier.onViewCreated();
@@ -260,81 +264,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
     prefs.edit().putInt(getResources().getString(R.string.pref_sport), DB.ACTIVITY.SPORT_RUNNING).apply();
     setGpsNotRequired(Sport.isWithoutGps(DB.ACTIVITY.SPORT_RUNNING));
-  }
-
-  private void scheduleBindStartTabContentViews(View view) {
-    if (startPager == null) {
-      return;
-    }
-    startPager
-        .getViewTreeObserver()
-        .addOnGlobalLayoutListener(
-            new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-              @Override
-              public void onGlobalLayout() {
-                if (startTabContentBound || !isAdded()) {
-                  removeListener();
-                  return;
-                }
-                if (view.findViewById(R.id.basic_audio_cue_spinner) != null) {
-                  removeListener();
-                  bindStartTabContentViews(view);
-                }
-              }
-
-              private void removeListener() {
-                android.view.ViewTreeObserver observer = startPager.getViewTreeObserver();
-                if (observer.isAlive()) {
-                  observer.removeOnGlobalLayoutListener(this);
-                }
-              }
-            });
-  }
-
-  private void bindStartTabContentViews(View view) {
-    if (startTabContentBound || !isAdded()) {
-      return;
-    }
-    startTabContentBound = true;
-    Context context = requireContext();
-    LayoutInflater inflater = getLayoutInflater();
-    simpleAudioListAdapter = new AudioSchemeListAdapter(mDB, inflater, false);
-    simpleAudioListAdapter.reload();
-    TitleSpinner simpleAudioSpinner = view.findViewById(R.id.basic_audio_cue_spinner);
-    if (simpleAudioSpinner == null) {
-      startTabContentBound = false;
-      return;
-    }
-    simpleAudioSpinner.setAdapter(simpleAudioListAdapter);
-    simpleAudioSpinner.setOnSetValueListener(
-        new StartConfigureAudioListener(this, simpleAudioListAdapter));
-    simpleTargetType = view.findViewById(R.id.tab_basic_target_type);
-    simpleTargetPaceValue = view.findViewById(R.id.tab_basic_target_pace_max);
-    hrZonesAdapter = new HRZonesListAdapter(context, inflater);
-    simpleTargetHrz = view.findViewById(R.id.tab_basic_target_hrz);
-    simpleTargetHrz.setAdapter(hrZonesAdapter);
-    simpleTargetType.setOnCloseDialogListener(simpleTargetTypeClick);
-
-    intervalController.bindIntervalTab(view, inflater, mDB, onSetTimeValidator);
-    advancedController.bindAdvancedTab(view, inflater, mDB);
-
-    Intent i = requireActivity().getIntent();
-    if (i != null) {
-      if (i.hasExtra("mode")) {
-        if (Objects.equals(i.getStringExtra("mode"), TAB_ADVANCED)) {
-          if (startPager != null) {
-            startPager.setCurrentItem(2, false);
-          }
-          ClassicSpinner modeSpinner = view.findViewById(R.id.workout_mode_spinner);
-          if (modeSpinner != null) {
-            modeSpinner.setViewSelection(2);
-          }
-          i.removeExtra("mode");
-        }
-      }
-    }
-
-    updateTargetView();
   }
 
   private void setGpsNotRequired(boolean val) {
@@ -374,7 +303,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     if (!startTabContentBound) {
       View fragmentView = getView();
       if (fragmentView != null) {
-        scheduleBindStartTabContentViews(fragmentView);
+        startTabContentBinder.scheduleBind(fragmentView);
       }
     }
     if (!startTabContentBound) {
@@ -391,7 +320,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
       simpleTargetType.clearDisabled();
     }
 
-    if (TAB_ADVANCED.contentEquals(getCurrentWorkoutTabTag())) {
+    if (TAB_ADVANCED.contentEquals(startLaunchController.currentWorkoutTabTag())) {
       advancedController.loadAdvanced(null);
     }
 
@@ -470,7 +399,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
         ContextCompat.RECEIVER_NOT_EXPORTED);
   }
 
-  private void unregisterStartEventListener() {
+  void unregisterStartEventListener() {
     try {
       requireActivity().unregisterReceiver(startEventBroadcastReceiver);
     } catch (Exception ignored) {
@@ -605,43 +534,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
         });
   }
 
-  private String getCurrentWorkoutTabTag() {
-    int index = startPager != null ? startPager.getCurrentItem() : 0;
-    return StartWorkoutPrep.tabTagForPageIndex(index);
-  }
-
-  Workout performPrepareWorkout() {
-    Context ctx = requireActivity().getApplicationContext();
-    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(ctx);
-    return StartWorkoutPrep.prepareWorkout(
-        ctx,
-        getResources(),
-        pref,
-        getCurrentWorkoutTabTag(),
-        simpleTargetType.getValueInt(),
-        advancedController.advancedWorkout,
-        advancedController.getSelectedWorkoutName(),
-        getString(R.string.pref_basic_audio),
-        getString(R.string.pref_interval_audio),
-        getString(R.string.pref_advanced_audio));
-  }
-
-  void performStartWorkout() {
-    mGpsStatus.stop(StartFragment.this);
-
-    // unregister receivers
-    unregisterStartEventListener();
-
-    // This will start the advancedWorkoutSpinner!
-    mTracker.setWorkout(performPrepareWorkout());
-    mTracker.start();
-
-    runActivityPending = true;
-    Intent intent = new Intent(requireContext(), RunActivity.class);
-    runActivityLauncher.launch(intent);
-    notificationStateManager.cancelNotification(); // will be added by RunActivity
-  }
-
   private final OnClickListener startButtonClick =
       v -> {
         if (mTracker == null) return;
@@ -711,7 +603,7 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
         break;
       }
 
-      if (TAB_ADVANCED.contentEquals(getCurrentWorkoutTabTag())
+      if (TAB_ADVANCED.contentEquals(startLaunchController.currentWorkoutTabTag())
           && advancedController.advancedWorkout == null) {
         break;
       }
@@ -889,33 +781,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
     updateView();
   }
 
-  private final OnCloseDialogListener simpleTargetTypeClick =
-      (spinner, ok) -> {
-        if (ok) {
-          updateTargetView();
-        }
-      };
-
-  private void updateTargetView() {
-    Dimension dim = Dimension.valueOf(simpleTargetType.getValueInt());
-    if (dim == null) {
-      simpleTargetPaceValue.setEnabled(false);
-      simpleTargetHrz.setEnabled(false);
-    } else {
-      switch (dim) {
-        case PACE:
-          simpleTargetPaceValue.setEnabled(true);
-          simpleTargetPaceValue.setVisibility(View.VISIBLE);
-          simpleTargetHrz.setVisibility(View.GONE);
-          break;
-        case HRZ:
-          simpleTargetPaceValue.setVisibility(View.GONE);
-          simpleTargetHrz.setEnabled(true);
-          simpleTargetHrz.setVisibility(View.VISIBLE);
-      }
-    }
-  }
-
   @Override
   public int getSatellitesAvailable() {
     return mGpsStatus.getSatellitesAvailable();
@@ -925,23 +790,6 @@ public class StartFragment extends Fragment implements TickListener, GpsInformat
   public int getSatellitesFixed() {
     return mGpsStatus.getSatellitesFixed();
   }
-
-  private final OnSetValueListener onSetTimeValidator =
-      new OnSetValueListener() {
-
-        @Override
-        public String preSetValue(String newValue) throws IllegalArgumentException {
-
-          if (WorkoutBuilder.validateSeconds(newValue)) return newValue;
-
-          throw new IllegalArgumentException("Unable to parse time value: " + newValue);
-        }
-
-        @Override
-        public int preSetValue(int newValue) throws IllegalArgumentException {
-          return newValue;
-        }
-      };
 
   private final ValueModel.ChangeListener<TrackerState> trackerStateListener =
       new ValueModel.ChangeListener<>() {

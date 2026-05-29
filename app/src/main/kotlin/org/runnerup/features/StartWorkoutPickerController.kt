@@ -14,9 +14,9 @@ import org.runnerup.core.workout.Workout
 /** Workout tab selection and [Workout] preparation for [StartFragment]. */
 internal class StartWorkoutPickerController(private val fragment: StartFragment) {
 
-  fun prepareWorkout(): Workout = fragment.performPrepareWorkout()
+  fun prepareWorkout(): Workout? = fragment.startLaunchController.prepareWorkout()
 
   fun startWorkout() {
-    fragment.performStartWorkout()
+    fragment.startLaunchController.startWorkout()
   }
 }

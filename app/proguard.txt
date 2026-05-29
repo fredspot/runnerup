@@ -9,7 +9,6 @@
 -keepattributes EnclosingMethod
 
 # All implementations of internal interfaces do not use all methods
-# org.runnerup.view.StepButton.**
 # org.runnerup.widget.ClassicSpinner.**
 # org.runnerup.widget.TitleSpinner.**
 -keep,includedescriptorclasses class org.runnerup.**

@@ -86,7 +86,7 @@ public class DetailActivity extends AppCompatActivity implements Constants {
 
   long mID = 0;
   SQLiteDatabase mDB = null;
-  private final DetailSyncController syncController = new DetailSyncController();
+  final DetailSyncController syncController = new DetailSyncController();
   final DetailGraphController graphController = new DetailGraphController();
   final DetailSaveModeController saveModeController = new DetailSaveModeController(this);
   final DetailMenuController menuController = new DetailMenuController(this);
@@ -134,11 +134,11 @@ public class DetailActivity extends AppCompatActivity implements Constants {
         }
       };
 
-  private boolean lapHrPresent = false;
-  private boolean intervalWorkout = false;
-  private ContentValues[] laps = null;
-  private WorkoutStepGrouper.LapDisplayEntry[] lapDisplayEntries = null;
-  private final ArrayList<ContentValues> reports = new ArrayList<>();
+  boolean lapHrPresent = false;
+  boolean intervalWorkout = false;
+  ContentValues[] laps = null;
+  WorkoutStepGrouper.LapDisplayEntry[] lapDisplayEntries = null;
+  final ArrayList<ContentValues> reports = new ArrayList<>();
   DetailLapListController.LapListAdapter lapListAdapter;
 
   private boolean uploading = false;
@@ -159,12 +159,13 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   ViewPager2 detailPager;
   boolean detailTabContentBound = false;
   final DetailTabContentController tabContentController = new DetailTabContentController(this);
+  final DetailRequeryController requeryController = new DetailRequeryController(this);
   private View mapTab;
   private int mapTabIndex = -1;
 
   MapWrapper mapWrapper = null;
 
-  private SyncManager syncManager = null;
+  SyncManager syncManager = null;
   Formatter formatter = null;
 
   private long mStartTime = 0; // activity start time in unix timestamp
@@ -378,7 +379,7 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     }
   }
 
-  private void setUploadVisibility() {
+  void setUploadVisibility() {
     boolean enabled = !syncController.pendingSynchronizers.isEmpty();
     if (enabled) {
       uploadButton.setVisibility(View.VISIBLE);
@@ -491,116 +492,7 @@ public class DetailActivity extends AppCompatActivity implements Constants {
   }
 
   void requery() {
-    {
-      /*
-       * Laps
-       */
-      String[] from =
-          new String[] {
-            "_id",
-            DB.LAP.LAP,
-            DB.LAP.INTENSITY,
-            DB.LAP.TIME,
-            DB.LAP.DISTANCE,
-            DB.LAP.PLANNED_TIME,
-            DB.LAP.PLANNED_DISTANCE,
-            DB.LAP.PLANNED_PACE,
-            DB.LAP.AVG_HR,
-            DB.LAP.MAX_HR,
-            DB.LAP.STEP
-          };
-
-      Cursor c =
-          mDB.query(
-              DB.LAP.TABLE, from, DB.LAP.ACTIVITY + " == " + mID, null, null, null, "_id", null);
-
-      laps = DBHelper.toArray(c);
-      c.close();
-      intervalWorkout = DetailLapListController.isIntervalWorkout(laps);
-      lapHrPresent = false;
-      for (ContentValues v : laps) {
-        if (v.containsKey(DB.LAP.AVG_HR) && v.getAsInteger(DB.LAP.AVG_HR) > 0) {
-          lapHrPresent = true;
-          break;
-        }
-        if (v.containsKey(DB.LAP.MAX_HR) && v.getAsInteger(DB.LAP.MAX_HR) > 0) {
-          lapHrPresent = true;
-          break;
-        }
-      }
-      buildLapDisplayEntries();
-    }
-
-    {
-      /*
-       * Accounts/reports
-       */
-      String sql =
-          "SELECT DISTINCT "
-              + "  acc._id, "
-              + ("  acc." + DB.ACCOUNT.NAME + ", ")
-              + ("  acc." + DB.ACCOUNT.FLAGS + ", ")
-              + ("  acc." + DB.ACCOUNT.AUTH_CONFIG + ", ")
-              + ("  acc." + DB.ACCOUNT.FORMAT + ", ")
-              + ("  rep._id as repid, ")
-              + ("  rep." + DB.EXPORT.ACCOUNT + ", ")
-              + ("  rep." + DB.EXPORT.ACTIVITY + ", ")
-              + ("  rep." + DB.EXPORT.EXTERNAL_ID + ", ")
-              + ("  rep." + DB.EXPORT.STATUS)
-              + (" FROM " + DB.ACCOUNT.TABLE + " acc ")
-              + (" LEFT OUTER JOIN " + DB.EXPORT.TABLE + " rep ")
-              + (" ON ( acc._id = rep." + DB.EXPORT.ACCOUNT)
-              + ("     AND rep." + DB.EXPORT.ACTIVITY + " = " + mID + " )");
-
-      Cursor c = mDB.rawQuery(sql, null);
-      syncController.alreadySynched.clear();
-      syncController.synchedExternalId.clear();
-      syncController.pendingSynchronizers.clear();
-      reports.clear();
-      if (c.moveToFirst()) {
-        do {
-          ContentValues tmp = DBHelper.get(c);
-          Synchronizer synchronizer = syncManager.add(tmp);
-          // Note: Show all configured accounts (also those are not currently enabled)
-          // Uploaded but removed accounts are not displayed
-          if (synchronizer == null
-              || !synchronizer.checkSupport(Feature.UPLOAD)
-              || !synchronizer.isConfigured()) {
-            continue;
-          }
-
-          String name = tmp.getAsString(DB.ACCOUNT.NAME);
-          reports.add(tmp);
-          if (tmp.containsKey("repid")) {
-            syncController.alreadySynched.add(name);
-            if (tmp.containsKey(DB.EXPORT.STATUS)
-                && tmp.getAsInteger(DB.EXPORT.STATUS)
-                    == Synchronizer.ExternalIdStatus.getInt(Synchronizer.ExternalIdStatus.OK)) {
-              String url =
-                  syncManager
-                      .getSynchronizerByName(name)
-                      .getActivityUrl(syncController.synchedExternalId.get(name));
-              if (url != null) {
-                syncController.synchedExternalId.put(name, tmp.getAsString(DB.EXPORT.EXTERNAL_ID));
-              }
-            }
-          } else if (tmp.containsKey(DB.ACCOUNT.FLAGS)
-              && Bitfield.test(tmp.getAsLong(DB.ACCOUNT.FLAGS), DB.ACCOUNT.FLAG_UPLOAD)) {
-            syncController.pendingSynchronizers.add(name);
-          }
-        } while (c.moveToNext());
-      }
-      c.close();
-    }
-
-    if (saveModeController.mode == DetailSaveModeController.MODE_DETAILS) {
-      setUploadVisibility();
-    }
-
-    if (lapListAdapter != null) {
-      lapListAdapter.notifyDataSetChanged();
-    }
-    DetailLapListController.bindLapHeader(findViewById(R.id.lap_list_header), lapListHost);
+    requeryController.requery();
   }
 
   void fillHeaderData() {
@@ -648,102 +540,6 @@ public class DetailActivity extends AppCompatActivity implements Constants {
         fromManualDistance);
   }
 
-  private void buildLapDisplayEntries() {
-    lapDisplayEntries = DetailLapListController.buildDisplayEntries(laps, lapListHost);
-  }
-
-  private class ReportListAdapter extends BaseAdapter {
-
-    @Override
-    public int getCount() {
-      return reports.size() + 1;
-    }
-
-    @Override
-    public Object getItem(int position) {
-      if (position < reports.size()) return reports.get(position);
-      return this;
-    }
-
-    @Override
-    public long getItemId(int position) {
-      if (position < reports.size()) return reports.get(position).getAsLong("_id");
-
-      return 0;
-    }
-
-    private class ViewHolderDetailActivity {
-      private TextView tv0;
-      private CheckBox cb;
-      private TextView tv1;
-    }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-      if (position == reports.size()) {
-        Button b = new Button(DetailActivity.this);
-        b.setText(org.runnerup.common.R.string.Configure_accounts);
-        b.setBackgroundResource(R.drawable.btn_blue);
-        b.setTextColor(
-            AppCompatResources.getColorStateList(DetailActivity.this, R.color.btn_text_color));
-        b.setOnClickListener(
-            v -> {
-              Intent i = new Intent(DetailActivity.this, AccountListActivity.class);
-              accountListLauncher.launch(i);
-            });
-        return b;
-      }
-
-      View view = convertView;
-      ViewHolderDetailActivity viewHolder;
-
-      // Note: Special ViewHolder support as the Configure button is not in the view
-      if (view == null || view.getTag() == null) {
-        viewHolder = new ViewHolderDetailActivity();
-
-        LayoutInflater inflater = LayoutInflater.from(DetailActivity.this);
-        view = inflater.inflate(R.layout.reportlist_row, parent, false);
-
-        viewHolder.tv0 = view.findViewById(R.id.reportlist_account_id);
-        viewHolder.cb = view.findViewById(R.id.reportlist_sent);
-        viewHolder.tv1 = view.findViewById(R.id.reportlist_account_name);
-
-        view.setTag(viewHolder);
-      } else {
-        viewHolder = (ViewHolderDetailActivity) view.getTag();
-      }
-
-      ContentValues tmp = reports.get(position);
-      String name = tmp.getAsString(DB.ACCOUNT.NAME);
-      viewHolder.cb.setOnCheckedChangeListener(null);
-      viewHolder.cb.setChecked(false);
-      viewHolder.cb.setEnabled(false);
-      viewHolder.cb.setTag(name);
-      viewHolder.tv1.setTag(name);
-      viewHolder.tv1.setTextColor(viewHolder.cb.getTextColors());
-      if (syncController.alreadySynched.contains(name)) {
-        viewHolder.cb.setChecked(true);
-        if (syncController.synchedExternalId.containsKey(name)) {
-          // Indicate Clickable label
-          viewHolder.tv1.setTextColor(Color.BLUE);
-        }
-        viewHolder.cb.setText(org.runnerup.common.R.string.Uploaded);
-        viewHolder.cb.setOnLongClickListener(clearUploadClick);
-      } else {
-        viewHolder.cb.setChecked(syncController.pendingSynchronizers.contains(name));
-        viewHolder.cb.setText(org.runnerup.common.R.string.Upload);
-        viewHolder.cb.setOnLongClickListener(null);
-      }
-      viewHolder.cb.setEnabled(true);
-      viewHolder.cb.setOnCheckedChangeListener(onSendChecked);
-
-      viewHolder.tv0.setText(tmp.getAsString("_id"));
-      viewHolder.tv1.setText(name);
-
-      return view;
-    }
-  }
-
   private void navigateToHistory() {
     // The source tab is already stored in SharedPreferences in onCreate
     // Just finish - let Android handle the back animation naturally
@@ -752,10 +548,5 @@ public class DetailActivity extends AppCompatActivity implements Constants {
 
   private OnLongClickListener clearUploadClick;
   private OnCheckedChangeListener onSendChecked;
-
-  // Note: onClick set in reportlist_row.xml
-  public void onClickAccountName(View arg0) {
-    syncController.openAccountUrl(this, syncManager, (String) arg0.getTag());
-  }
 
 }

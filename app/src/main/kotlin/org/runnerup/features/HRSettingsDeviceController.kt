@@ -20,7 +20,9 @@ import android.widget.BaseAdapter
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.preference.PreferenceManager
 import java.util.ArrayList
+import org.runnerup.R
 import org.runnerup.hr.HRDeviceRef
 import org.runnerup.hr.HRManager
 import org.runnerup.hr.HRProvider
@@ -142,6 +144,26 @@ class HRSettingsDeviceController(
     host.log("${hrProvider.providerName}::onScanResult(${device.address}, ${device.name})")
     deviceList.add(device)
     deviceAdapter.notifyDataSetChanged()
+  }
+
+  fun clearHRSettings() {
+    AlertDialog.Builder(activity)
+        .setTitle(org.runnerup.common.R.string.Clear_HR_settings)
+        .setMessage(org.runnerup.common.R.string.Are_you_sure)
+        .setPositiveButton(org.runnerup.common.R.string.OK) { _, _ -> clearBtPreferences() }
+        .setNegativeButton(org.runnerup.common.R.string.Cancel) { dialog, _ -> dialog.dismiss() }
+        .show()
+  }
+
+  private fun clearBtPreferences() {
+    val res = activity.resources
+    val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
+    prefs
+        .edit()
+        .remove(res.getString(R.string.pref_bt_name))
+        .remove(res.getString(R.string.pref_bt_address))
+        .remove(res.getString(R.string.pref_bt_provider))
+        .apply()
   }
 
   @SuppressLint("InflateParams")

@@ -374,6 +374,11 @@ PY
         else
           warn "Manage workouts — list id not found (layout may differ)"
         fi
+        if has_runnerup_node "manage_workout_add_fab" 2>/dev/null; then
+          log "Manage workouts FAB visible"
+        else
+          warn "Manage workouts FAB not found (SKIP)"
+        fi
         adb shell input keyevent KEYCODE_BACK >/dev/null
         sleep 1
         adb shell input keyevent KEYCODE_BACK >/dev/null

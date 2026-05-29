@@ -113,6 +113,24 @@ object MonthlyComparisonBinder {
   }
 
   @JvmStatic
+  fun needsZonePaceRecompute(cursor: Cursor): Boolean {
+    if (cursor.count == 0) {
+      return true
+    }
+    if (cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_1) < 0) {
+      return true
+    }
+    if (cursor.moveToFirst()) {
+      val data = readFromCursor(cursor)
+      return data.currentZonePace[1] <= 0 &&
+          data.currentZonePace[2] <= 0 &&
+          data.currentZonePace[3] <= 0 &&
+          data.currentZonePace[4] <= 0
+    }
+    return true
+  }
+
+  @JvmStatic
   fun hasMeaningfulData(data: Data): Boolean {
     val currentTotalKm = data.currentTotalKm
     if (currentTotalKm != null && currentTotalKm > 0) return true

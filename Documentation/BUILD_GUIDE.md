@@ -320,6 +320,25 @@ Set `RUNNERUP_PKG` if not using the default debug package (`org.runnerup.debug`)
 - Card ripple architecture centralized (`CardPressHelper`, `RunnerUpCard`).
 - Device smoke covers History → Detail → Laps, Start spinner, Best Times, Statistics (optional Monthly Comparison), Settings, and Settings → Workout → Manage workouts.
 
+## Verification (modernization tranche 2 — Phases 14–16)
+
+Phases 14–16 continue incremental Kotlin conversion (workout hosts, god-class slices, medium activities). Same verification commands as tranche 1.
+
+### Phase 14 (workout)
+
+- `ManageWorkoutsActivity`, `CreateAdvancedWorkout`, and `ManageWorkoutsController` are Kotlin.
+- Legacy `StepButton` / `step_button.xml` removed; editor uses `WorkoutEditorStepsAdapter` + `StepEditorDialog`.
+
+### Tranche 2 completion checklist (Phases 14–16)
+
+- Workout manage/create/edit hosts in Kotlin (`ManageWorkoutsActivity`, `CreateAdvancedWorkout`, `ManageWorkoutsController`).
+- Legacy `StepButton` removed; editor uses `WorkoutEditorStepsAdapter` + `StepEditorDialog`.
+- `StartTabContentBinder` + `StartLaunchController` extracted from `StartFragment`; `DetailRequeryController` from `DetailActivity`; dead sync list adapter removed.
+- `RunActivity` and `MainLayout` in Kotlin.
+- `HRSettingsActivity`, `InjuryEditorActivity`, `MonthlyComparisonActivity`, `ManualActivity`, `AccountActivity`, `StatisticsDetailActivity`, `BestTimesDetailActivity` in Kotlin.
+- `StartFragment` / `DetailActivity` remain Java shells (tracker/sync core unchanged).
+- Device smoke: Manage Workouts FAB check optional (SKIP if layout differs); Monthly Comparison remains optional SKIP.
+
 ---
 
 **Last Updated**: May 2026  
