@@ -43,6 +43,8 @@ import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.preference.PreferenceManager;
 import java.io.BufferedInputStream;
@@ -93,6 +95,7 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
   private Button createButton = null;
 
   private SyncManager syncManager = null;
+  private ActivityResultLauncher<Intent> configureLauncher;
 
   /** Called when the activity is first created. */
   @Override
@@ -106,6 +109,14 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
 
     mDB = DBHelper.getReadableDatabase(this);
     syncManager = new SyncManager(this);
+    configureLauncher =
+        registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+              syncManager.handleConfigureResult(result.getResultCode(), result.getData());
+              requery();
+            });
+    syncManager.setConfigureLauncher(configureLauncher);
     adapter = new WorkoutAccountListAdapter(this);
     ExpandableListView list = findViewById(R.id.expandable_list_view);
     list.setAdapter(adapter);
@@ -491,15 +502,6 @@ public class ManageWorkoutsActivity extends AppCompatActivity implements Constan
         intent.putExtra(WORKOUT_EXISTS, true);
         startActivity(intent);
       };
-
-  @Override
-  public void onActivityResult(int requestCode, int resultCode, Intent data) {
-    super.onActivityResult(requestCode, resultCode, data);
-    if (requestCode == SyncManager.CONFIGURE_REQUEST) {
-      syncManager.onActivityResult(requestCode, resultCode, data);
-    }
-    requery();
-  }
 
   class WorkoutAccountListAdapter extends BaseExpandableListAdapter {
 

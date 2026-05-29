@@ -33,6 +33,7 @@ import android.widget.ImageView
 import android.widget.ListView
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import java.util.Locale
@@ -67,6 +68,8 @@ class UploadActivity : AppCompatActivity() {
 
   private var fetching = false
   private val cancelSync = StringBuffer()
+  private lateinit var detailLauncher: androidx.activity.result.ActivityResultLauncher<Intent>
+  private lateinit var configureLauncher: androidx.activity.result.ActivityResultLauncher<Intent>
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -79,6 +82,13 @@ class UploadActivity : AppCompatActivity() {
     db = DBHelper.getReadableDatabase(this)
     formatter = Formatter(this)
     syncManager = SyncManager(this)
+    configureLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+          syncManager?.handleConfigureResult(result.resultCode, result.data)
+        }
+    syncManager?.setConfigureLauncher(configureLauncher)
+    detailLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { fillData() }
 
     listView = findViewById(R.id.upload_view)
     listView?.dividerHeight = 1
@@ -257,7 +267,7 @@ class UploadActivity : AppCompatActivity() {
         val intent = Intent(this@UploadActivity, DetailActivity::class.java)
         intent.putExtra("ID", holder.activityId)
         intent.putExtra("mode", "details")
-        @Suppress("DEPRECATION") startActivityForResult(intent, 100)
+        detailLauncher.launch(intent)
       }
 
   private inner class UploadListAdapter : BaseAdapter() {
@@ -431,9 +441,4 @@ class UploadActivity : AppCompatActivity() {
         requery()
       }
 
-  @Deprecated("Deprecated in Java")
-  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-    @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
-    fillData()
-  }
 }

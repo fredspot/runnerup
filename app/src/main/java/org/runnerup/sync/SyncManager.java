@@ -40,6 +40,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.TableRow;
 import android.widget.TextView;
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.collection.LongSparseArray;
@@ -281,13 +282,31 @@ public class SyncManager {
 
   private Synchronizer authSynchronizer = null;
   private Callback authCallback = null;
+  private ActivityResultLauncher<Intent> configureLauncher = null;
+
+  /** Host activities register this before connect/upload flows that may need OAuth. */
+  public void setConfigureLauncher(ActivityResultLauncher<Intent> launcher) {
+    configureLauncher = launcher;
+  }
+
+  /** Called from {@link ActivityResultLauncher} callbacks on host activities. */
+  public void handleConfigureResult(int resultCode, Intent data) {
+    if (authSynchronizer == null) {
+      return;
+    }
+    handleAuthComplete(authSynchronizer, authSynchronizer.getAuthResult(resultCode, data));
+  }
 
   private void handleAuth(Callback callback, final Synchronizer l, AuthMethod authMethod) {
     authSynchronizer = l;
     authCallback = callback;
     switch (authMethod) {
       case OAUTH2:
-        mActivity.startActivityForResult(l.getAuthIntent(mActivity), CONFIGURE_REQUEST);
+        if (configureLauncher != null) {
+          configureLauncher.launch(l.getAuthIntent(mActivity));
+        } else if (mActivity != null) {
+          mActivity.startActivityForResult(l.getAuthIntent(mActivity), CONFIGURE_REQUEST);
+        }
         return;
       case USER_PASS:
       case USER_PASS_URL:
@@ -668,11 +687,10 @@ public class SyncManager {
   }
 
   public void onActivityResult(int requestCode, int resultCode, Intent data) {
-    if (requestCode != CONFIGURE_REQUEST || authSynchronizer == null) {
+    if (requestCode != CONFIGURE_REQUEST) {
       return;
     }
-
-    handleAuthComplete(authSynchronizer, authSynchronizer.getAuthResult(resultCode, data));
+    handleConfigureResult(resultCode, data);
   }
 
   public void disableSynchronizer(

@@ -13,14 +13,12 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
+import android.graphics.Rect;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.BaseAdapter;
-import android.widget.ListView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -29,6 +27,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.OnApplyWindowInsetsListener;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -61,6 +61,7 @@ public class MonthWeekBreakdownActivity extends AppCompatActivity {
   private Formatter formatter;
   private final List<WeekRow> weekRows = new ArrayList<>();
   private WeekListAdapter adapter;
+  private TextView emptyView;
 
   private static final class WeekRow {
     final long weekStartMillis;
@@ -111,13 +112,14 @@ public class MonthWeekBreakdownActivity extends AppCompatActivity {
     mDB = DBHelper.getReadableDatabase(this);
     formatter = new Formatter(this);
 
-    ListView listView = findViewById(R.id.month_week_list);
-    TextView emptyView = findViewById(R.id.month_week_empty);
-    listView.setEmptyView(emptyView);
+    RecyclerView recyclerView = findViewById(R.id.month_week_list);
+    emptyView = findViewById(R.id.month_week_empty);
+    recyclerView.setLayoutManager(new LinearLayoutManager(this));
+    int spacingPx = (int) (16 * getResources().getDisplayMetrics().density);
+    recyclerView.addItemDecoration(new CardSpacingDecoration(spacingPx));
     adapter = new WeekListAdapter();
-    listView.setAdapter(adapter);
-    listView.setOnItemClickListener(
-        (parent, view, position, id) -> openMonthHistory());
+    recyclerView.setAdapter(adapter);
+    adapter.setOnItemClickListener(row -> openMonthHistory());
 
     View rootView = findViewById(R.id.month_week_breakdown_layout);
     ViewCompat.setOnApplyWindowInsetsListener(
@@ -276,6 +278,13 @@ public class MonthWeekBreakdownActivity extends AppCompatActivity {
     }
 
     adapter.notifyDataSetChanged();
+    updateEmptyState();
+  }
+
+  private void updateEmptyState() {
+    if (emptyView != null) {
+      emptyView.setVisibility(weekRows.isEmpty() ? View.VISIBLE : View.GONE);
+    }
   }
 
   private void openMonthHistory() {
@@ -301,53 +310,93 @@ public class MonthWeekBreakdownActivity extends AppCompatActivity {
     }
   }
 
-  private class WeekListAdapter extends BaseAdapter {
+  private static final class CardSpacingDecoration extends RecyclerView.ItemDecoration {
+    private final int spacingPx;
+
+    CardSpacingDecoration(int spacingPx) {
+      this.spacingPx = spacingPx;
+    }
+
     @Override
-    public int getCount() {
+    public void getItemOffsets(
+        @NonNull Rect outRect,
+        @NonNull View view,
+        @NonNull RecyclerView parent,
+        @NonNull RecyclerView.State state) {
+      int position = parent.getChildAdapterPosition(view);
+      if (position == RecyclerView.NO_POSITION) return;
+      if (position < state.getItemCount() - 1) {
+        outRect.bottom = spacingPx;
+      }
+    }
+  }
+
+  private class WeekListAdapter extends RecyclerView.Adapter<WeekListAdapter.Holder> {
+    private OnItemClickListener onItemClickListener;
+
+    interface OnItemClickListener {
+      void onItemClick(WeekRow row);
+    }
+
+    void setOnItemClickListener(OnItemClickListener listener) {
+      onItemClickListener = listener;
+    }
+
+    @Override
+    public int getItemCount() {
       return weekRows.size();
     }
 
+    @NonNull
     @Override
-    public WeekRow getItem(int position) {
-      return weekRows.get(position);
+    public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+      LayoutInflater inflater = LayoutInflater.from(MonthWeekBreakdownActivity.this);
+      View view = inflater.inflate(R.layout.statistics_detail_row, parent, false);
+      return new Holder(view);
     }
 
     @Override
-    public long getItemId(int position) {
-      return position;
-    }
+    public void onBindViewHolder(@NonNull Holder holder, int position) {
+      WeekRow row = weekRows.get(position);
 
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-      View view = convertView;
-      if (view == null) {
-        LayoutInflater inflater = LayoutInflater.from(MonthWeekBreakdownActivity.this);
-        view = inflater.inflate(R.layout.statistics_detail_row, parent, false);
-      }
-
-      WeekRow row = getItem(position);
-      TextView monthText = view.findViewById(R.id.month_text);
-      TextView runCountText = view.findViewById(R.id.run_count_text);
-      TextView totalDistanceText = view.findViewById(R.id.total_distance_text);
-      TextView avgPaceText = view.findViewById(R.id.avg_pace_text);
-      TextView avgRunLengthText = view.findViewById(R.id.avg_run_length_text);
-
-      monthText.setText(row.title);
-      runCountText.setText(row.runCount + " runs");
-      totalDistanceText.setText(
+      holder.monthText.setText(row.title);
+      holder.runCountText.setText(row.runCount + " runs");
+      holder.totalDistanceText.setText(
           formatter.formatDistance(Formatter.Format.TXT_SHORT, (long) row.totalDistanceM));
 
       if (row.totalDistanceM > 0 && row.avgPaceSecPerKm > 0) {
-        avgPaceText.setText(
+        holder.avgPaceText.setText(
             formatter.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, row.avgPaceSecPerKm));
       } else {
-        avgPaceText.setText("-");
+        holder.avgPaceText.setText("-");
       }
 
-      avgRunLengthText.setText(
+      holder.avgRunLengthText.setText(
           formatter.formatDistance(Formatter.Format.TXT_SHORT, (long) row.avgRunLengthM));
 
-      return view;
+      holder.itemView.setOnClickListener(
+          v -> {
+            if (onItemClickListener != null) {
+              onItemClickListener.onItemClick(row);
+            }
+          });
+    }
+
+    static class Holder extends RecyclerView.ViewHolder {
+      final TextView monthText;
+      final TextView runCountText;
+      final TextView totalDistanceText;
+      final TextView avgPaceText;
+      final TextView avgRunLengthText;
+
+      Holder(View itemView) {
+        super(itemView);
+        monthText = itemView.findViewById(R.id.month_text);
+        runCountText = itemView.findViewById(R.id.run_count_text);
+        totalDistanceText = itemView.findViewById(R.id.total_distance_text);
+        avgPaceText = itemView.findViewById(R.id.avg_pace_text);
+        avgRunLengthText = itemView.findViewById(R.id.avg_run_length_text);
+      }
     }
   }
 }

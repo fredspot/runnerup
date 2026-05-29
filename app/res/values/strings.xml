@@ -61,9 +61,15 @@
   <string name="personal_bests">Personal Bests</string>
   <string name="average_bpm">Average BPM</string>
   <string name="lap_list_step_total">total</string>
-  <string name="lap_list_interval_total">interval</string>
-  <string name="lap_list_warmup_total">warmup</string>
-  <string name="lap_list_cooldown_total">cooldown</string>
+  <string name="lap_list_interval_total">i</string>
+  <string name="lap_list_warmup_total">w</string>
+  <string name="lap_list_cooldown_total">c</string>
+  <string name="lap_list_intensity_warmup">w</string>
+  <string name="lap_list_intensity_interval">i</string>
+  <string name="lap_list_intensity_recovery">r</string>
+  <string name="lap_list_intensity_cooling">c</string>
+  <string name="lap_list_intensity_rest">r</string>
+  <string name="lap_list_intensity_repeat">repeat</string>
   
   <!-- HR Zones -->
   <string name="hr_zones_title">Heart Rate Zones</string>

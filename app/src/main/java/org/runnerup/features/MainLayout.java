@@ -48,7 +48,6 @@ import androidx.lifecycle.Lifecycle;
 import androidx.preference.PreferenceManager;
 import androidx.viewpager2.widget.ViewPager2;
 import com.google.android.material.tabs.TabLayout;
-import com.google.android.material.tabs.TabLayoutMediator;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -119,53 +118,15 @@ public class MainLayout extends AppCompatActivity {
     }
     editor.apply();
 
-    // clear basicTargetType between application startup/shutdown
-    pref.edit().remove(getString(R.string.pref_basic_target_type)).apply();
-
     Log.e(
         getClass().getName(),
         "app-version: " + versionCode + ", upgradeState: " + upgradeState + ", km: " + km);
 
-    // Migration in 1.56: convert pref_mute to pref_mute_bool
-    Resources res = getResources();
-    try {
-      if (pref.contains(res.getString(R.string.pref_mute))) {
-        String v = pref.getString(res.getString(R.string.pref_mute), "no");
-        editor.putBoolean(res.getString(R.string.pref_mute_bool), v.equalsIgnoreCase("yes"));
-        editor.remove(res.getString(R.string.pref_mute));
-        editor.apply();
-      }
-    } catch (Exception e) {
-    }
+    MainLayoutPrefsBootstrap.applyDefaultValues(this);
 
-    PreferenceManager.setDefaultValues(this, R.xml.settings, false);
-    PreferenceManager.setDefaultValues(this, R.xml.audio_cue_settings, true);
-    PreferenceManager.setDefaultValues(this, R.xml.settings_runtime_defaults, true);
-    PreferenceManager.setDefaultValues(this, R.xml.settings_maintenance, true);
-    PreferenceManager.setDefaultValues(this, R.xml.settings_sensors, true);
-    PreferenceManager.setDefaultValues(this, R.xml.settings_units, true);
-    PreferenceManager.setDefaultValues(this, R.xml.settings_workout, true);
-
-    // Set up the ViewPager2 and associate it with the adapter responsible
-    // for managing the lifecycle and displaying the different fragment pages.
     pager = findViewById(R.id.pager);
-    BottomNavFragmentStateAdapter adapter = new BottomNavFragmentStateAdapter(this);
-    pager.setAdapter(adapter);
-
-    // Allows swiping between tabs
-    pager.setUserInputEnabled(true);
-
-    // Attach the TabLayout to the ViewPager2 using a TabLayoutMediator.
-    // The mediator synchronizes the selected tab with the displayed page in the ViewPager2,
-    // and allows for configuring the appearance of each tab (e.g., setting icons/titles).
     TabLayout tabLayout = findViewById(R.id.tab_layout);
-    new TabLayoutMediator(
-            tabLayout,
-            pager,
-            false,
-            true, // Uses animation when switching tabs
-            (tab, position) -> tab.setIcon(adapter.getIcon(position)))
-        .attach();
+    MainLayoutTabs.wire(this, pager, tabLayout);
 
     // Handle intent extras for navigation to History tab with filters
     handleHistoryNavigationIntent();

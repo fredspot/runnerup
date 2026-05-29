@@ -17,6 +17,7 @@ public final class WorkoutStepGrouper {
     public double summaryDistance;
     public long summaryTime;
     public int summaryAvgHr;
+    public int summaryMaxHr;
     public String summaryLabel;
   }
 
@@ -90,6 +91,7 @@ public final class WorkoutStepGrouper {
     long time = 0;
     double hrWeighted = 0;
     long hrTime = 0;
+    int maxHr = 0;
     for (int i = startInclusive; i < endExclusive; i++) {
       if (laps[i].containsKey(Constants.DB.LAP.DISTANCE)) {
         distance += laps[i].getAsDouble(Constants.DB.LAP.DISTANCE);
@@ -103,9 +105,16 @@ public final class WorkoutStepGrouper {
           hrTime += lapTime;
         }
       }
+      if (laps[i].containsKey(Constants.DB.LAP.MAX_HR)) {
+        int lapMax = laps[i].getAsInteger(Constants.DB.LAP.MAX_HR);
+        if (lapMax > maxHr) {
+          maxHr = lapMax;
+        }
+      }
     }
     summary.summaryDistance = distance;
     summary.summaryTime = time;
     summary.summaryAvgHr = hrTime > 0 ? (int) Math.round(hrWeighted / hrTime) : 0;
+    summary.summaryMaxHr = maxHr;
   }
 }

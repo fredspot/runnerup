@@ -47,12 +47,15 @@ import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.ListView;
 import android.widget.TextView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -106,10 +109,17 @@ public class DetailActivity extends AppCompatActivity implements Constants {
             case DB.INTENSITY.COOLDOWN:
               return getString(R.string.lap_list_cooldown_total);
             case DB.INTENSITY.ACTIVE:
-              return getString(R.string.lap_list_interval_total);
+              return intervalWorkout
+                  ? getString(R.string.lap_list_interval_total)
+                  : getString(R.string.lap_list_step_total);
             default:
               return getString(R.string.lap_list_step_total);
           }
+        }
+
+        @Override
+        public boolean isIntervalWorkout() {
+          return intervalWorkout;
         }
 
         @Override
@@ -134,10 +144,11 @@ public class DetailActivity extends AppCompatActivity implements Constants {
       };
 
   private boolean lapHrPresent = false;
+  private boolean intervalWorkout = false;
   private ContentValues[] laps = null;
   private WorkoutStepGrouper.LapDisplayEntry[] lapDisplayEntries = null;
   private final ArrayList<ContentValues> reports = new ArrayList<>();
-  private final ArrayList<BaseAdapter> adapters = new ArrayList<>(2);
+  private DetailLapListController.LapListAdapter lapListAdapter;
 
   private int mode; // 0 == save 1 == details
   private static final int MODE_SAVE = 0;
@@ -172,7 +183,8 @@ public class DetailActivity extends AppCompatActivity implements Constants {
 
   private long mStartTime = 0; // activity start time in unix timestamp
   private ContentValues headerData = new ContentValues();
-  private static final int EDIT_ACCOUNT_REQUEST = 2;
+  private ActivityResultLauncher<Intent> accountListLauncher;
+  private ActivityResultLauncher<Intent> configureLauncher;
 
   /** Called when the activity is first created. */
   @SuppressLint("ObsoleteSdkInt")
@@ -209,6 +221,17 @@ public class DetailActivity extends AppCompatActivity implements Constants {
 
     mDB = DBHelper.getReadableDatabase(this);
     syncManager = new SyncManager(this);
+    configureLauncher =
+        registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+              syncManager.handleConfigureResult(result.getResultCode(), result.getData());
+              requery();
+            });
+    syncManager.setConfigureLauncher(configureLauncher);
+    accountListLauncher =
+        registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> requery());
     formatter = new Formatter(this);
 
     if (intentMode.contentEquals("save")) {
@@ -343,7 +366,7 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     sport = findViewById(R.id.summary_sport);
     manualDistance = findViewById(R.id.summary_manual_distance);
     notes = findViewById(R.id.notes_text);
-    ListView lapList = findViewById(R.id.laplist);
+    RecyclerView lapList = findViewById(R.id.laplist);
     if (sport == null || manualDistance == null || notes == null || lapList == null) {
       return;
     }
@@ -395,9 +418,9 @@ public class DetailActivity extends AppCompatActivity implements Constants {
     fillHeaderData();
     requery();
 
-    BaseAdapter lapAdapter = DetailLapListController.createAdapter(this, lapListHost);
-    adapters.add(lapAdapter);
-    lapList.setAdapter(lapAdapter);
+    lapList.setLayoutManager(new LinearLayoutManager(this));
+    lapListAdapter = DetailLapListController.createAdapter(this, lapListHost);
+    lapList.setAdapter(lapListAdapter);
 
     LinearLayout graphTabLayout = findViewById(R.id.tab_graph);
     LinearLayout hrzonesBarLayout = findViewById(R.id.hrzonesBarLayout);
@@ -691,6 +714,7 @@ deleteButtonClick.onClick(null);
             DB.LAP.PLANNED_DISTANCE,
             DB.LAP.PLANNED_PACE,
             DB.LAP.AVG_HR,
+            DB.LAP.MAX_HR,
             DB.LAP.STEP
           };
 
@@ -700,9 +724,14 @@ deleteButtonClick.onClick(null);
 
       laps = DBHelper.toArray(c);
       c.close();
+      intervalWorkout = DetailLapListController.isIntervalWorkout(laps);
       lapHrPresent = false;
       for (ContentValues v : laps) {
         if (v.containsKey(DB.LAP.AVG_HR) && v.getAsInteger(DB.LAP.AVG_HR) > 0) {
+          lapHrPresent = true;
+          break;
+        }
+        if (v.containsKey(DB.LAP.MAX_HR) && v.getAsInteger(DB.LAP.MAX_HR) > 0) {
           lapHrPresent = true;
           break;
         }
@@ -776,8 +805,8 @@ deleteButtonClick.onClick(null);
       setUploadVisibility();
     }
 
-    for (BaseAdapter a : adapters) {
-      a.notifyDataSetChanged();
+    if (lapListAdapter != null) {
+      lapListAdapter.notifyDataSetChanged();
     }
   }
 
@@ -866,7 +895,7 @@ deleteButtonClick.onClick(null);
         b.setOnClickListener(
             v -> {
               Intent i = new Intent(DetailActivity.this, AccountListActivity.class);
-              DetailActivity.this.startActivityForResult(i, EDIT_ACCOUNT_REQUEST);
+              accountListLauncher.launch(i);
             });
         return b;
       }
@@ -1032,15 +1061,6 @@ deleteButtonClick.onClick(null);
                   // Do nothing but close the dialog
                   (dialog, which) -> dialog.dismiss())
               .show();
-
-  @Override
-  public void onActivityResult(int requestCode, int resultCode, Intent data) {
-    super.onActivityResult(requestCode, resultCode, data);
-    if (requestCode == SyncManager.CONFIGURE_REQUEST) {
-      syncManager.onActivityResult(requestCode, resultCode, data);
-    }
-    requery();
-  }
 
   private void shareActivity() {
     final int[] which = {

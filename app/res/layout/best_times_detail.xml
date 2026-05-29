@@ -38,14 +38,12 @@
         app:layout_constraintEnd_toEndOf="parent"
         tools:ignore="UnusedAttribute"/>
 
-    <ListView
+    <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/best_times_detail_list"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
         android:scrollbarStyle="outsideOverlay"
-        android:divider="@color/backgroundPrimary"
-        android:dividerHeight="16dp"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
         android:paddingLeft="16dp"

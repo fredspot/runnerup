@@ -11,6 +11,7 @@ package org.runnerup.features
 
 import android.content.ContentValues
 import android.content.Intent
+import androidx.activity.result.contract.ActivityResultContracts
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Paint
@@ -49,6 +50,8 @@ class AccountListActivity : AppCompatActivity(), Constants {
   private var showDisabled = false
   private var loadGeneration = 0
   private lateinit var adapter: AccountListAdapter
+  private lateinit var editAccountLauncher: androidx.activity.result.ActivityResultLauncher<Intent>
+  private lateinit var configureLauncher: androidx.activity.result.ActivityResultLauncher<Intent>
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -57,6 +60,17 @@ class AccountListActivity : AppCompatActivity(), Constants {
 
     db = DBHelper.getReadableDatabase(this)
     syncManager = SyncManager(this)
+    configureLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+          syncManager?.handleConfigureResult(result.resultCode, result.data)
+          adapter.notifyDataSetChanged()
+        }
+    syncManager?.setConfigureLauncher(configureLauncher)
+    editAccountLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ ->
+          syncManager?.clear()
+          reloadAccounts()
+        }
     adapter = AccountListAdapter()
     val recyclerView = findViewById<RecyclerView>(R.id.account_list_list)
     recyclerView.layoutManager = LinearLayoutManager(this)
@@ -163,23 +177,12 @@ class AccountListActivity : AppCompatActivity(), Constants {
   private fun startAccountActivity(synchronizerName: String) {
     val intent = Intent(this, AccountActivity::class.java)
     intent.putExtra("synchronizer", synchronizerName)
-    startActivityForResult(intent, EDIT_REQUEST)
+    editAccountLauncher.launch(intent)
   }
 
   private val connectCallback = SyncManager.Callback { synchronizerName, status ->
     if (status == Status.OK) {
       startAccountActivity(synchronizerName)
-    }
-  }
-
-  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-    super.onActivityResult(requestCode, resultCode, data)
-    if (requestCode == SyncManager.CONFIGURE_REQUEST) {
-      syncManager?.onActivityResult(requestCode, resultCode, data)
-      adapter.notifyDataSetChanged()
-    } else if (requestCode == EDIT_REQUEST) {
-      syncManager?.clear()
-      reloadAccounts()
     }
   }
 
@@ -361,7 +364,6 @@ class AccountListActivity : AppCompatActivity(), Constants {
   }
 
   companion object {
-    private const val EDIT_REQUEST = 1001
     private const val VIEW_ACCOUNT = 0
     private const val VIEW_FOOTER = 1
     private val ACCOUNT_PROJECTION =

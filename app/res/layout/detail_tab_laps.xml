@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                    android:id="@+id/tab_lap"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:baselineAligned="false"
-                    android:layout_margin="@dimen/activity_margin">
+    android:id="@+id/tab_lap"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:baselineAligned="false"
+    android:layout_margin="@dimen/activity_margin">
 
-                    <ListView
-                        android:id="@+id/laplist"
-                        android:layout_width="0dip"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
-                </LinearLayout>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/laplist"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:defaultFocusHighlightEnabled="false"
+        android:scrollbarStyle="outsideOverlay" />
+</LinearLayout>

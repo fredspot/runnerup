@@ -7,4 +7,7 @@
     <dimen name="fab_margin_68row">44dp</dimen>
     <dimen name="dialog_padding_horiz">24dp</dimen>
     <dimen name="dialog_padding_vert">8dp</dimen>
+    <!-- Fits two lap digits (e.g. 10) so rows stay aligned when lap count &gt; 9 -->
+    <dimen name="lap_list_lap_number_width">36dp</dimen>
+    <dimen name="lap_list_type_width">20dp</dimen>
 </resources>

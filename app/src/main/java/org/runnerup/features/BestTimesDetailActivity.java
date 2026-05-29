@@ -20,14 +20,11 @@ package org.runnerup.features;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
-import android.widget.BaseAdapter;
-import android.widget.ListView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -36,7 +33,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.OnApplyWindowInsetsListener;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import android.view.ViewGroup;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -47,7 +45,7 @@ import org.runnerup.data.DBHelper;
 import org.runnerup.data.entities.BestTimesEntity;
 import org.runnerup.core.util.Formatter;
 
-public class BestTimesDetailActivity extends AppCompatActivity implements Constants, OnItemClickListener {
+public class BestTimesDetailActivity extends AppCompatActivity implements Constants {
 
   private int targetDistance = 0;
   private SQLiteDatabase mDB = null;
@@ -60,10 +58,8 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
     super.onCreate(savedInstanceState);
     setContentView(R.layout.best_times_detail);
 
-    // Get target distance from intent
     targetDistance = getIntent().getIntExtra("DISTANCE", 1000);
 
-    // Set up toolbar
     Toolbar toolbar = findViewById(R.id.toolbar);
     setSupportActionBar(toolbar);
     if (getSupportActionBar() != null) {
@@ -71,18 +67,25 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
       getSupportActionBar().setTitle(getDistanceLabel(targetDistance) + " - " + getString(R.string.best_times));
     }
 
-    // Initialize database and formatter
     mDB = DBHelper.getReadableDatabase(this);
     formatter = new Formatter(this);
 
-    // Set up list view
-    ListView listView = findViewById(R.id.best_times_detail_list);
+    RecyclerView recyclerView = findViewById(R.id.best_times_detail_list);
+    recyclerView.setLayoutManager(new LinearLayoutManager(this));
+    int spacingPx = (int) (16 * getResources().getDisplayMetrics().density);
+    recyclerView.addItemDecoration(new CardSpacingDecoration(spacingPx));
     adapter = new BestTimesListAdapter();
-    listView.setAdapter(adapter);
-    listView.setDividerHeight(16); // Spacing between cards
-    listView.setOnItemClickListener(this);
+    recyclerView.setAdapter(adapter);
+    adapter.setOnItemClickListener(
+        bestTime -> {
+          if (bestTime != null && bestTime.getActivityId() != null) {
+            Intent intent = new Intent(this, DetailActivity.class);
+            intent.putExtra("ID", bestTime.getActivityId());
+            intent.putExtra("mode", "details");
+            startActivity(intent);
+          }
+        });
 
-    // Apply system bars insets to avoid UI overlap with status bar
     View rootView = findViewById(R.id.best_times_detail_layout);
     ViewCompat.setOnApplyWindowInsetsListener(
         rootView,
@@ -100,7 +103,6 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
           }
         });
 
-    // Load data
     loadBestTimes();
   }
 
@@ -116,18 +118,6 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
     return true;
   }
 
-  @Override
-  public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-    BestTimesEntity bestTime = adapter.getItem(position);
-    if (bestTime != null && bestTime.getActivityId() != null) {
-      // Open the activity detail
-      Intent intent = new Intent(this, DetailActivity.class);
-      intent.putExtra("ID", bestTime.getActivityId());
-      intent.putExtra("mode", "details");
-      startActivity(intent);
-    }
-  }
-
   private void loadBestTimes() {
     String sql = "SELECT * FROM " + Constants.DB.BEST_TIMES.TABLE +
                  " WHERE " + Constants.DB.BEST_TIMES.DISTANCE + " = ?" +
@@ -141,11 +131,38 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
     return BestTimesDistances.getLabel(distance);
   }
 
-  /**
-   * Adapter for displaying best times list.
-   */
-  class BestTimesListAdapter extends BaseAdapter {
+  private static final class CardSpacingDecoration extends RecyclerView.ItemDecoration {
+    private final int spacingPx;
+
+    CardSpacingDecoration(int spacingPx) {
+      this.spacingPx = spacingPx;
+    }
+
+    @Override
+    public void getItemOffsets(
+        @NonNull Rect outRect,
+        @NonNull View view,
+        @NonNull RecyclerView parent,
+        @NonNull RecyclerView.State state) {
+      int position = parent.getChildAdapterPosition(view);
+      if (position == RecyclerView.NO_POSITION) return;
+      if (position < state.getItemCount() - 1) {
+        outRect.bottom = spacingPx;
+      }
+    }
+  }
+
+  class BestTimesListAdapter extends RecyclerView.Adapter<BestTimesListAdapter.Holder> {
     private Cursor cursor;
+    private OnItemClickListener onItemClickListener;
+
+    interface OnItemClickListener {
+      void onItemClick(BestTimesEntity bestTime);
+    }
+
+    void setOnItemClickListener(OnItemClickListener listener) {
+      onItemClickListener = listener;
+    }
 
     public void swapCursor(Cursor newCursor) {
       if (cursor != null) {
@@ -156,70 +173,77 @@ public class BestTimesDetailActivity extends AppCompatActivity implements Consta
     }
 
     @Override
-    public int getCount() {
+    public int getItemCount() {
       return cursor != null ? cursor.getCount() : 0;
     }
 
-    @Override
-    public BestTimesEntity getItem(int position) {
+    BestTimesEntity getItem(int position) {
       if (cursor != null && cursor.moveToPosition(position)) {
         return new BestTimesEntity(cursor);
       }
       return null;
     }
 
+    @NonNull
     @Override
-    public long getItemId(int position) {
-      return position;
+    public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+      LayoutInflater inflater = LayoutInflater.from(BestTimesDetailActivity.this);
+      View view = inflater.inflate(R.layout.best_times_detail_row, parent, false);
+      return new Holder(view);
     }
 
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-      View view = convertView;
-      if (view == null) {
-        LayoutInflater inflater = LayoutInflater.from(BestTimesDetailActivity.this);
-        view = inflater.inflate(R.layout.best_times_detail_row, parent, false);
-      }
-
+    public void onBindViewHolder(@NonNull Holder holder, int position) {
       BestTimesEntity bestTime = getItem(position);
-      if (bestTime != null) {
-        TextView rankText = view.findViewById(R.id.rank_text);
-        TextView timeText = view.findViewById(R.id.time_text);
-        TextView paceText = view.findViewById(R.id.pace_text);
-        TextView dateText = view.findViewById(R.id.date_text);
-        TextView hrText = view.findViewById(R.id.hr_text);
-
-        // Rank
-        rankText.setText("#" + bestTime.getRank());
-
-        // Time
-        if (bestTime.getTime() != null) {
-          // Convert milliseconds to seconds for formatter
-          long timeInSeconds = bestTime.getTime() / 1000;
-          timeText.setText(formatter.formatElapsedTime(Formatter.Format.TXT_LONG, timeInSeconds));
-        }
-
-        // Pace
-        if (bestTime.getPace() != null) {
-          // Convert pace from seconds per km to seconds per meter
-          paceText.setText(
-              formatter.formatPaceFromSecPerKm(Formatter.Format.TXT_LONG, bestTime.getPace()));
-        }
-
-        // Date
-        if (bestTime.getStartTime() != null) {
-          // startTime is stored in seconds (Unix timestamp), convert to milliseconds
-          Date date = new Date(bestTime.getStartTime() * 1000);
-          SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
-          dateText.setText(dateFormat.format(date));
-        }
-
-        // Heart rate (segment avg | whole-run max)
-        hrText.setText(
-            formatter.formatBestTimesHeartRateLine(bestTime.getAvgHr(), bestTime.getMaxHr()));
+      if (bestTime == null) {
+        return;
       }
 
-      return view;
+      holder.rankText.setText("#" + bestTime.getRank());
+
+      if (bestTime.getTime() != null) {
+        long timeInSeconds = bestTime.getTime() / 1000;
+        holder.timeText.setText(
+            formatter.formatElapsedTime(Formatter.Format.TXT_LONG, timeInSeconds));
+      }
+
+      if (bestTime.getPace() != null) {
+        holder.paceText.setText(
+            formatter.formatPaceFromSecPerKm(Formatter.Format.TXT_LONG, bestTime.getPace()));
+      }
+
+      if (bestTime.getStartTime() != null) {
+        Date date = new Date(bestTime.getStartTime() * 1000);
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+        holder.dateText.setText(dateFormat.format(date));
+      }
+
+      holder.hrText.setText(
+          formatter.formatBestTimesHeartRateLine(bestTime.getAvgHr(), bestTime.getMaxHr()));
+
+      holder.itemView.setOnClickListener(
+          v -> {
+            if (onItemClickListener != null) {
+              onItemClickListener.onItemClick(bestTime);
+            }
+          });
+    }
+
+    static class Holder extends RecyclerView.ViewHolder {
+      final TextView rankText;
+      final TextView timeText;
+      final TextView paceText;
+      final TextView dateText;
+      final TextView hrText;
+
+      Holder(View itemView) {
+        super(itemView);
+        rankText = itemView.findViewById(R.id.rank_text);
+        timeText = itemView.findViewById(R.id.time_text);
+        paceText = itemView.findViewById(R.id.pace_text);
+        dateText = itemView.findViewById(R.id.date_text);
+        hrText = itemView.findViewById(R.id.hr_text);
+      }
     }
   }
 }

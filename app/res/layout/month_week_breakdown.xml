@@ -28,15 +28,13 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <ListView
+        <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/month_week_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/backgroundPrimary"
             android:clipToPadding="false"
             android:scrollbarStyle="outsideOverlay"
-            android:divider="@color/backgroundPrimary"
-            android:dividerHeight="16dp"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
             android:paddingLeft="16dp"

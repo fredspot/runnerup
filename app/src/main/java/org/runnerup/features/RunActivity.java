@@ -43,6 +43,8 @@ import android.widget.TableLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
@@ -89,8 +91,8 @@ public class RunActivity extends AppCompatActivity implements TickListener {
   private TextView countdownView = null;
   private ListView workoutList = null;
   private View tableRowInterval = null;
-  private org.runnerup.core.workout.Step currentStep = null;
   private Formatter formatter = null;
+  private RunMetricsController metricsController = null;
   private TextView activityHr;
   private TextView lapHr;
   private TextView intervalHr;
@@ -107,6 +109,9 @@ public class RunActivity extends AppCompatActivity implements TickListener {
   }
 
   private final ArrayList<WorkoutRow> workoutRows = new ArrayList<>();
+  private ActivityResultLauncher<Intent> saveDetailLauncher;
+  /** 0 = was running when save opened; 1 = was paused. */
+  private int saveDetailPauseCode = 0;
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -114,6 +119,10 @@ public class RunActivity extends AppCompatActivity implements TickListener {
     setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
     setContentView(R.layout.run);
     formatter = new Formatter(this);
+    saveDetailLauncher =
+        registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            this::handleSaveDetailResult);
     // HRZones hrZones = new HRZones(this);
     TextView velocity = findViewById(R.id.velocity_label);
     velocity.setText(formatter.formatVelocityLabel());
@@ -143,6 +152,27 @@ public class RunActivity extends AppCompatActivity implements TickListener {
     workoutList = findViewById(R.id.workout_list);
     WorkoutAdapter adapter = new WorkoutAdapter(workoutRows);
     workoutList.setAdapter(adapter);
+    metricsController =
+        new RunMetricsController(
+            formatter,
+            activityTime,
+            activityDistance,
+            activityPace,
+            lapTime,
+            lapDistance,
+            lapPace,
+            intervalTime,
+            intervalDistance,
+            intervalPace,
+            currentPace,
+            tableRowInterval,
+            activityHr,
+            lapHr,
+            intervalHr,
+            currentHr,
+            activityHeaderHr,
+            workoutList,
+            workoutRows);
 
     final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
     final Resources res = this.getResources();
@@ -304,24 +334,21 @@ public class RunActivity extends AppCompatActivity implements TickListener {
        */
       intent.putExtra("mode", "save");
       intent.putExtra("ID", mTracker.getActivityId());
-      RunActivity.this.startActivityForResult(intent, workout.isPaused() ? 1 : 0);
+      saveDetailPauseCode = workout.isPaused() ? 1 : 0;
+      saveDetailLauncher.launch(intent);
     }
   }
 
   private final OnClickListener stopButtonClick = v -> doStop();
 
-  @Override
-  protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-    super.onActivityResult(requestCode, resultCode, data);
+  private void handleSaveDetailResult(androidx.activity.result.ActivityResult result) {
+    int resultCode = result.getResultCode();
+    Intent data = result.getData();
     if (workout == null) {
-      // "should not happen"
       finish();
       return;
     }
     if (resultCode == AppCompatActivity.RESULT_OK) {
-      /*
-       * they saved
-       */
       Double manualDistance = null;
       if (data != null && data.hasExtra("MANUAL_DISTANCE")) {
         manualDistance = data.getDoubleExtra("MANUAL_DISTANCE", 0);
@@ -333,18 +360,14 @@ public class RunActivity extends AppCompatActivity implements TickListener {
       mTracker = null;
       finish();
     } else if (resultCode == AppCompatActivity.RESULT_CANCELED) {
-      /*
-       * they discarded
-       */
       workout.onComplete(Scope.ACTIVITY, workout);
       mTracker.completeActivity(/* save= */false, /* manualDistance= */null);
       mTracker = null;
       finish();
     } else if (resultCode == AppCompatActivity.RESULT_FIRST_USER) {
       startTimer();
-      if (requestCode == 0) {
+      if (saveDetailPauseCode == 0) {
         workout.onResume(workout);
-        // else: we were paused before stopButtonClick...don't resume
       }
     } else {
       if (BuildConfig.DEBUG) {
@@ -393,81 +416,8 @@ public class RunActivity extends AppCompatActivity implements TickListener {
       }
 
       setPauseButtonEnabled(!workout.isPaused());
-      double ad = workout.getDistance(Scope.ACTIVITY);
-      double at = workout.getTime(Scope.ACTIVITY);
-      double ap = workout.getSpeed(Scope.ACTIVITY);
-      activityTime.setText(formatter.formatElapsedTime(Formatter.Format.TXT_SHORT, Math.round(at)));
-      activityDistance.setText(
-          formatter.formatDistance(Formatter.Format.TXT_SHORT, Math.round(ad)));
-      activityPace.setText(formatter.formatVelocityByPreferredUnit(Formatter.Format.TXT_SHORT, ap));
-
-      double ld = workout.getDistance(Scope.LAP);
-      double lt = workout.getTime(Scope.LAP);
-      double lp = workout.getSpeed(Scope.LAP);
-      lapTime.setText(formatter.formatElapsedTime(Formatter.Format.TXT_SHORT, Math.round(lt)));
-      lapDistance.setText(formatter.formatDistance(Formatter.Format.TXT_LONG, Math.round(ld)));
-      lapPace.setText(formatter.formatVelocityByPreferredUnit(Formatter.Format.TXT_SHORT, lp));
-
-      if (tableRowInterval != null
-          && this.currentStep != null
-          && workout.getWorkoutType() != Constants.WORKOUT_TYPE.BASIC
-          && this.currentStep.getIntensity() == Intensity.ACTIVE) {
-        double id = workout.getDistance(Scope.STEP);
-        double it = workout.getTime(Scope.STEP);
-        double ip = workout.getSpeed(Scope.STEP);
-
-        tableRowInterval.setVisibility(View.VISIBLE);
-        intervalTime.setText(
-            formatter.formatElapsedTime(Formatter.Format.TXT_SHORT, Math.round(it)));
-        intervalDistance.setText(
-            formatter.formatDistance(Formatter.Format.TXT_LONG, Math.round(id)));
-        intervalPace.setText(
-            formatter.formatVelocityByPreferredUnit(Formatter.Format.TXT_SHORT, ip));
-      } else {
-        // Do not show Interval Step row if no reason
-        tableRowInterval.setVisibility(View.GONE);
-      }
-
-      double cp = workout.getSpeed(Scope.CURRENT);
-      currentPace.setText(formatter.formatVelocityByPreferredUnit(Formatter.Format.TXT_SHORT, cp));
-
-      if (mTracker.isComponentConnected(TrackerHRM.NAME)) {
-        double ahr = workout.getHeartRate(Scope.ACTIVITY);
-        double ihr = workout.getHeartRate(Scope.STEP);
-        double lhr = workout.getHeartRate(Scope.LAP);
-        double chr = workout.getHeartRate(Scope.CURRENT);
-        lapHr.setText(formatter.formatHeartRate(Formatter.Format.TXT_SHORT, lhr));
-        intervalHr.setText(formatter.formatHeartRate(Formatter.Format.TXT_SHORT, ihr));
-        currentHr.setText(formatter.formatHeartRate(Formatter.Format.TXT_SHORT, chr));
-        activityHr.setText(formatter.formatHeartRate(Formatter.Format.TXT_SHORT, ahr));
-        activityHr.setVisibility(View.VISIBLE);
-        lapHr.setVisibility(View.VISIBLE);
-        intervalHr.setVisibility(View.VISIBLE);
-        currentHr.setVisibility(View.VISIBLE);
-        activityHeaderHr.setVisibility(View.VISIBLE);
-      } else {
-        activityHr.setVisibility(View.GONE);
-        lapHr.setVisibility(View.GONE);
-        intervalHr.setVisibility(View.GONE);
-        currentHr.setVisibility(View.GONE);
-        activityHeaderHr.setVisibility(View.GONE);
-      }
-
-      Step curr = workout.getCurrentStep();
-      if (curr != currentStep) {
-        ((WorkoutAdapter) workoutList.getAdapter()).notifyDataSetChanged();
-        currentStep = curr;
-        workoutList.setSelection(getPosition(workoutRows, currentStep));
-      }
+      metricsController.updateMetrics(workout, mTracker);
     }
-  }
-
-  private int getPosition(
-      ArrayList<WorkoutRow> workoutRows, org.runnerup.core.workout.Step currentActivity) {
-    for (int i = 0; i < workoutRows.size(); i++) {
-      if (workoutRows.get(i).step == currentActivity) return i;
-    }
-    return 0;
   }
 
   private boolean mIsBound = false;
@@ -567,7 +517,7 @@ public class RunActivity extends AppCompatActivity implements TickListener {
         durationType.setText("");
         durationValue.setText("");
       }
-      if (currentStep == step) {
+      if (metricsController.currentStep == step) {
         // view.setBackgroundResource(android.R.color.background_light);
       } else {
         view.setBackgroundResource(android.R.color.black);

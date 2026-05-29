@@ -13,8 +13,8 @@ import android.content.ContentValues
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.BaseAdapter
 import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
 import org.runnerup.R
 import org.runnerup.common.util.Constants.DB
 import org.runnerup.core.util.ActivitySummaryBinder
@@ -35,6 +35,24 @@ internal object DetailLapListController {
     fun getLapDisplayEntries(): Array<WorkoutStepGrouper.LapDisplayEntry>?
 
     fun setLapDisplayEntries(entries: Array<WorkoutStepGrouper.LapDisplayEntry>)
+
+    /** True when laps include recovery/rest phases (interval or structured workout). */
+    fun isIntervalWorkout(): Boolean
+  }
+
+  /** Interval-tab runs record recovery or rest laps; basic runs do not. */
+  @JvmStatic
+  fun isIntervalWorkout(laps: Array<ContentValues>?): Boolean {
+    if (laps == null) {
+      return false
+    }
+    for (lap in laps) {
+      val intensity = lap.getAsInteger(DB.LAP.INTENSITY) ?: continue
+      if (intensity == DB.INTENSITY.RECOVERY || intensity == DB.INTENSITY.RESTING) {
+        return true
+      }
+    }
+    return false
   }
 
   @JvmStatic
@@ -45,147 +63,87 @@ internal object DetailLapListController {
       WorkoutStepGrouper.buildDisplayEntries(laps, host::labelForIntensity)
 
   @JvmStatic
-  fun createAdapter(activity: DetailActivity, host: Host): BaseAdapter =
+  fun createAdapter(activity: DetailActivity, host: Host): LapListAdapter =
       LapListAdapter(activity, host)
 
-  private class ViewHolderLapList {
-    lateinit var tv0: TextView
-    lateinit var tv1: TextView
-    lateinit var tv2: TextView
-    lateinit var tv3: TextView
-    lateinit var tv4: TextView
-    lateinit var tvHr: TextView
-  }
-
-  private class LapListAdapter(
+  class LapListAdapter(
       private val activity: DetailActivity,
       private val host: Host,
-  ) : BaseAdapter() {
-
-    override fun getViewTypeCount(): Int = 2
+  ) : RecyclerView.Adapter<LapListAdapter.Holder>() {
 
     override fun getItemViewType(position: Int): Int =
         host.getLapDisplayEntries()!![position].viewType
 
-    override fun getCount(): Int {
+    override fun getItemCount(): Int {
       val entries = host.getLapDisplayEntries() ?: return 0
       return entries.size
     }
 
-    override fun getItem(position: Int): Any {
-      val entry = host.getLapDisplayEntries()!![position]
-      return if (entry.viewType == WorkoutStepGrouper.LapDisplayEntry.VIEW_LAP) entry.lap else entry
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
+      val inflater = LayoutInflater.from(activity)
+      val layout =
+          if (viewType == WorkoutStepGrouper.LapDisplayEntry.VIEW_STEP_SUMMARY) {
+            R.layout.laplist_step_summary_row
+          } else {
+            R.layout.laplist_row
+          }
+      val view = inflater.inflate(layout, parent, false)
+      return Holder(view)
     }
 
-    override fun getItemId(position: Int): Long {
+    override fun onBindViewHolder(holder: Holder, position: Int) {
       val entry = host.getLapDisplayEntries()!![position]
-      if (entry.viewType == WorkoutStepGrouper.LapDisplayEntry.VIEW_LAP && entry.lap != null) {
-        return entry.lap.getAsLong("_id")
-      }
-      return -position - 1L
-    }
-
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-      val entry = host.getLapDisplayEntries()!![position]
-      return if (entry.viewType == WorkoutStepGrouper.LapDisplayEntry.VIEW_STEP_SUMMARY) {
-        bindStepSummaryRow(position, convertView, parent, entry)
+      if (entry.viewType == WorkoutStepGrouper.LapDisplayEntry.VIEW_STEP_SUMMARY) {
+        bindStepSummaryRow(holder, entry)
       } else {
-        bindLapRow(position, convertView, parent, entry.lap)
+        bindLapRow(holder, position, entry.lap)
       }
     }
 
     private fun bindStepSummaryRow(
-        position: Int,
-        convertView: View?,
-        parent: ViewGroup,
+        holder: Holder,
         entry: WorkoutStepGrouper.LapDisplayEntry,
-    ): View {
-      var view = convertView
-      val viewHolder: ViewHolderLapList
-      if (view == null ||
-          getItemViewType(position) != WorkoutStepGrouper.LapDisplayEntry.VIEW_STEP_SUMMARY) {
-        viewHolder = ViewHolderLapList()
-        val inflater = LayoutInflater.from(activity)
-        view = inflater.inflate(R.layout.laplist_step_summary_row, parent, false)
-        viewHolder.tv0 = view.findViewById(R.id.lap_list_type)
-        viewHolder.tv1 = view.findViewById(R.id.lap_list_id)
-        viewHolder.tv2 = view.findViewById(R.id.lap_list_distance)
-        viewHolder.tv3 = view.findViewById(R.id.lap_list_time)
-        viewHolder.tv4 = view.findViewById(R.id.lap_list_pace)
-        viewHolder.tvHr = view.findViewById(R.id.lap_list_hr)
-        view.tag = viewHolder
-      } else {
-        viewHolder = view.tag as ViewHolderLapList
-      }
-      viewHolder.tv1.text = ""
-      viewHolder.tv0.text = entry.summaryLabel
+    ) {
+      holder.tv1.text = ""
+      holder.tv0.text = entry.summaryLabel
       val formatter = host.getFormatter()
       ActivitySummaryBinder.bind(
           formatter,
-          viewHolder.tv2,
-          viewHolder.tv3,
-          viewHolder.tv4,
+          holder.tv2,
+          holder.tv3,
+          holder.tv4,
           Formatter.Format.TXT_LONG,
           Formatter.Format.TXT_LONG,
           entry.summaryDistance,
           entry.summaryTime,
       )
-      if (entry.summaryAvgHr > 0) {
-        viewHolder.tvHr.visibility = View.VISIBLE
-        viewHolder.tvHr.text =
-            formatter.formatHeartRate(Formatter.Format.TXT_LONG, entry.summaryAvgHr.toDouble())
-      } else if (host.isLapHrPresent()) {
-        viewHolder.tvHr.visibility = View.INVISIBLE
-      } else {
-        viewHolder.tvHr.visibility = View.GONE
-      }
-      return view
+      bindLapHeartRate(
+          formatter,
+          holder.tvHr,
+          entry.summaryAvgHr,
+          entry.summaryMaxHr,
+          host.isLapHrPresent(),
+      )
     }
 
-    private fun bindLapRow(
-        position: Int,
-        convertView: View?,
-        parent: ViewGroup,
-        lap: ContentValues,
-    ): View {
-      var view = convertView
-      val viewHolder: ViewHolderLapList
-      if (view == null || getItemViewType(position) != WorkoutStepGrouper.LapDisplayEntry.VIEW_LAP) {
-        viewHolder = ViewHolderLapList()
-        val inflater = LayoutInflater.from(activity)
-        view = inflater.inflate(R.layout.laplist_row, parent, false)
-        viewHolder.tv0 = view.findViewById(R.id.lap_list_type)
-        viewHolder.tv1 = view.findViewById(R.id.lap_list_id)
-        viewHolder.tv2 = view.findViewById(R.id.lap_list_distance)
-        viewHolder.tv3 = view.findViewById(R.id.lap_list_time)
-        viewHolder.tv4 = view.findViewById(R.id.lap_list_pace)
-        viewHolder.tvHr = view.findViewById(R.id.lap_list_hr)
-        view.tag = viewHolder
-      } else {
-        viewHolder = view.tag as ViewHolderLapList
-      }
+    private fun bindLapRow(holder: Holder, position: Int, lap: ContentValues) {
       val i = lap.getAsInteger(DB.LAP.INTENSITY)
       val intensity = Intensity.values()[i]
-      when (intensity) {
-        Intensity.ACTIVE -> viewHolder.tv0.text = ""
-        Intensity.COOLDOWN,
-        Intensity.RESTING,
-        Intensity.RECOVERY,
-        Intensity.WARMUP,
-        Intensity.REPEAT -> {
-          val lapTypeLabel =
-              when (intensity) {
-                Intensity.RECOVERY -> "recover"
-                Intensity.WARMUP -> "warmup"
-                Intensity.COOLDOWN -> "cooling"
-                Intensity.RESTING -> "rest"
-                Intensity.REPEAT -> "repeat"
-                else -> activity.resources.getString(intensity.textId)
-              }
-          viewHolder.tv0.text = lapTypeLabel
-        }
-        else -> {}
-      }
+      holder.tv0.text =
+          when (intensity) {
+            Intensity.ACTIVE ->
+                if (host.isIntervalWorkout()) {
+                  lapIntensityAbbrev(activity, intensity)
+                } else {
+                  ""
+                }
+            Intensity.COOLDOWN,
+            Intensity.RESTING,
+            Intensity.RECOVERY,
+            Intensity.WARMUP,
+            Intensity.REPEAT -> lapIntensityAbbrev(activity, intensity)
+            else -> ""
+          }
       if (intensity == Intensity.ACTIVE) {
         var activeIdx = 0
         val entries = host.getLapDisplayEntries()!!
@@ -198,33 +156,67 @@ internal object DetailLapListController {
             activeIdx++
           }
         }
-        viewHolder.tv1.text = activeIdx.toString()
+        holder.tv1.text = activeIdx.toString()
       } else {
-        viewHolder.tv1.text = ""
+        holder.tv1.text = ""
       }
       val d = if (lap.containsKey(DB.LAP.DISTANCE)) lap.getAsDouble(DB.LAP.DISTANCE) else 0.0
       val t = if (lap.containsKey(DB.LAP.TIME)) lap.getAsLong(DB.LAP.TIME) else 0L
       val formatter = host.getFormatter()
       ActivitySummaryBinder.bind(
           formatter,
-          viewHolder.tv2,
-          viewHolder.tv3,
-          viewHolder.tv4,
+          holder.tv2,
+          holder.tv3,
+          holder.tv4,
           Formatter.Format.TXT_LONG,
           Formatter.Format.TXT_LONG,
           d,
           t,
       )
-      val hr = if (lap.containsKey(DB.LAP.AVG_HR)) lap.getAsInteger(DB.LAP.AVG_HR) else 0
-      if (hr > 0) {
-        viewHolder.tvHr.visibility = View.VISIBLE
-        viewHolder.tvHr.text = formatter.formatHeartRate(Formatter.Format.TXT_LONG, hr.toDouble())
-      } else if (host.isLapHrPresent()) {
-        viewHolder.tvHr.visibility = View.INVISIBLE
-      } else {
-        viewHolder.tvHr.visibility = View.GONE
+      val avgHr = if (lap.containsKey(DB.LAP.AVG_HR)) lap.getAsInteger(DB.LAP.AVG_HR) ?: 0 else 0
+      val maxHr = if (lap.containsKey(DB.LAP.MAX_HR)) lap.getAsInteger(DB.LAP.MAX_HR) ?: 0 else 0
+      bindLapHeartRate(formatter, holder.tvHr, avgHr, maxHr, host.isLapHrPresent())
+    }
+
+    private fun lapIntensityAbbrev(activity: DetailActivity, intensity: Intensity): String {
+      val res = activity.resources
+      return when (intensity) {
+        Intensity.WARMUP -> res.getString(R.string.lap_list_intensity_warmup)
+        Intensity.ACTIVE -> res.getString(R.string.lap_list_intensity_interval)
+        Intensity.RECOVERY -> res.getString(R.string.lap_list_intensity_recovery)
+        Intensity.COOLDOWN -> res.getString(R.string.lap_list_intensity_cooling)
+        Intensity.RESTING -> res.getString(R.string.lap_list_intensity_rest)
+        Intensity.REPEAT -> res.getString(R.string.lap_list_intensity_repeat)
+        else -> res.getString(intensity.textId)
       }
-      return view
+    }
+
+    private fun bindLapHeartRate(
+        formatter: Formatter,
+        tvHr: TextView,
+        avgHr: Int,
+        maxHr: Int,
+        hrColumnPresent: Boolean,
+    ) {
+      val avg = if (avgHr > 0) avgHr else null
+      val max = if (maxHr > 0) maxHr else null
+      if (avg != null || max != null) {
+        tvHr.visibility = View.VISIBLE
+        tvHr.text = formatter.formatBestTimesHeartRateLine(avg, max)
+      } else if (hrColumnPresent) {
+        tvHr.visibility = View.INVISIBLE
+      } else {
+        tvHr.visibility = View.GONE
+      }
+    }
+
+    inner class Holder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+      val tv0: TextView = itemView.findViewById(R.id.lap_list_type)
+      val tv1: TextView = itemView.findViewById(R.id.lap_list_id)
+      val tv2: TextView = itemView.findViewById(R.id.lap_list_distance)
+      val tv3: TextView = itemView.findViewById(R.id.lap_list_time)
+      val tv4: TextView = itemView.findViewById(R.id.lap_list_pace)
+      val tvHr: TextView = itemView.findViewById(R.id.lap_list_hr)
     }
   }
 }
