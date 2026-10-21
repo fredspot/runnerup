@@ -586,5 +586,20 @@ class HistoryFragment : Fragment(R.layout.history) {
       } catch (_: Exception) {
       }
     }
+  @JvmStatic
+  fun invalidateCaches(ctx: android.content.Context?) {
+    cachedLocStatsById.clear()
+    cachedCondLineById.clear()
+    prefsLoaded = false
+    if (ctx != null) {
+      try {
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx)
+            .edit()
+            .remove(PREF_LOC_STATS_CACHE)
+            .apply()
+      } catch (_: Exception) {
+      }
+    }
+  }
   }
 }

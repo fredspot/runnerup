@@ -47,6 +47,12 @@
             android:summary="@string/Pruning_deleted_activities_from_database"
             android:title="@string/Prune"
             app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_recompute_all_activities"
+            android:summary="Recompute pace/laps, smoothed elevation gain, 24h weather &amp; humidity, and comparisons for all activities"
+            android:title="Recompute All Activities &amp; Weather"
+            app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
     <PreferenceCategory

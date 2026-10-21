@@ -70,6 +70,10 @@ class SettingsMaintenanceFragment : PreferenceFragmentCompat() {
     findPreference<Preference>(res.getString(R.string.pref_exportdb))?.setOnPreferenceClickListener(onExportClick)
     findPreference<Preference>(res.getString(R.string.pref_importdb))?.setOnPreferenceClickListener(onImportClick)
     findPreference<Preference>(res.getString(R.string.pref_prunedb))?.setOnPreferenceClickListener(onPruneClick)
+    findPreference<Preference>("pref_recompute_all_activities")?.setOnPreferenceClickListener {
+      runFullRecomputeWithProgress()
+      true
+    }
 
     val path = DBHelper.getDefaultBackupPath(requireContext())
     findPreference<Preference>(res.getString(org.runnerup.common.R.string.Maintenance_explanation_summary))
@@ -481,5 +485,138 @@ class SettingsMaintenanceFragment : PreferenceFragmentCompat() {
     }
     DBHelper.purgeDeletedActivities(requireContext(), dialog, dialog::dismiss)
     false
+  }
+
+  private fun runFullRecomputeWithProgress() {
+    val ctx = requireContext()
+    val appCtx = ctx.applicationContext
+    val dialog = ProgressDialog(ctx).apply {
+      setTitle("Recomputing Activities & Weather")
+      setMessage("Preparing activity list…")
+      setProgressStyle(ProgressDialog.STYLE_HORIZONTAL)
+      isIndeterminate = false
+      max = 100
+      progress = 0
+      setCancelable(false)
+      show()
+    }
+
+    BgTasks.runNetwork(
+        {
+          val db = DBHelper.getWritableDatabase(appCtx)
+          try {
+            val activities = ArrayList<Pair<Long, Long>>()
+            db.query(
+                     org.runnerup.common.util.Constants.DB.ACTIVITY.TABLE,
+                    arrayOf(
+                        org.runnerup.common.util.Constants.DB.PRIMARY_KEY,
+                        org.runnerup.common.util.Constants.DB.ACTIVITY.START_TIME,
+                    ),
+                    "${org.runnerup.common.util.Constants.DB.ACTIVITY.DELETED} = ?",
+                    arrayOf("0"),
+                    null,
+                    null,
+                    "${org.runnerup.common.util.Constants.DB.PRIMARY_KEY} ASC",
+                )
+                .use { c ->
+                  while (c.moveToNext()) {
+                    val id = c.getLong(0)
+                    val startSec = if (!c.isNull(1)) c.getLong(1) else 0L
+                    activities.add(Pair(id, startSec))
+                  }
+                }
+
+            val total = activities.size.coerceAtLeast(1)
+            activity?.runOnUiThread {
+              if (dialog.isShowing) {
+                dialog.max = total
+                dialog.progress = 0
+              }
+            }
+
+            val cleaner = org.runnerup.data.ActivityCleaner()
+            val weatherClient = org.runnerup.analytics.OpenMeteoWeatherClient()
+            var weatherSynced = 0
+
+            for ((index, pair) in activities.withIndex()) {
+              val id = pair.first
+              val startSec = pair.second
+              val stepNum = index + 1
+              activity?.runOnUiThread {
+                if (dialog.isShowing) {
+                  dialog.progress = index
+                  dialog.setMessage(
+                      "Activity $stepNum / $total (#$id)\n" +
+                          "• Recomputing laps, pace & smoothed elevation\n" +
+                          "• Syncing 24h temperature & humidity",
+                  )
+                }
+              }
+              try {
+                cleaner.recompute(db, id)
+              } catch (e: Exception) {
+                Log.w("SettingsMaintenance", "cleaner.recompute failed for $id", e)
+              }
+              try {
+                org.runnerup.tracking.elevation.TopographyElevationService
+                    .recomputeStoredElevation(db, id)
+              } catch (e: Exception) {
+                Log.w("SettingsMaintenance", "recomputeStoredElevation failed for $id", e)
+              }
+              try {
+                if (startSec > 0L) {
+                  val day =
+                      org.runnerup.analytics.DailyWeatherStore.ensureForActivity(
+                          db,
+                          id,
+                          startSec,
+                          weatherClient,
+                      )
+                  if (day != null) weatherSynced++
+                }
+              } catch (e: Exception) {
+                Log.w("SettingsMaintenance", "ensureForActivity failed for $id", e)
+              }
+            }
+
+            activity?.runOnUiThread {
+              if (dialog.isShowing) {
+                dialog.progress = total
+                dialog.setMessage("Rebuilding Best Times, Statistics & Monthly Comparisons…")
+              }
+            }
+
+            org.runnerup.data.ComputationTracker.deleteTracking(
+                db,
+                org.runnerup.data.ComputationTracker.TYPE_BEST_TIMES,
+                org.runnerup.data.ComputationTracker.TYPE_STATISTICS,
+                org.runnerup.data.ComputationTracker.TYPE_MONTHLY_COMPARISON,
+            )
+            org.runnerup.analytics.AutoComputeRunner.runAll(
+                db,
+                MainLayoutNavigation.monthlyComparisonZoneBounds(appCtx),
+            )
+            org.runnerup.analytics.ComparableSegmentLoader.clearCaches()
+            HistoryFragment.invalidateCaches(appCtx)
+
+            Pair(activities.size, weatherSynced)
+          } finally {
+            DBHelper.closeDB(db)
+          }
+        },
+        { result ->
+          if (dialog.isShowing) {
+            dialog.dismiss()
+          }
+          if (isAdded) {
+            Toast.makeText(
+                    requireContext(),
+                    "Recomputed ${result.first} activities (${result.second} with 24h weather)",
+                    Toast.LENGTH_LONG,
+                )
+                .show()
+          }
+        },
+    )
   }
 }

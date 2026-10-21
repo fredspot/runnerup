@@ -20,6 +20,11 @@ public final class ComparableSegmentLoader {
 
   private ComparableSegmentLoader() {}
 
+  public static void clearCaches() {
+    SEGMENT_CACHE.clear();
+    CONDITIONS_CACHE.clear();
+  }
+
   public static List<ComparableSegment> loadRunning(SQLiteDatabase db, int[] zoneBounds) {
     List<long[]> acts = new ArrayList<>();
     try (Cursor cursor =

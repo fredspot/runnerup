@@ -87,99 +87,29 @@ object MainLayoutNavigation {
   fun runAutoComputeInBackground(activity: MainLayout) {
     BgTasks.runDb(
         {
-          var bulkRecomputeJustRan = false
           var db: SQLiteDatabase? = null
           try {
             db = DBHelper.getWritableDatabase(activity)
-            val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
-            val requiredStamp =
-                BuildConfig.VERSION_CODE.toLong() * 1000L + BULK_RECOMPUTE_DATA_REVISION
-            val appliedStamp = prefs.getLong(PREF_ACTIVITY_BULK_STAMP, 0L)
-            if (appliedStamp < requiredStamp) {
-              Log.i(
-                  activity.javaClass.simpleName,
-                  "Bulk activity recompute (apk ${BuildConfig.VERSION_CODE}, revision $BULK_RECOMPUTE_DATA_REVISION)",
-              )
-              val cleaner = ActivityCleaner()
-              db.query(
-                      DB.ACTIVITY.TABLE,
-                      arrayOf(DB.PRIMARY_KEY),
-                      DB.ACTIVITY.DELETED + " = ?",
-                      arrayOf("0"),
-                      null,
-                      null,
-                      DB.PRIMARY_KEY + " ASC",
-                  )
-                  .use { cursor ->
-                    while (cursor.moveToNext()) {
-                      val id = cursor.getLong(0)
-                      try {
-                        cleaner.recompute(db, id)
-                      } catch (e: Exception) {
-                        Log.w(
-                            activity.javaClass.simpleName,
-                            "Recompute failed for activity $id",
-                            e,
-                        )
-                      }
-                    }
-                  }
-              ComputationTracker.deleteTracking(
-                  db,
-                  ComputationTracker.TYPE_BEST_TIMES,
-                  ComputationTracker.TYPE_STATISTICS,
-                  ComputationTracker.TYPE_MONTHLY_COMPARISON,
-              )
-              prefs.edit().putLong(PREF_ACTIVITY_BULK_STAMP, requiredStamp).apply()
-              bulkRecomputeJustRan = true
-            }
-            val elevStamp = prefs.getInt(PREF_ELEV_SMOOTH_STAMP, 0)
-            if (elevStamp < ELEV_SMOOTH_REVISION) {
-              db.query(
-                      DB.ACTIVITY.TABLE,
-                      arrayOf(DB.PRIMARY_KEY),
-                      DB.ACTIVITY.DELETED + " = ?",
-                      arrayOf("0"),
-                      null,
-                      null,
-                      DB.PRIMARY_KEY + " ASC",
-                  )
-                  .use { cursor ->
-                    while (cursor.moveToNext()) {
-                      val id = cursor.getLong(0)
-                      try {
-                        TopographyElevationService.recomputeStoredElevation(db, id)
-                      } catch (_: Exception) {}
-                    }
-                  }
-              prefs.edit().putInt(PREF_ELEV_SMOOTH_STAMP, ELEV_SMOOTH_REVISION).apply()
-            }
             AutoComputeRunner.runAll(db, monthlyComparisonZoneBounds(activity))
-            bulkRecomputeJustRan
           } catch (e: Exception) {
             Log.e(
                 activity.javaClass.simpleName,
                 "Error during auto-computation: ${e.message}",
                 e,
             )
-            false
           } finally {
             db?.let { DBHelper.closeDB(it) }
           }
         },
-        { bulkRecomputeJustRan ->
-          if (bulkRecomputeJustRan) {
-            Toast.makeText(
-                    activity,
-                    R.string.activity_bulk_recompute_done,
-                    Toast.LENGTH_LONG,
-                )
-                .show()
-          }
+        { _ ->
           BgTasks.runNetwork(
               {
                 val wdb = DBHelper.getWritableDatabase(activity)
-                DailyWeatherStore.syncMissingRunDays(wdb, OpenMeteoWeatherClient(), 25)
+                try {
+                  DailyWeatherStore.syncMissingRunDays(wdb, OpenMeteoWeatherClient(), 15)
+                } finally {
+                  DBHelper.closeDB(wdb)
+                }
               },
               { _ -> },
           )
@@ -190,9 +120,4 @@ object MainLayoutNavigation {
   @JvmStatic
   fun monthlyComparisonZoneBounds(context: android.content.Context): IntArray =
       MonthlyComparisonCalculator.resolveZoneBounds(HRZones(context))
-
-  private const val PREF_ACTIVITY_BULK_STAMP = "activity_bulk_recompute_stamp"
-  private const val BULK_RECOMPUTE_DATA_REVISION = 2
-  private const val PREF_ELEV_SMOOTH_STAMP = "activity_elev_smooth_stamp"
-  private const val ELEV_SMOOTH_REVISION = 1
 }
