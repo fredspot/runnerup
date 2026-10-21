@@ -49,10 +49,18 @@ public class RunConditionsAdjusterTest {
 
   @Test
   public void mexicoHighAltitudeFlatRunAdjustsFasterThanSeaLevel() {
-    // 5:00/km (300 s/km) flat run at 2240 m in Mexico vs sea level (50 m)
+    // Everything under 500 m ASL is considered the same (sea-level equivalent = 1.0)
+    assertEquals(1.0, RunConditionsAdjuster.altitudeFactor(50.0), 0.0001);
+    assertEquals(1.0, RunConditionsAdjuster.altitudeFactor(499.0), 0.0001);
+    assertEquals(0.0, RunConditionsAdjuster.effectiveAltitudeM(120.0), 0.0001);
+    assertEquals(0.0, RunConditionsAdjuster.effectiveAltitudeM(500.0), 0.0001);
+
+    // 5:00/km (300 s/km) flat run at 2240 m in Mexico vs <500 m (50 m and 480 m)
     double seaLevel = RunConditionsAdjuster.adjustedPace(300, 0, 0, 5000, 15.0, 50.0, 50.0);
+    double sub500 = RunConditionsAdjuster.adjustedPace(300, 0, 0, 5000, 15.0, 50.0, 480.0);
     double mexicoAltitude = RunConditionsAdjuster.adjustedPace(300, 0, 0, 5000, 15.0, 50.0, 2240.0);
     assertEquals(300.0, seaLevel, 0.01);
+    assertEquals(300.0, sub500, 0.01);
     assertTrue("Expected Mexico altitude adjusted pace < 285 s/km, got " + mexicoAltitude, mexicoAltitude < 285.0);
   }
 

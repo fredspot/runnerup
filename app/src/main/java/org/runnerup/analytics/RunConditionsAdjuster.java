@@ -13,8 +13,17 @@ public final class RunConditionsAdjuster {
   /** Energy cost of flat running from the Minetti polynomial. */
   public static final double FLAT_COST = 3.6;
 
-  /** Altitude above sea level (m) where aerobic VO2max loss begins to noticeably slow running. */
-  public static final double ALTITUDE_THRESHOLD_M = 300.0;
+  /**
+   * Altitude above sea level (m) below which everything is considered the same (sea-level
+   * equivalent).
+   */
+  public static final double ALTITUDE_THRESHOLD_M = 500.0;
+
+  /**
+   * Minimum net elevation change over 1 km (m) considered a drastic uphill/downhill rather than
+   * flat terrain.
+   */
+  public static final double DRASTIC_ELEVATION_CHANGE_PER_KM_M = 10.0;
 
   private RunConditionsAdjuster() {}
 
@@ -118,9 +127,9 @@ public final class RunConditionsAdjuster {
    * (Péronnet et al. 1991 / Daniels):
    *
    * <ul>
-   *   <li>Below 300 m ASL: no penalty (`1.0`).
-   *   <li>Above 300 m ASL: ~2.6% per 1000 m plus a quadratic term (`0.4% * km^2`), giving ~4.6% at
-   *       1600 m (Denver) and ~6.8% at 2240 m (Mexico City).
+   *   <li>Up to 500 m ASL: no penalty (`1.0`) — everything under 500 m is considered the same.
+   *   <li>Above 500 m ASL: ~2.8% per 1000 m plus a quadratic term (`0.45% * km^2`), giving ~6.2% at
+   *       2240 m (Mexico City).
    * </ul>
    */
   public static double altitudeFactor(Double avgElevationM) {
@@ -128,8 +137,31 @@ public final class RunConditionsAdjuster {
       return 1.0;
     }
     double kmAboveThreshold = Math.min(5.0, (avgElevationM - ALTITUDE_THRESHOLD_M) / 1000.0);
-    double penalty = 0.026 * kmAboveThreshold + 0.004 * kmAboveThreshold * kmAboveThreshold;
+    double penalty = 0.028 * kmAboveThreshold + 0.0045 * kmAboveThreshold * kmAboveThreshold;
     return 1.0 + penalty;
+  }
+
+  /**
+   * Effective altitude above the 500 m threshold. Anything under 500 m ASL returns {@code 0.0} so
+   * all low-altitude runs and segments are treated as having the exact same elevation.
+   */
+  public static double effectiveAltitudeM(Double avgElevationM) {
+    if (avgElevationM == null || avgElevationM.isNaN() || avgElevationM <= ALTITUDE_THRESHOLD_M) {
+      return 0.0;
+    }
+    return avgElevationM - ALTITUDE_THRESHOLD_M;
+  }
+
+  /**
+   * Effective difference in 1 km elevation change (`netElevationM`). Changes within ±10 m over 1 km
+   * are non-drastic (flat bucket) and have zero bucket penalty against each other.
+   */
+  public static double effectiveElevationChangeDiffM(double netElev1M, double netElev2M) {
+    if (Math.abs(netElev1M) < DRASTIC_ELEVATION_CHANGE_PER_KM_M
+        && Math.abs(netElev2M) < DRASTIC_ELEVATION_CHANGE_PER_KM_M) {
+      return 0.0;
+    }
+    return Math.abs(netElev1M - netElev2M);
   }
 
   public static boolean hasTemperature(Double tempC) {

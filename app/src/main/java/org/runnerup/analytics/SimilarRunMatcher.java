@@ -160,11 +160,42 @@ public final class SimilarRunMatcher {
         (curAdj > 0 && othAdj > 0) ? Math.abs(curAdj - othAdj) / curAdj : Double.POSITIVE_INFINITY;
     double rawPaceErr = rawErr - distErr;
     double bestPaceErr = Math.min(rawPaceErr, adjPaceErr);
+    double condPenalty = 0.0;
+    if (conditions != null) {
+      RunConditions c1 = conditions.get(current.activityId);
+      RunConditions c2 = conditions.get(other.activityId);
+      if (c1 != null && c2 != null) {
+        double km1 = Math.max(1.0, current.totalDistance / 1000.0);
+        double km2 = Math.max(1.0, other.totalDistance / 1000.0);
+        double netPerKm1 = c1.netElevationM / km1;
+        double netPerKm2 = c2.netElevationM / km2;
+        double elevChangeDiff =
+            RunConditionsAdjuster.effectiveElevationChangeDiffM(netPerKm1, netPerKm2);
+        double altDiff =
+            Math.abs(
+                RunConditionsAdjuster.effectiveAltitudeM(c1.avgElevationM)
+                    - RunConditionsAdjuster.effectiveAltitudeM(c2.avgElevationM));
+        double tempDiff =
+            (c1.avgTempC != null && c2.avgTempC != null)
+                ? Math.abs(c1.avgTempC - c2.avgTempC)
+                : 0.0;
+        double humDiff =
+            (c1.avgHumidityPct != null && c2.avgHumidityPct != null)
+                ? Math.abs(c1.avgHumidityPct - c2.avgHumidityPct)
+                : 0.0;
+        // Priority order: Pace (1.0) > ΔElev (0.70) > Altitude >500m (0.45) > Temp (0.25) > Humidity (0.12)
+        condPenalty =
+            0.07 * (elevChangeDiff / 10.0)
+                + 0.045 * (altDiff / 500.0)
+                + 0.025 * (tempDiff / 10.0)
+                + 0.012 * (humDiff / 25.0);
+      }
+    }
     double hrBonus = 0.0;
     if (current.avgHr > 0 && other.avgHr > 0) {
-      hrBonus = 0.15 * (Math.abs(current.avgHr - other.avgHr) / (double) current.avgHr);
+      hrBonus = 0.10 * (Math.abs(current.avgHr - other.avgHr) / (double) current.avgHr);
     }
-    return distErr + bestPaceErr + hrBonus;
+    return bestPaceErr + 0.65 * distErr + condPenalty + hrBonus;
   }
 
   public static List<ActivityRow> findSimilar(ActivityRow current, List<ActivityRow> candidates) {
@@ -212,12 +243,13 @@ public final class SimilarRunMatcher {
         strict.add(row);
       }
     }
-    if (!strict.isEmpty()) {
+    if (!strict.isEmpty() && (conditions == null || strict.size() >= 8)) {
       return sortBySmartCloseness(current, strict, conditions);
     }
-    List<ActivityRow> broadened = new ArrayList<>();
+    List<ActivityRow> broadened = new ArrayList<>(strict);
     for (ActivityRow row : allCandidates) {
       if (row == null || row.activityId == current.activityId) continue;
+      if (strict.contains(row)) continue;
       if (isWithinSmartTolerance(current, row, conditions, 0.25, 0.20)) {
         broadened.add(row);
       }

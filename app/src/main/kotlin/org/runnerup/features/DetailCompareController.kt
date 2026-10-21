@@ -147,9 +147,9 @@ internal class DetailCompareController {
                     allRunning.filter { row ->
                       row.totalDistance > 0 &&
                           kotlin.math.abs(row.totalDistance - currentRow.totalDistance) /
-                              currentRow.totalDistance <= 0.30
+                              currentRow.totalDistance <= 0.35
                     }
-                matched.ifEmpty { allRunning.take(20) }
+                matched.ifEmpty { allRunning.take(30) }
               } else {
                 emptyList()
               }
@@ -165,7 +165,7 @@ internal class DetailCompareController {
           val fastSegIds = java.util.LinkedHashSet<Long>()
           fastSegIds.add(id)
           for (r in allSimilar) fastSegIds.add(r.activityId)
-          for (r in allRunning.take(12)) fastSegIds.add(r.activityId)
+          for (r in allRunning.take(60)) fastSegIds.add(r.activityId)
           val fastSegments =
               ComparableSegmentLoader.loadForActivities(
                   database,
@@ -185,8 +185,7 @@ internal class DetailCompareController {
           conditions = result.conditions
           selected = similar.firstOrNull()
           bindLoaded()
-          maybeSyncWeather(database, result.current, result.ranked)
-          BgTasks.runNetwork(
+          BgTasks.runDb(
               {
                 val allSegments = ComparableSegmentLoader.loadRunning(database, zoneBounds)
                 val currentSegments = allSegments.filter { seg -> seg.activityId == id }
@@ -196,12 +195,18 @@ internal class DetailCompareController {
               { fullComparisons ->
                 val act = activity
                 val fmt = formatter
+                val cur = current
                 if (act != null && !act.isFinishing && fmt != null && fullComparisons.isNotEmpty()) {
                   segmentComparisons = fullComparisons
                   bindSegments(act, fmt)
+                  if (cur != null) {
+                    bindEngine(act, cur)
+                    bindVerdict(act, cur)
+                  }
                 }
               },
           )
+          maybeSyncWeather(database, result.current, result.ranked)
         },
     )
   }
@@ -265,10 +270,11 @@ internal class DetailCompareController {
     emptyHint?.visibility = View.GONE
     content?.visibility = View.VISIBLE
     val hasSimilar = similar.isNotEmpty()
+    val hasAnyComparison = hasSimilar || segmentComparisons.isNotEmpty()
     act.findViewById<View>(R.id.compare_engine).visibility =
-        if (hasSimilar) View.VISIBLE else View.GONE
+        if (hasAnyComparison) View.VISIBLE else View.GONE
     act.findViewById<View>(R.id.compare_summary).visibility =
-        if (hasSimilar) View.VISIBLE else View.GONE
+        if (hasAnyComparison) View.VISIBLE else View.GONE
     act.findViewById<View>(R.id.compare_similar_title).visibility =
         if (hasSimilar) View.VISIBLE else View.GONE
     act.findViewById<View>(R.id.compare_similar_list).visibility =
@@ -288,10 +294,12 @@ internal class DetailCompareController {
         } else {
           act.getString(R.string.compare_similar_runs)
         }
-    if (hasSimilar) {
+    if (hasAnyComparison) {
       bindEngine(act, currentRow)
       bindSummary(act, fmt, currentRow, selected)
-      refreshGraph()
+      if (hasSimilar) {
+        refreshGraph()
+      }
     }
     bindSegments(act, fmt)
   }
@@ -318,7 +326,17 @@ internal class DetailCompareController {
       return
     }
     bpmView.text = act.getString(R.string.compare_engine_this_bpm, thisRun.avgHr)
-    hint.setText(R.string.compare_engine_subtitle)
+    val segSummary = SegmentComparer.summarizeRun(segmentComparisons)
+    if (segSummary != null && segSummary.avgHr > 0 && segSummary.avgBaselineHr > 0) {
+      val d = segSummary.hrDeltaBpm
+      val dStr = if (d > 0) "+$d bpm" else "$d bpm"
+      hint.text =
+          act.getString(R.string.compare_engine_subtitle) +
+              "\nAll ${segSummary.matchedSegmentCount}x1km segments (${segSummary.totalHistoricalSegmentMatches} matches): " +
+              "${segSummary.avgHr} vs ${segSummary.avgBaselineHr} bpm ($dStr)"
+    } else {
+      hint.setText(R.string.compare_engine_subtitle)
+    }
     columns.visibility = View.VISIBLE
     bindEngineColumn(
         act,
@@ -469,7 +487,40 @@ internal class DetailCompareController {
 
   private fun bindVerdict(act: DetailActivity, thisRun: ActivityRow) {
     val verdictView = act.findViewById<TextView>(R.id.compare_improvement_verdict) ?: return
+    val segSummary = SegmentComparer.summarizeRun(segmentComparisons)
     val verdict = RunImprovementAssessor.assess(thisRun, similarForStats, conditions)
+    val betterColor = ContextCompat.getColor(act, R.color.colorPrimary)
+    val worseColor = Color.parseColor("#F59E0B")
+
+    if (segSummary != null && segSummary.matchedSegmentCount > 0) {
+      verdictView.visibility = View.VISIBLE
+      val savedSec = segSummary.paceSavedSecPerKm
+      val absSecStr =
+          String.format(Locale.US, "%ds", kotlin.math.round(kotlin.math.abs(savedSec)).toInt())
+      val aero = segSummary.efficiencyGainPct
+      val isImproved = aero >= 0.0 && (savedSec >= -2.0 || segSummary.hrDeltaBpm <= 0)
+      verdictView.setTextColor(if (isImproved) betterColor else worseColor)
+      val paceWord = if (savedSec >= 0) "faster" else "slower"
+      val hrPart =
+          if (segSummary.avgHr > 0 && segSummary.avgBaselineHr > 0) {
+            val d = segSummary.hrDeltaBpm
+            val sign = if (d > 0) "+$d" else "$d"
+            " · ${segSummary.avgHr} vs ${segSummary.avgBaselineHr} bpm ($sign bpm)"
+          } else {
+            ""
+          }
+      val effPart =
+          if (aero != 0.0) {
+            String.format(Locale.US, " · %+.1f%% efficiency", aero)
+          } else {
+            ""
+          }
+      verdictView.text =
+          "All ${segSummary.matchedSegmentCount}x1km segments (${segSummary.totalHistoricalSegmentMatches} matches / ${segSummary.distinctHistoricalRuns} runs): " +
+              "$absSecStr/km $paceWord$hrPart$effPart (${segSummary.segmentsBetterCount}/${segSummary.matchedSegmentCount} km stronger)"
+      return
+    }
+
     if (!verdict.hasData() || verdict.adjustedPaceSavedSecPerKm == null) {
       verdictView.visibility = View.GONE
       return
@@ -478,8 +529,6 @@ internal class DetailCompareController {
     val savedSec = verdict.adjustedPaceSavedSecPerKm
     val absSecStr = String.format(Locale.US, "%ds", kotlin.math.round(kotlin.math.abs(savedSec)).toInt())
     val aero = verdict.aerobicGainPct
-    val betterColor = ContextCompat.getColor(act, R.color.colorPrimary)
-    val worseColor = Color.parseColor("#F59E0B")
     val isImproved = (aero != null && aero >= 0.0) || (aero == null && savedSec >= 0.0)
     verdictView.setTextColor(if (isImproved) betterColor else worseColor)
     if (aero != null) {
@@ -503,17 +552,81 @@ internal class DetailCompareController {
   private fun bindSegments(act: DetailActivity, fmt: Formatter) {
     val list = act.findViewById<LinearLayout>(R.id.compare_segments_list) ?: return
     val empty = act.findViewById<TextView>(R.id.compare_segments_empty)
+    val title = act.findViewById<TextView>(R.id.compare_segments_title)
     list.removeAllViews()
     if (segmentComparisons.isEmpty()) {
       empty?.visibility = View.VISIBLE
+      title?.setText(R.string.compare_segments_title)
       return
     }
     empty?.visibility = View.GONE
+    val dp = act.resources.displayMetrics.density
+    val summary = SegmentComparer.summarizeRun(segmentComparisons)
+    if (summary != null) {
+      title?.text =
+          "Segments (1 km) — ${summary.matchedSegmentCount} km · ${summary.totalHistoricalSegmentMatches} matches (${summary.distinctHistoricalRuns} runs)"
+      val summaryCard = TextView(act)
+      summaryCard.setBackgroundResource(R.drawable.card_background)
+      val pad = (10 * dp).toInt()
+      summaryCard.setPadding(pad, pad, pad, pad)
+      val lp =
+          LinearLayout.LayoutParams(
+              ViewGroup.LayoutParams.MATCH_PARENT,
+              ViewGroup.LayoutParams.WRAP_CONTENT,
+          )
+      lp.bottomMargin = (6 * dp).toInt()
+      summaryCard.layoutParams = lp
+      summaryCard.textSize = 13f
+      val isBetter =
+          summary.efficiencyGainPct >= 0.0
+              && (summary.paceSavedSecPerKm >= -2.0 || summary.hrDeltaBpm <= 0)
+      summaryCard.setTextColor(
+          if (isBetter) {
+            ContextCompat.getColor(act, R.color.colorPrimary)
+          } else {
+            ContextCompat.getColor(act, R.color.colorText)
+          },
+      )
+      val adjPaceStr =
+          fmt.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, summary.avgAdjustedPaceSecPerKm)
+      val basePaceStr =
+          fmt.formatPaceFromSecPerKm(
+              Formatter.Format.TXT_SHORT,
+              summary.avgBaselineAdjustedPaceSecPerKm,
+          )
+      val deltaSec = kotlin.math.round(summary.paceSavedSecPerKm).toInt()
+      val paceDeltaLabel =
+          when {
+            deltaSec > 0 -> "${deltaSec}s/km faster"
+            deltaSec < 0 -> "${-deltaSec}s/km slower"
+            else -> "same pace"
+          }
+      val hrSummary =
+          if (summary.avgHr > 0 && summary.avgBaselineHr > 0) {
+            val d = summary.hrDeltaBpm
+            val dStr = if (d > 0) "+$d bpm" else "$d bpm"
+            " · HR ${summary.avgHr} vs ${summary.avgBaselineHr} bpm ($dStr)"
+          } else {
+            ""
+          }
+      val effSummary =
+          if (summary.efficiencyGainPct != 0.0) {
+            String.format(Locale.US, " · %+.1f%% aerobic eff.", summary.efficiencyGainPct)
+          } else {
+            ""
+          }
+      summaryCard.text =
+          "All-Segments Performance (${summary.segmentsBetterCount}/${summary.matchedSegmentCount} km stronger than usual)\n" +
+              "Avg 1 km: $adjPaceStr vs $basePaceStr ($paceDeltaLabel)$hrSummary$effSummary\n" +
+              "Priority: 1. Pace → 2. ΔElev (±10m/km) → 3. Altitude (<500m same) → 4. Temp → 5. Humidity"
+      list.addView(summaryCard)
+    }
+
     for (comparison in segmentComparisons) {
       val row = TextView(act)
       row.setTextColor(ContextCompat.getColor(act, R.color.colorText))
       row.textSize = 13f
-      row.setPadding(0, (4 * act.resources.displayMetrics.density).toInt(), 0, 0)
+      row.setPadding(0, (5 * dp).toInt(), 0, (2 * dp).toInt())
       row.text = formatSegment(act, fmt, comparison)
       list.addView(row)
     }
@@ -531,65 +644,81 @@ internal class DetailCompareController {
             segment.windowIndex + 1,
             segment.windowIndex + 2,
         )
-    val elev =
-        when {
-          kotlin.math.abs(segment.netElevationM) <= SegmentComparer.ELEVATION_TOLERANCE_M ->
-              act.getString(R.string.compare_segment_flat)
-          segment.netElevationM > 0 ->
-              act.getString(
-                  R.string.compare_segment_elev_up,
-                  kotlin.math.round(segment.netElevationM).toInt(),
-              )
-          else ->
-              act.getString(
-                  R.string.compare_segment_elev_down,
-                  kotlin.math.round(kotlin.math.abs(segment.netElevationM)).toInt(),
-              )
-        }
-    val context =
-        when {
-          segment.prevZoneNear <= 0 && segment.prevZoneFar <= 0 ->
-              act.getString(R.string.compare_segment_start)
-          segment.prevZoneFar <= 0 ->
-              act.getString(R.string.compare_segment_after_one, segment.prevZoneNear)
-          else ->
-              act.getString(
-                  R.string.compare_segment_after_two,
-                  segment.prevZoneFar,
-                  segment.prevZoneNear,
-              )
-        }
-    val pace =
-        act.getString(
-            R.string.compare_segment_pace,
-            fmt.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, segment.adjustedPaceSecPerKm),
-            fmt.formatPaceFromSecPerKm(
-                Formatter.Format.TXT_SHORT,
-                comparison.medianAdjustedPaceSecPerKm,
-            ),
+    // 1. Pace (raw & adjusted vs matched baseline)
+    val rawPaceStr = fmt.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, segment.paceSecPerKm)
+    val adjPaceStr =
+        fmt.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, segment.adjustedPaceSecPerKm)
+    val basePaceStr =
+        fmt.formatPaceFromSecPerKm(
+            Formatter.Format.TXT_SHORT,
+            comparison.medianAdjustedPaceSecPerKm,
         )
-    val hr =
+    val paceDeltaSec =
+        kotlin.math.round(comparison.medianAdjustedPaceSecPerKm - segment.adjustedPaceSecPerKm)
+            .toInt()
+    val paceDeltaTag =
+        when {
+          paceDeltaSec > 0 -> "-${paceDeltaSec}s"
+          paceDeltaSec < 0 -> "+${-paceDeltaSec}s"
+          else -> "0s"
+        }
+    val pacePart =
+        if (kotlin.math.abs(segment.paceSecPerKm - segment.adjustedPaceSecPerKm) >= 2.0) {
+          "$rawPaceStr (adj $adjPaceStr vs $basePaceStr, $paceDeltaTag)"
+        } else {
+          "$rawPaceStr vs $basePaceStr ($paceDeltaTag)"
+        }
+
+    // Heart rate vs matched segments
+    val hrPart =
         if (segment.avgHr > 0 && comparison.medianHr > 0) {
-          " · " + act.getString(R.string.compare_segment_hr, segment.avgHr, comparison.medianHr)
+          val hrDiff = segment.avgHr - comparison.medianHr
+          val hrDiffStr = if (hrDiff > 0) "+$hrDiff" else "$hrDiff"
+          " · ${segment.avgHr} vs ${comparison.medianHr} bpm ($hrDiffStr)"
+        } else if (segment.avgHr > 0) {
+          " · ${segment.avgHr} bpm"
         } else {
           ""
         }
-    val alt =
+
+    // 2. Change in elevation over 1 km (±10 m threshold for drastic climb/descent)
+    val netInt = kotlin.math.round(segment.netElevationM).toInt()
+    val elevChangePart =
+        when {
+          kotlin.math.abs(segment.netElevationM) < SegmentComparer.DRASTIC_ELEVATION_CHANGE_M ->
+              "flat (${if (netInt >= 0) "+$netInt" else "$netInt"}m)"
+          segment.netElevationM >= SegmentComparer.DRASTIC_ELEVATION_CHANGE_M ->
+              "▲ +${netInt}m"
+          else ->
+              "▼ ${netInt}m"
+        }
+
+    // 3. Elevation / Altitude (<500 m all considered the same)
+    val altPart =
         if (RunConditionsAdjuster.hasAltitude(segment.avgElevationM)) {
-          " · @${fmt.formatElevation(Formatter.Format.TXT_SHORT, segment.avgElevationM!!)}"
+          val altM = kotlin.math.round(segment.avgElevationM!!).toInt()
+          if (segment.avgElevationM > SegmentComparer.ALTITUDE_SAME_BELOW_M) {
+            " · ⛰ ${altM}m"
+          } else {
+            " · <500m (${altM}m)"
+          }
         } else {
           ""
         }
-    val weather =
+
+    // 4. Temperature & 5. Humidity
+    val weatherPart =
         when {
           RunConditionsAdjuster.hasTemperature(segment.avgTempC) &&
               RunConditionsAdjuster.hasHumidity(segment.avgHumidityPct) ->
               " · ${kotlin.math.round(segment.avgTempC!!).toInt()}°C ${kotlin.math.round(segment.avgHumidityPct!!).toInt()}%"
           RunConditionsAdjuster.hasTemperature(segment.avgTempC) ->
               " · ${kotlin.math.round(segment.avgTempC!!).toInt()}°C"
-          else -> " · " + act.getString(R.string.compare_temperature_unavailable)
+          else -> ""
         }
-    return "$km · $elev · $context · $pace$hr$alt$weather"
+
+    val matchBadge = " · [${comparison.matchCount} matches]"
+    return "$km: $pacePart$hrPart · $elevChangePart$altPart$weatherPart$matchBadge"
   }
 
   private fun refreshGraph() {

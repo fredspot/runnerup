@@ -49,7 +49,7 @@ public final class ComparableSegmentLoader {
       long id = act[0];
       long startSec = act[1];
       DailyWeather24h dayWeather = DailyWeatherStore.getForActivity(db, id, startSec);
-      String key = id + ":" + zHash + ":" + (dayWeather != null ? 1 : 0);
+      String key = "v2:" + id + ":" + zHash + ":" + (dayWeather != null ? 1 : 0);
       List<ComparableSegment> segs = SEGMENT_CACHE.get(key);
       if (segs == null) {
         segs =
@@ -74,7 +74,7 @@ public final class ComparableSegmentLoader {
       long id = idObj;
       long startSec = queryStartTimeSec(db, id);
       DailyWeather24h dayWeather = DailyWeatherStore.getForActivity(db, id, startSec);
-      String key = id + ":" + zHash + ":" + (dayWeather != null ? 1 : 0);
+      String key = "v2:" + id + ":" + zHash + ":" + (dayWeather != null ? 1 : 0);
       List<ComparableSegment> segs = SEGMENT_CACHE.get(key);
       if (segs == null) {
         segs =
@@ -144,21 +144,81 @@ public final class ComparableSegmentLoader {
             + DB.LOCATION.ALTITUDE
             + ", "
             + DB.LOCATION.TEMPERATURE
+            + ", "
+            + DB.LOCATION.LATITUDE
+            + ", "
+            + DB.LOCATION.LONGITUDE
+            + ", "
+            + DB.LOCATION.TIME
+            + ", "
+            + DB.LOCATION.TYPE
             + " FROM "
             + DB.LOCATION.TABLE
             + " WHERE "
             + DB.LOCATION.ACTIVITY
-            + " = ? AND "
-            + DB.LOCATION.DISTANCE
-            + " IS NOT NULL AND "
-            + DB.LOCATION.ELAPSED
-            + " IS NOT NULL ORDER BY "
-            + DB.LOCATION.DISTANCE
-            + " ASC, "
-            + DB.LOCATION.ELAPSED
+            + " = ? ORDER BY "
+            + DB.PRIMARY_KEY
             + " ASC";
+    double cumDist = 0.0;
+    long cumElapsedMs = 0L;
+    Double prevLat = null;
+    Double prevLon = null;
+    Long prevTime = null;
+    boolean isActive = true;
     try (Cursor cursor = db.rawQuery(sql, new String[] {String.valueOf(activityId)})) {
       while (cursor.moveToNext()) {
+        int type = cursor.isNull(9) ? DB.LOCATION.TYPE_GPS : cursor.getInt(9);
+        boolean isPauseOrEnd =
+            type == DB.LOCATION.TYPE_PAUSE
+                || type == DB.LOCATION.TYPE_AUTO_PAUSE
+                || type == DB.LOCATION.TYPE_END;
+        boolean isStartOrResume =
+            type == DB.LOCATION.TYPE_START
+                || type == DB.LOCATION.TYPE_RESUME
+                || type == DB.LOCATION.TYPE_AUTO_RESUME;
+
+        Double lat = cursor.isNull(6) ? null : cursor.getDouble(6);
+        Double lon = cursor.isNull(7) ? null : cursor.getDouble(7);
+        Long timeMs = cursor.isNull(8) ? null : cursor.getLong(8);
+
+        if (isStartOrResume) {
+          isActive = true;
+          prevLat = lat;
+          prevLon = lon;
+          prevTime = timeMs;
+        }
+
+        Double distCol = cursor.isNull(0) ? null : cursor.getDouble(0);
+        Long elapsedCol = cursor.isNull(1) ? null : cursor.getLong(1);
+
+        if (distCol != null && elapsedCol != null && distCol >= 0.0 && elapsedCol >= 0L) {
+          cumDist = Math.max(cumDist, distCol);
+          cumElapsedMs = Math.max(cumElapsedMs, elapsedCol);
+        } else if (isActive && lat != null && lon != null && timeMs != null) {
+          if (prevLat != null && prevLon != null && prevTime != null) {
+            double stepDist = haversineMeters(prevLat, prevLon, lat, lon);
+            long stepMs = timeMs - prevTime;
+            if (stepDist >= 0.0 && stepDist < 500.0 && stepMs > 0L && stepMs < 120_000L) {
+              cumDist += stepDist;
+              cumElapsedMs += stepMs;
+            }
+          }
+        }
+
+        if (lat != null && lon != null && timeMs != null) {
+          prevLat = lat;
+          prevLon = lon;
+          prevTime = timeMs;
+        }
+        if (isPauseOrEnd) {
+          isActive = false;
+        }
+        if (type != DB.LOCATION.TYPE_GPS
+            && type != DB.LOCATION.TYPE_START
+            && type != DB.LOCATION.TYPE_END) {
+          continue;
+        }
+
         int hr = cursor.isNull(2) ? 0 : cursor.getInt(2);
         Double elevation = null;
         if (!cursor.isNull(3)) {
@@ -167,7 +227,9 @@ public final class ComparableSegmentLoader {
           elevation = cursor.getDouble(4);
         }
         Double temp = cursor.isNull(5) ? null : cursor.getDouble(5);
-        samples.add(new Sample(cursor.getDouble(0), cursor.getLong(1), hr, elevation, temp));
+        if (samples.isEmpty() || cumDist > samples.get(samples.size() - 1).distanceM) {
+          samples.add(new Sample(cumDist, cumElapsedMs, hr, elevation, temp));
+        }
       }
     }
     if (samples.size() < 2) {
@@ -360,5 +422,19 @@ public final class ComparableSegmentLoader {
     } catch (Exception ignored) {
     }
     return null;
+  }
+
+  private static double haversineMeters(double lat1, double lon1, double lat2, double lon2) {
+    double r = 6_371_000.0;
+    double dLat = Math.toRadians(lat2 - lat1);
+    double dLon = Math.toRadians(lon2 - lon1);
+    double a =
+        Math.sin(dLat / 2.0) * Math.sin(dLat / 2.0)
+            + Math.cos(Math.toRadians(lat1))
+                * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2.0)
+                * Math.sin(dLon / 2.0);
+    double c = 2.0 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0.0, 1.0 - a)));
+    return r * c;
   }
 }

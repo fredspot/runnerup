@@ -62,6 +62,38 @@ public class SegmentComparerTest {
     assertEquals(3, smart.size());
   }
 
+  @Test
+  public void priorityOrdering_paceThenElevChangeThenAltitudeUnder500ThenTempThenHumidity() {
+    assertTrue(SegmentComparer.WEIGHT_PACE > SegmentComparer.WEIGHT_ELEVATION_CHANGE);
+    assertTrue(SegmentComparer.WEIGHT_ELEVATION_CHANGE > SegmentComparer.WEIGHT_ALTITUDE);
+    assertTrue(SegmentComparer.WEIGHT_ALTITUDE > SegmentComparer.WEIGHT_TEMPERATURE);
+    assertTrue(SegmentComparer.WEIGHT_TEMPERATURE > SegmentComparer.WEIGHT_HUMIDITY);
+
+    // Everything under 500 m altitude is considered the exact same (0 diff)
+    assertEquals(0.0, SegmentComparer.effectiveAltitudeM(40.0), 0.001);
+    assertEquals(0.0, SegmentComparer.effectiveAltitudeM(495.0), 0.001);
+    assertTrue(SegmentComparer.effectiveAltitudeM(2240.0) > 1700.0);
+
+    // Elevation change under 10 m over 1 km is flat (0 diff); >= 10 m is drastic
+    assertEquals(0.0, SegmentComparer.effectiveElevationChangeDiffM(-5.0, 7.0), 0.001);
+    assertTrue(SegmentComparer.effectiveElevationChangeDiffM(0.0, 15.0) >= 15.0);
+
+    ComparableSegment cur =
+        new ComparableSegment(1L, 0, 300.0, 300.0, 150, 3.0, 100.0, 18.0, 55.0, 0, 0);
+    ComparableSegment sameUnder500Alt =
+        new ComparableSegment(2L, 4, 300.0, 300.0, 154, -4.0, 480.0, 18.0, 55.0, 3, 3);
+    assertEquals(0.0, SegmentComparer.similarityDistance(cur, sameUnder500Alt), 0.0001);
+    assertTrue(SegmentComparer.isPrimaryPriorityMatch(cur, sameUnder500Alt));
+
+    List<Comparison> comps =
+        SegmentComparer.compareSmart(
+            Arrays.asList(cur), Arrays.asList(sameUnder500Alt));
+    SegmentComparer.RunSegmentSummary summary = SegmentComparer.summarizeRun(comps);
+    assertTrue(summary != null);
+    assertEquals(1, summary.matchedSegmentCount);
+    assertTrue(summary.hrDeltaBpm < 0);
+  }
+
   private static List<ComparableSegment> extract(long activityId, long thirdKmMs) {
     return ComparableSegmentExtractor.extract(activityId, track(thirdKmMs, 0), ZONES);
   }
