@@ -303,8 +303,11 @@ public final class SegmentComparer {
     return out;
   }
 
-  private static Comparison matchSegmentPriority(
+  public static List<ComparableSegment> findControlledMatches(
       final ComparableSegment segment, List<ComparableSegment> historical) {
+    if (segment == null || historical == null || historical.isEmpty()) {
+      return Collections.emptyList();
+    }
     List<ComparableSegment> tier1 = new ArrayList<>();
     List<ComparableSegment> tier2 = new ArrayList<>();
     List<ComparableSegment> allOther = new ArrayList<>();
@@ -322,7 +325,7 @@ public final class SegmentComparer {
     }
 
     if (allOther.isEmpty()) {
-      return null;
+      return Collections.emptyList();
     }
 
     Comparator<ComparableSegment> bySimilarity =
@@ -355,6 +358,15 @@ public final class SegmentComparer {
         matched.add(allOther.get(i));
       }
     }
+    return matched;
+  }
+
+  private static Comparison matchSegmentPriority(
+      final ComparableSegment segment, List<ComparableSegment> historical) {
+    List<ComparableSegment> matched = findControlledMatches(segment, historical);
+    if (matched.isEmpty()) {
+      return null;
+    }
 
     Set<Long> distinctRuns = new HashSet<>();
     double weightedAdjPaceSum = 0.0;
@@ -373,15 +385,7 @@ public final class SegmentComparer {
       paceWeightSum += w;
 
       if (other.avgHr > 0) {
-        // Normalize HR slightly for any residual adjusted-pace difference within the matched band
-        // so HR comparison reflects the exact same running speed & terrain effort.
-        double paceRatio =
-            (segment.adjustedPaceSecPerKm > 0 && other.adjustedPaceSecPerKm > 0)
-                ? (other.adjustedPaceSecPerKm / segment.adjustedPaceSecPerKm)
-                : 1.0;
-        paceRatio = Math.max(0.90, Math.min(1.10, paceRatio));
-        double normalizedHr = other.avgHr * paceRatio;
-        weightedHrSum += w * normalizedHr;
+        weightedHrSum += w * other.avgHr;
         hrWeightSum += w;
       }
     }
@@ -407,7 +411,7 @@ public final class SegmentComparer {
    * Primary match gate following the priority hierarchy:
    *
    * <ol>
-   *   <li>Pace within ±14% (raw or conditions-adjusted)
+   *   <li>Pace within ±8% (raw or conditions-adjusted)
    *   <li>Change in elevation: both within ±10 m flat band, OR same slope direction within ±14 m
    *   <li>Altitude: within ±350 m effective altitude (where everything ≤500 m is 0 m)
    *   <li>Temperature: within ±15°C when both known
@@ -419,8 +423,8 @@ public final class SegmentComparer {
     if (current == null || other == null || current.activityId == other.activityId) {
       return false;
     }
-    // 1. Pace
-    if (relativePaceDiff(current, other) > 0.14) {
+    // 1. Pace (tight +-8% band so BPM is compared at the same pace)
+    if (relativePaceDiff(current, other) > 0.08) {
       return false;
     }
     // 2. Change in elevation (±10 m over 1 km flat threshold)
@@ -474,10 +478,10 @@ public final class SegmentComparer {
     if (current == null || other == null || current.activityId == other.activityId) {
       return false;
     }
-    if (relativePaceDiff(current, other) > 0.22) {
+    if (relativePaceDiff(current, other) > 0.14) {
       return false;
     }
-    return effectiveElevationChangeDiffM(current.netElevationM, other.netElevationM) <= 18.0;
+    return effectiveElevationChangeDiffM(current.netElevationM, other.netElevationM) <= 15.0;
   }
 
   /**

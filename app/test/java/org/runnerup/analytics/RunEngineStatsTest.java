@@ -54,6 +54,72 @@ public class RunEngineStatsTest {
     assertEquals(false, snap.hasHeadline());
   }
 
+  @Test
+  public void computeFromSegments_ranks330kmAt128bpmAnd143kmAt125bpmConsistently() {
+    long sameDay = epoch(2026, Calendar.OCTOBER, 21);
+    long earlierThisYear = epoch(2026, Calendar.AUGUST, 10);
+    int[] zones = new int[] {100, 125, 125, 145, 145, 165, 165, 185};
+
+    // Historical pool of 1 km segments around ~5:55/km (355 s/km), flat (+2 m), 120 m altitude (<500m), 16°C, 60% RH
+    int[] histHrs = new int[] {122, 124, 126, 127, 129, 130, 132, 134, 136, 138};
+    java.util.List<ComparableSegment> historical = new java.util.ArrayList<>();
+    for (int i = 0; i < histHrs.length; i++) {
+      historical.add(
+          new ComparableSegment(
+              100L + i,
+              i % 5,
+              356.0,
+              356.0,
+              histHrs[i],
+              2.0,
+              120.0,
+              16.0,
+              60.0,
+              2,
+              2,
+              earlierThisYear,
+              1000.0));
+    }
+
+    // Run A: 3.30 km at 5:55/km (355 s/km), avg HR 128 bpm
+    ActivityRow run330 = new ActivityRow(1L, sameDay, 3300.0, 1171L, 128, 136);
+    java.util.List<ComparableSegmentExtractor.Sample> samples330 =
+        Arrays.asList(
+            new ComparableSegmentExtractor.Sample(0.0, 0L, 128, 120.0, 16.0),
+            new ComparableSegmentExtractor.Sample(1000.0, 355_000L, 128, 122.0, 16.0),
+            new ComparableSegmentExtractor.Sample(2000.0, 710_000L, 128, 121.0, 16.0),
+            new ComparableSegmentExtractor.Sample(3000.0, 1_065_000L, 128, 123.0, 16.0),
+            new ComparableSegmentExtractor.Sample(3300.0, 1_171_500L, 128, 123.0, 16.0));
+    List<ComparableSegment> segs330 =
+        ComparableSegmentExtractor.extract(1L, samples330, zones, sameDay, null);
+    assertEquals(3, segs330.size());
+
+    // Run B: 1.43 km at 5:57/km (357 s/km), avg HR 125 bpm (includes 1.0 km + 0.43 km trailing segment)
+    ActivityRow run143 = new ActivityRow(2L, sameDay, 1430.0, 510L, 125, 132);
+    java.util.List<ComparableSegmentExtractor.Sample> samples143 =
+        Arrays.asList(
+            new ComparableSegmentExtractor.Sample(0.0, 0L, 125, 120.0, 16.0),
+            new ComparableSegmentExtractor.Sample(1000.0, 357_000L, 125, 122.0, 16.0),
+            new ComparableSegmentExtractor.Sample(1430.0, 510_510L, 125, 123.0, 16.0));
+    List<ComparableSegment> segs143 =
+        ComparableSegmentExtractor.extract(2L, samples143, zones, sameDay, null);
+    assertEquals(2, segs143.size());
+    assertEquals(430.0, segs143.get(1).distanceM, 0.1);
+
+    RunEngineStats.Snapshot snap330 =
+        RunEngineStats.computeFromSegments(run330, segs330, historical, null, null);
+    RunEngineStats.Snapshot snap143 =
+        RunEngineStats.computeFromSegments(run143, segs143, historical, null, null);
+
+    // Against the same historical segment pool:
+    // 128 bpm beats 6 of 10 historical segments (60%)
+    // 125 bpm beats 8 of 10 historical segments (80%) — never 38%!
+    assertEquals(Integer.valueOf(60), snap330.percentileAll);
+    assertEquals(Integer.valueOf(80), snap143.percentileAll);
+    assertEquals(snap330.meanHrAll, snap143.meanHrAll);
+    org.junit.Assert.assertTrue(snap143.percentileAll >= snap330.percentileAll);
+  }
+
   private static ActivityRow row(long id, long startTime, int hr) {
     return new ActivityRow(id, startTime, 10000, 3000, hr, hr + 10);
   }

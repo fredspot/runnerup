@@ -49,7 +49,7 @@ public final class ComparableSegmentLoader {
       long id = act[0];
       long startSec = act[1];
       DailyWeather24h dayWeather = DailyWeatherStore.getForActivity(db, id, startSec);
-      String key = "v2:" + id + ":" + zHash + ":" + (dayWeather != null ? 1 : 0);
+      String key = "v3:" + id + ":" + zHash + ":" + (dayWeather != null ? 1 : 0);
       List<ComparableSegment> segs = SEGMENT_CACHE.get(key);
       if (segs == null) {
         segs =
@@ -74,7 +74,7 @@ public final class ComparableSegmentLoader {
       long id = idObj;
       long startSec = queryStartTimeSec(db, id);
       DailyWeather24h dayWeather = DailyWeatherStore.getForActivity(db, id, startSec);
-      String key = "v2:" + id + ":" + zHash + ":" + (dayWeather != null ? 1 : 0);
+      String key = "v3:" + id + ":" + zHash + ":" + (dayWeather != null ? 1 : 0);
       List<ComparableSegment> segs = SEGMENT_CACHE.get(key);
       if (segs == null) {
         segs =

@@ -51,6 +51,7 @@ internal class DetailCompareController {
   private var modeHrOverlay = true
   private var conditions: Map<Long, RunConditions> = emptyMap()
   private var segmentComparisons: List<SegmentComparer.Comparison> = emptyList()
+  private var engineSnapshot: RunEngineStats.Snapshot? = null
   private var weatherSyncStarted = false
 
   private var emptyHint: TextView? = null
@@ -162,20 +163,19 @@ internal class DetailCompareController {
           val allSimilar =
               SimilarRunMatcher.findBestComparable(currentRow, distanceCandidates, loadedConditions)
           val ranked = SimilarRunMatcher.cap(allSimilar, SimilarRunMatcher.MAX_RESULTS)
-          val fastSegIds = java.util.LinkedHashSet<Long>()
-          fastSegIds.add(id)
-          for (r in allSimilar) fastSegIds.add(r.activityId)
-          for (r in allRunning.take(60)) fastSegIds.add(r.activityId)
-          val fastSegments =
-              ComparableSegmentLoader.loadForActivities(
-                  database,
-                  ArrayList(fastSegIds),
-                  zoneBounds,
-              )
-          val currentSegments = fastSegments.filter { seg -> seg.activityId == id }
-          val historical = fastSegments.filter { seg -> seg.activityId != id }
+          val allSegments = ComparableSegmentLoader.loadRunning(database, zoneBounds)
+          val currentSegments = allSegments.filter { seg -> seg.activityId == id }
+          val historical = allSegments.filter { seg -> seg.activityId != id }
           val comparisons = SegmentComparer.compareSmart(currentSegments, historical)
-          CompareLoad(currentRow, ranked, allSimilar, comparisons, loadedConditions)
+          val snap =
+              RunEngineStats.computeFromSegments(
+                  currentRow,
+                  currentSegments,
+                  historical,
+                  allSimilar,
+                  loadedConditions,
+              )
+          CompareLoad(currentRow, ranked, allSimilar, comparisons, loadedConditions, snap)
         },
         { result ->
           current = result.current
@@ -183,29 +183,9 @@ internal class DetailCompareController {
           similarForStats = result.allSimilar
           segmentComparisons = result.comparisons
           conditions = result.conditions
+          engineSnapshot = result.engineSnapshot
           selected = similar.firstOrNull()
           bindLoaded()
-          BgTasks.runDb(
-              {
-                val allSegments = ComparableSegmentLoader.loadRunning(database, zoneBounds)
-                val currentSegments = allSegments.filter { seg -> seg.activityId == id }
-                val historical = allSegments.filter { seg -> seg.activityId != id }
-                SegmentComparer.compareSmart(currentSegments, historical)
-              },
-              { fullComparisons ->
-                val act = activity
-                val fmt = formatter
-                val cur = current
-                if (act != null && !act.isFinishing && fmt != null && fullComparisons.isNotEmpty()) {
-                  segmentComparisons = fullComparisons
-                  bindSegments(act, fmt)
-                  if (cur != null) {
-                    bindEngine(act, cur)
-                    bindVerdict(act, cur)
-                  }
-                }
-              },
-          )
           maybeSyncWeather(database, result.current, result.ranked)
         },
     )
@@ -315,7 +295,7 @@ internal class DetailCompareController {
   }
 
   private fun bindEngine(act: DetailActivity, thisRun: ActivityRow) {
-    val snap = RunEngineStats.compute(thisRun, similarForStats, conditions)
+    val snap = engineSnapshot ?: RunEngineStats.compute(thisRun, similarForStats, conditions)
     val bpmView = act.findViewById<TextView>(R.id.compare_engine_this_bpm)
     val hint = act.findViewById<TextView>(R.id.compare_engine_hint)
     val columns = act.findViewById<View>(R.id.compare_engine_columns)
@@ -639,11 +619,16 @@ internal class DetailCompareController {
   ): String {
     val segment = comparison.segment
     val km =
-        act.getString(
-            R.string.compare_segment_km,
-            segment.windowIndex + 1,
-            segment.windowIndex + 2,
-        )
+        if (segment.distanceM >= 980.0) {
+          act.getString(
+              R.string.compare_segment_km,
+              segment.windowIndex + 1,
+              segment.windowIndex + 2,
+          )
+        } else {
+          val endKm = segment.windowIndex + (segment.distanceM / 1000.0)
+          String.format(Locale.US, "%d–%.2f km", segment.windowIndex, endKm)
+        }
     // 1. Pace (raw & adjusted vs matched baseline)
     val rawPaceStr = fmt.formatPaceFromSecPerKm(Formatter.Format.TXT_SHORT, segment.paceSecPerKm)
     val adjPaceStr =
@@ -937,6 +922,7 @@ internal class DetailCompareController {
       val allSimilar: List<ActivityRow>,
       val comparisons: List<SegmentComparer.Comparison>,
       val conditions: Map<Long, RunConditions>,
+      val engineSnapshot: RunEngineStats.Snapshot,
   )
 
   private inner class SimilarAdapter(

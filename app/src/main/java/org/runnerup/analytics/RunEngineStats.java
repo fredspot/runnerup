@@ -8,12 +8,13 @@ import java.util.Map;
 import org.runnerup.data.RunningActivityReader.ActivityRow;
 
 /**
- * Interpretable heart-performance numbers versus comparable runs.
+ * Interpretable heart-performance numbers versus comparable 1 km segments (or whole runs when
+ * segments are unavailable).
  *
- * <p>When environmental conditions (`RunConditions`: grade, temperature, humidity, and altitude
- * above sea level) are available, each peer run's heart rate is normalized to the current run's
- * conditions-adjusted pace using cardiac cost (`beats per adjusted km`), so a slower raw pace in
- * Mexico altitude or summer heat is evaluated fairly against a cool sea-level run.
+ * <p>Controls for pace, elevation change (±10 m/km flat bucket), altitude (&lt;500 m all same),
+ * temperature, and humidity at the 1 km segment level so runs of any length (e.g. 1.43 km vs
+ * 3.30 km) at the same pace and conditions are evaluated against the exact same historical pool of
+ * 1 km segments.
  */
 public final class RunEngineStats {
 
@@ -55,6 +56,139 @@ public final class RunEngineStats {
 
   private RunEngineStats() {}
 
+  /**
+   * Computes the BPM engine snapshot ("Better than X%", usual BPM, delta BPM, and match counts for
+   * This Year and All Years) directly from controlled 1 km segments.
+   *
+   * <p>Each segment of the current run is matched against historical 1 km segments using {@link
+   * SegmentComparer#findControlledMatches} (1. Pace, 2. ±10m Elevation Change, 3. &lt;500m
+   * Altitude, 4. Temperature, 5. Humidity) and weighted by segment distance (`distanceM`).
+   */
+  public static Snapshot computeFromSegments(
+      ActivityRow current,
+      List<ComparableSegment> currentSegments,
+      List<ComparableSegment> historicalSegments,
+      List<ActivityRow> fallbackSimilarRuns,
+      Map<Long, RunConditions> conditions) {
+    if (current == null || current.avgHr <= 0) {
+      return empty();
+    }
+    if (currentSegments == null
+        || currentSegments.isEmpty()
+        || historicalSegments == null
+        || historicalSegments.isEmpty()) {
+      return compute(current, fallbackSimilarRuns, conditions);
+    }
+
+    int targetYear = yearFromEpochSeconds(current.startTime);
+
+    double totalWeightAll = 0.0;
+    double weightedBetterAll = 0.0;
+    double weightedMeanAllSum = 0.0;
+    double weightedThisHrAllSum = 0.0;
+    int totalMatchedPairsAll = 0;
+
+    double totalWeightYear = 0.0;
+    double weightedBetterYear = 0.0;
+    double weightedMeanYearSum = 0.0;
+    double weightedThisHrYearSum = 0.0;
+    int totalMatchedPairsYear = 0;
+
+    for (ComparableSegment seg : currentSegments) {
+      if (seg == null) continue;
+      int segHr = seg.avgHr > 0 ? seg.avgHr : current.avgHr;
+      if (segHr <= 0) continue;
+
+      List<ComparableSegment> matches =
+          SegmentComparer.findControlledMatches(seg, historicalSegments);
+      if (matches.isEmpty()) continue;
+
+      List<Integer> peerHrAll = new ArrayList<>();
+      List<Integer> peerHrYear = new ArrayList<>();
+      for (ComparableSegment peer : matches) {
+        if (peer == null || peer.avgHr <= 0) continue;
+        peerHrAll.add(peer.avgHr);
+        if (peer.startTimeSec > 0 && yearFromEpochSeconds(peer.startTimeSec) == targetYear) {
+          peerHrYear.add(peer.avgHr);
+        }
+      }
+
+      double segWeight = Math.max(400.0, seg.distanceM);
+
+      if (!peerHrAll.isEmpty()) {
+        totalMatchedPairsAll += peerHrAll.size();
+        int betterCount = 0;
+        long sumHr = 0;
+        for (int hr : peerHrAll) {
+          if (hr > segHr) betterCount++;
+          sumHr += hr;
+        }
+        double segBetterRatio = betterCount / (double) peerHrAll.size();
+        double segMeanHr = sumHr / (double) peerHrAll.size();
+        totalWeightAll += segWeight;
+        weightedBetterAll += segWeight * segBetterRatio;
+        weightedMeanAllSum += segWeight * segMeanHr;
+        weightedThisHrAllSum += segWeight * segHr;
+      }
+
+      if (!peerHrYear.isEmpty()) {
+        totalMatchedPairsYear += peerHrYear.size();
+        int betterCount = 0;
+        long sumHr = 0;
+        for (int hr : peerHrYear) {
+          if (hr > segHr) betterCount++;
+          sumHr += hr;
+        }
+        double segBetterRatio = betterCount / (double) peerHrYear.size();
+        double segMeanHr = sumHr / (double) peerHrYear.size();
+        totalWeightYear += segWeight;
+        weightedBetterYear += segWeight * segBetterRatio;
+        weightedMeanYearSum += segWeight * segMeanHr;
+        weightedThisHrYearSum += segWeight * segHr;
+      }
+    }
+
+    if (totalMatchedPairsAll == 0) {
+      return compute(current, fallbackSimilarRuns, conditions);
+    }
+
+    Integer percentileAll =
+        totalMatchedPairsAll >= MIN_SIMILAR_FOR_PERCENTILE
+            ? (int) Math.round(100.0 * (weightedBetterAll / totalWeightAll))
+            : null;
+    Integer percentileYear =
+        totalMatchedPairsYear >= MIN_SIMILAR_FOR_PERCENTILE && totalWeightYear > 0
+            ? (int) Math.round(100.0 * (weightedBetterYear / totalWeightYear))
+            : null;
+
+    Integer meanAll =
+        totalWeightAll > 0 ? (int) Math.round(weightedMeanAllSum / totalWeightAll) : null;
+    Integer meanYear =
+        totalWeightYear > 0 ? (int) Math.round(weightedMeanYearSum / totalWeightYear) : null;
+
+    int effThisHrAll =
+        totalWeightAll > 0
+            ? (int) Math.round(weightedThisHrAllSum / totalWeightAll)
+            : current.avgHr;
+    int effThisHrYear =
+        totalWeightYear > 0
+            ? (int) Math.round(weightedThisHrYearSum / totalWeightYear)
+            : current.avgHr;
+
+    Integer deltaAll = meanAll == null ? null : (effThisHrAll - meanAll);
+    Integer deltaYear = meanYear == null ? null : (effThisHrYear - meanYear);
+
+    return new Snapshot(
+        totalMatchedPairsAll,
+        totalMatchedPairsYear,
+        percentileAll,
+        percentileYear,
+        meanAll,
+        meanYear,
+        deltaAll,
+        deltaYear);
+  }
+
   public static Snapshot compute(ActivityRow current, List<ActivityRow> similar) {
     return compute(current, similar, null);
   }
@@ -93,11 +227,6 @@ public final class RunEngineStats {
         meanYear == null ? null : current.avgHr - meanYear);
   }
 
-  /**
-   * Projects a peer run's average HR to the current run's conditions-adjusted speed (`curAdjPace`)
-   * via cardiac cost (`HR * adjPace`), clamped to ±15% so extreme pace gaps don't distort BPM.
-   * When conditions are not provided, returns {@code peer.avgHr} unchanged.
-   */
   private static int equivalentHrAtCurrentEffort(
       ActivityRow peer, double curAdjPace, Map<Long, RunConditions> conditions) {
     if (conditions == null || curAdjPace <= 0) {
@@ -107,7 +236,7 @@ public final class RunEngineStats {
     if (peerAdjPace <= 0) {
       return peer.avgHr;
     }
-    double speedRatio = Math.max(0.85, Math.min(1.15, peerAdjPace / curAdjPace));
+    double speedRatio = Math.max(0.92, Math.min(1.08, peerAdjPace / curAdjPace));
     return (int) Math.round(peer.avgHr * speedRatio);
   }
 

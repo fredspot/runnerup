@@ -6,10 +6,14 @@ import java.util.Comparator;
 import java.util.List;
 import org.runnerup.data.RunningPaceBounds;
 
-/** Splits a track into 1 km windows with pace, elevation, altitude, weather, and prior HR zones. */
+/**
+ * Splits a track into 1 km windows (plus a trailing partial window if {@code >= 400 m}) with pace,
+ * elevation, altitude, weather, timestamp, and prior HR zones.
+ */
 public final class ComparableSegmentExtractor {
 
-  public static final double WINDOW_METERS = 1000;
+  public static final double WINDOW_METERS = 1000.0;
+  public static final double MIN_TAIL_METERS = 400.0;
 
   private ComparableSegmentExtractor() {}
 
@@ -76,37 +80,49 @@ public final class ComparableSegmentExtractor {
         points,
         Comparator.comparingDouble((Sample s) -> s.distanceM).thenComparingLong(s -> s.elapsedMs));
     double maxDistance = points.get(points.size() - 1).distanceM;
-    int windows = (int) Math.floor(maxDistance / WINDOW_METERS);
-    if (windows < 1) {
+    int fullWindows = (int) Math.floor(maxDistance / WINDOW_METERS);
+    double tailDistance = maxDistance - (fullWindows * WINDOW_METERS);
+    boolean includeTail = tailDistance >= MIN_TAIL_METERS;
+    int totalWindows = fullWindows + (includeTail ? 1 : 0);
+    if (totalWindows < 1) {
       return Collections.emptyList();
     }
     List<Window> built = new ArrayList<>();
-    for (int i = 0; i < windows; i++) {
+    for (int i = 0; i < totalWindows; i++) {
       double start = i * WINDOW_METERS;
-      double end = start + WINDOW_METERS;
+      double end = (i < fullWindows) ? (start + WINDOW_METERS) : maxDistance;
+      double segDistM = end - start;
+      if (segDistM < MIN_TAIL_METERS) {
+        continue;
+      }
       Long elapsedStart = interpolateElapsed(points, start);
       Long elapsedEnd = interpolateElapsed(points, end);
       if (elapsedStart == null || elapsedEnd == null || elapsedEnd <= elapsedStart) {
         continue;
       }
-      double pace = (elapsedEnd - elapsedStart) / 1000.0;
+      double durationSec = (elapsedEnd - elapsedStart) / 1000.0;
+      double pace = durationSec / (segDistM / 1000.0);
       if (pace < RunningPaceBounds.BEST_TIMES_MIN_SEC_PER_KM
           || pace > RunningPaceBounds.MONTHLY_MAX_SEC_PER_KM) {
         continue;
       }
       Double elevStart = interpolateElevation(points, start);
       Double elevEnd = interpolateElevation(points, end);
-      double net = 0;
+      double netRaw = 0;
       if (elevStart != null && elevEnd != null) {
-        net = elevEnd - elevStart;
+        netRaw = elevEnd - elevStart;
       }
+      // Normalize net elevation change to per-km (m / km) so partial tail segments use the exact
+      // same +-10 m/km terrain scale as full 1 km segments.
+      double netPerKm = netRaw * (1000.0 / segDistM);
       Double avgElev = averageElevation(points, start, end, elevStart, elevEnd);
       int avgHr = averageHr(points, start, end);
       Double avgTemp = averageTemp(points, start, end);
       Double avgHumidity = null;
-      if (dayWeather != null && activityStartSec > 0L) {
-        long windowStartSec = activityStartSec + (elapsedStart / 1000L);
-        DailyWeather24h.HourMatch match = dayWeather.matchWindow(windowStartSec, pace);
+      long windowStartSec =
+          activityStartSec > 0L ? (activityStartSec + (elapsedStart / 1000L)) : 0L;
+      if (dayWeather != null && windowStartSec > 0L) {
+        DailyWeather24h.HourMatch match = dayWeather.matchWindow(windowStartSec, durationSec);
         if (avgTemp == null) {
           avgTemp = match.temperatureC;
         }
@@ -114,7 +130,13 @@ public final class ComparableSegmentExtractor {
       }
       double adjusted =
           RunConditionsAdjuster.adjustedPace(
-              pace, net, Math.max(0.0, net), WINDOW_METERS, avgTemp, avgHumidity, avgElev);
+              pace,
+              netRaw,
+              Math.max(0.0, netRaw),
+              segDistM,
+              avgTemp,
+              avgHumidity,
+              avgElev);
       built.add(
           new Window(
               i,
@@ -122,10 +144,12 @@ public final class ComparableSegmentExtractor {
               adjusted,
               avgHr,
               zoneForHr(avgHr, zoneBounds),
-              net,
+              netPerKm,
               avgElev,
               avgTemp,
-              avgHumidity));
+              avgHumidity,
+              windowStartSec,
+              segDistM));
     }
     List<ComparableSegment> segments = new ArrayList<>();
     for (int i = 0; i < built.size(); i++) {
@@ -150,7 +174,9 @@ public final class ComparableSegmentExtractor {
               window.avgTempC,
               window.avgHumidityPct,
               prevNear,
-              prevFar));
+              prevFar,
+              window.startTimeSec,
+              window.distanceM));
     }
     return segments;
   }
@@ -289,6 +315,8 @@ public final class ComparableSegmentExtractor {
     final Double avgElevationM;
     final Double avgTempC;
     final Double avgHumidityPct;
+    final long startTimeSec;
+    final double distanceM;
 
     Window(
         int index,
@@ -299,7 +327,9 @@ public final class ComparableSegmentExtractor {
         double netElevationM,
         Double avgElevationM,
         Double avgTempC,
-        Double avgHumidityPct) {
+        Double avgHumidityPct,
+        long startTimeSec,
+        double distanceM) {
       this.index = index;
       this.paceSecPerKm = paceSecPerKm;
       this.adjustedPaceSecPerKm = adjustedPaceSecPerKm;
@@ -309,6 +339,8 @@ public final class ComparableSegmentExtractor {
       this.avgElevationM = avgElevationM;
       this.avgTempC = avgTempC;
       this.avgHumidityPct = avgHumidityPct;
+      this.startTimeSec = startTimeSec;
+      this.distanceM = distanceM;
     }
   }
 }
