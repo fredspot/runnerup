@@ -127,6 +127,10 @@ internal class DetailCompareController {
     val database = db ?: return
     val id = activityId
     val host = activity ?: return
+    if (content?.visibility != View.VISIBLE) {
+      emptyHint?.visibility = View.VISIBLE
+      emptyHint?.text = "Loading comparison…"
+    }
     val zoneBounds = MonthlyComparisonCalculator.resolveZoneBounds(HRZones(host))
     BgTasks.runDb(
         {
@@ -137,18 +141,39 @@ internal class DetailCompareController {
               } else {
                 emptyList()
               }
-          val candidateIds = ArrayList<Long>(allRunning.size + 1)
+          val distanceCandidates =
+              if (currentRow != null && currentRow.totalDistance > 0) {
+                val matched =
+                    allRunning.filter { row ->
+                      row.totalDistance > 0 &&
+                          kotlin.math.abs(row.totalDistance - currentRow.totalDistance) /
+                              currentRow.totalDistance <= 0.30
+                    }
+                matched.ifEmpty { allRunning.take(20) }
+              } else {
+                emptyList()
+              }
+          val candidateIds = ArrayList<Long>(distanceCandidates.size + 1)
           candidateIds.add(id)
-          for (row in allRunning) {
+          for (row in distanceCandidates) {
             candidateIds.add(row.activityId)
           }
           val loadedConditions = ComparableSegmentLoader.loadConditions(database, candidateIds)
           val allSimilar =
-              SimilarRunMatcher.findBestComparable(currentRow, allRunning, loadedConditions)
+              SimilarRunMatcher.findBestComparable(currentRow, distanceCandidates, loadedConditions)
           val ranked = SimilarRunMatcher.cap(allSimilar, SimilarRunMatcher.MAX_RESULTS)
-          val segments = ComparableSegmentLoader.loadRunning(database, zoneBounds)
-          val currentSegments = segments.filter { it.activityId == id }
-          val historical = segments.filter { it.activityId != id }
+          val fastSegIds = java.util.LinkedHashSet<Long>()
+          fastSegIds.add(id)
+          for (r in allSimilar) fastSegIds.add(r.activityId)
+          for (r in allRunning.take(12)) fastSegIds.add(r.activityId)
+          val fastSegments =
+              ComparableSegmentLoader.loadForActivities(
+                  database,
+                  ArrayList(fastSegIds),
+                  zoneBounds,
+              )
+          val currentSegments = fastSegments.filter { seg -> seg.activityId == id }
+          val historical = fastSegments.filter { seg -> seg.activityId != id }
           val comparisons = SegmentComparer.compareSmart(currentSegments, historical)
           CompareLoad(currentRow, ranked, allSimilar, comparisons, loadedConditions)
         },
@@ -161,6 +186,22 @@ internal class DetailCompareController {
           selected = similar.firstOrNull()
           bindLoaded()
           maybeSyncWeather(database, result.current, result.ranked)
+          BgTasks.runNetwork(
+              {
+                val allSegments = ComparableSegmentLoader.loadRunning(database, zoneBounds)
+                val currentSegments = allSegments.filter { seg -> seg.activityId == id }
+                val historical = allSegments.filter { seg -> seg.activityId != id }
+                SegmentComparer.compareSmart(currentSegments, historical)
+              },
+              { fullComparisons ->
+                val act = activity
+                val fmt = formatter
+                if (act != null && !act.isFinishing && fmt != null && fullComparisons.isNotEmpty()) {
+                  segmentComparisons = fullComparisons
+                  bindSegments(act, fmt)
+                }
+              },
+          )
         },
     )
   }

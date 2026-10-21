@@ -89,18 +89,25 @@ public class MapWrapper implements Constants {
 
       int lap = loc.getLap();
       if (lastLap != lap) {
-        Marker marker = new Marker(route.mapView);
-        marker.setPosition(point);
-        String info =
-            "#"
-                + loc.getLap()
-                + " "
-                + RouteMarkerLabels.lapMarkerInfo(formatter, loc, loc.getDistance());
-        lastLap = lap;
-        marker.setTextIcon(info);
-        marker.setInfoWindow(null);
-        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-        route.markers.add(marker);
+        if (route.mapView == null || route.mapView.getRepository() == null) {
+          break;
+        }
+        try {
+          Marker marker = new Marker(route.mapView);
+          marker.setPosition(point);
+          String info =
+              "#"
+                  + loc.getLap()
+                  + " "
+                  + RouteMarkerLabels.lapMarkerInfo(formatter, loc, loc.getDistance());
+          lastLap = lap;
+          marker.setTextIcon(info);
+          marker.setInfoWindow(null);
+          marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+          route.markers.add(marker);
+        } catch (Exception ignored) {
+          break;
+        }
       }
     }
     ll.close();
@@ -118,7 +125,10 @@ public class MapWrapper implements Constants {
   }
 
   private void applyRoute(LoadParam param, Route route) {
-    if (route != null && route.markers != null) {
+    if (route == null || route.mapView == null || route.mapView.getRepository() == null) {
+      return;
+    }
+    if (route.markers != null) {
       for (Polyline line : route.lines) {
         route.mapView.getOverlays().add(line);
       }

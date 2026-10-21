@@ -57,6 +57,50 @@ public final class ComparableSegmentLoader {
     return all;
   }
 
+  public static List<ComparableSegment> loadForActivities(
+      SQLiteDatabase db, List<Long> activityIds, int[] zoneBounds) {
+    if (activityIds == null || activityIds.isEmpty()) {
+      return new ArrayList<>();
+    }
+    int zHash = Arrays.hashCode(zoneBounds);
+    List<ComparableSegment> all = new ArrayList<>();
+    for (Long idObj : activityIds) {
+      if (idObj == null) continue;
+      long id = idObj;
+      long startSec = queryStartTimeSec(db, id);
+      DailyWeather24h dayWeather = DailyWeatherStore.getForActivity(db, id, startSec);
+      String key = id + ":" + zHash + ":" + (dayWeather != null ? 1 : 0);
+      List<ComparableSegment> segs = SEGMENT_CACHE.get(key);
+      if (segs == null) {
+        segs =
+            ComparableSegmentExtractor.extract(
+                id, loadSamples(db, id), zoneBounds, startSec, dayWeather);
+        SEGMENT_CACHE.put(key, segs);
+      }
+      all.addAll(segs);
+    }
+    return all;
+  }
+
+  private static long queryStartTimeSec(SQLiteDatabase db, long activityId) {
+    try (Cursor c =
+        db.rawQuery(
+            "SELECT "
+                + DB.ACTIVITY.START_TIME
+                + " FROM "
+                + DB.ACTIVITY.TABLE
+                + " WHERE "
+                + DB.PRIMARY_KEY
+                + " = ?",
+            new String[] {String.valueOf(activityId)})) {
+      if (c.moveToFirst() && !c.isNull(0)) {
+        return c.getLong(0);
+      }
+    } catch (Exception ignored) {
+    }
+    return 0L;
+  }
+
   public static Map<Long, RunConditions> loadConditions(SQLiteDatabase db, List<Long> activityIds) {
     Map<Long, RunConditions> out = new HashMap<>();
     if (activityIds == null) {
@@ -193,12 +237,15 @@ public final class ComparableSegmentLoader {
 
   public static RunConditions loadOne(SQLiteDatabase db, long activityId) {
     double gain = 0;
+    double loss = 0;
     long startTimeSec = 0L;
     long durationSec = 0L;
     try (Cursor cursor =
         db.rawQuery(
             "SELECT "
                 + DB.ACTIVITY.ELEVATION_GAIN
+                + ", "
+                + DB.ACTIVITY.ELEVATION_LOSS
                 + ", "
                 + DB.ACTIVITY.START_TIME
                 + ", "
@@ -211,40 +258,42 @@ public final class ComparableSegmentLoader {
             new String[] {String.valueOf(activityId)})) {
       if (cursor.moveToFirst()) {
         if (!cursor.isNull(0)) gain = cursor.getDouble(0);
-        if (!cursor.isNull(1)) startTimeSec = cursor.getLong(1);
-        if (!cursor.isNull(2)) durationSec = cursor.getLong(2);
+        if (!cursor.isNull(1)) loss = cursor.getDouble(1);
+        if (!cursor.isNull(2)) startTimeSec = cursor.getLong(2);
+        if (!cursor.isNull(3)) durationSec = cursor.getLong(3);
       }
     }
-    List<Sample> samples = loadSamples(db, activityId);
+    Double avgElev = null;
+    Double avgTemp = null;
     Double firstElev = null;
     Double lastElev = null;
-    double elevSum = 0;
-    int elevCount = 0;
-    double tempSum = 0;
-    int tempCount = 0;
-    for (Sample sample : samples) {
-      if (sample.elevationM != null && !sample.elevationM.isNaN()) {
-        if (firstElev == null) {
-          firstElev = sample.elevationM;
-        }
-        lastElev = sample.elevationM;
-        elevSum += sample.elevationM;
-        elevCount++;
+    String aggSql =
+        "SELECT AVG(COALESCE("
+            + DB.LOCATION.TOPO_ALTITUDE
+            + ", "
+            + DB.LOCATION.ALTITUDE
+            + ")), AVG("
+            + DB.LOCATION.TEMPERATURE
+            + ") FROM "
+            + DB.LOCATION.TABLE
+            + " WHERE "
+            + DB.LOCATION.ACTIVITY
+            + " = ?";
+    try (Cursor c = db.rawQuery(aggSql, new String[] {String.valueOf(activityId)})) {
+      if (c.moveToFirst()) {
+        if (!c.isNull(0)) avgElev = c.getDouble(0);
+        if (!c.isNull(1)) avgTemp = c.getDouble(1);
       }
-      if (sample.temperatureC != null && !sample.temperatureC.isNaN()) {
-        tempSum += sample.temperatureC;
-        tempCount++;
+    } catch (Exception ignored) {
+    }
+    double net = gain - loss;
+    if (gain == 0.0 && loss == 0.0) {
+      firstElev = queryBoundaryElevation(db, activityId, true);
+      lastElev = queryBoundaryElevation(db, activityId, false);
+      if (firstElev != null && lastElev != null) {
+        net = lastElev - firstElev;
       }
     }
-    double net = 0;
-    if (firstElev != null && lastElev != null) {
-      net = lastElev - firstElev;
-    }
-    Double avgElev = elevCount > 0 ? elevSum / elevCount : null;
-    if (avgElev == null) {
-      avgElev = queryMeanAltitudeFallback(db, activityId);
-    }
-    Double avgTemp = tempCount > 0 ? tempSum / tempCount : null;
     Double avgHumidity = null;
     DailyWeather24h dayWeather = DailyWeatherStore.getForActivity(db, activityId, startTimeSec);
     if (dayWeather != null && startTimeSec > 0L) {
@@ -255,6 +304,33 @@ public final class ComparableSegmentLoader {
       avgHumidity = match.humidityPct;
     }
     return new RunConditions(gain, net, avgElev, avgTemp, avgHumidity);
+  }
+
+  private static Double queryBoundaryElevation(
+      SQLiteDatabase db, long activityId, boolean first) {
+    String sql =
+        "SELECT COALESCE("
+            + DB.LOCATION.TOPO_ALTITUDE
+            + ", "
+            + DB.LOCATION.ALTITUDE
+            + ") FROM "
+            + DB.LOCATION.TABLE
+            + " WHERE "
+            + DB.LOCATION.ACTIVITY
+            + " = ? AND ("
+            + DB.LOCATION.TOPO_ALTITUDE
+            + " IS NOT NULL OR "
+            + DB.LOCATION.ALTITUDE
+            + " IS NOT NULL) ORDER BY "
+            + DB.PRIMARY_KEY
+            + (first ? " ASC LIMIT 1" : " DESC LIMIT 1");
+    try (Cursor c = db.rawQuery(sql, new String[] {String.valueOf(activityId)})) {
+      if (c.moveToFirst() && !c.isNull(0)) {
+        return c.getDouble(0);
+      }
+    } catch (Exception ignored) {
+    }
+    return null;
   }
 
   private static Double queryMeanAltitudeFallback(SQLiteDatabase db, long activityId) {
