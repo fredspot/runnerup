@@ -85,48 +85,49 @@ class BestTimesFragment : Fragment(R.layout.best_times), Constants {
 
   private fun loadDistances() {
     val database = db ?: return
-    summaries.clear()
-    bestTimes.clear()
+    BgTasks.runDb(
+        {
+          val loadedSummaries = ArrayList<BestTimesSummaryEntity>()
+          val loadedBestTimes = ArrayList<BestTimesEntity?>()
+          val sql =
+              "SELECT ${Constants.DB.BEST_TIMES.DISTANCE}" +
+                  ", AVG(${Constants.DB.BEST_TIMES.TIME}) as avg_time" +
+                  ", COUNT(*) as count" +
+                  " FROM ${Constants.DB.BEST_TIMES.TABLE}" +
+                  " GROUP BY ${Constants.DB.BEST_TIMES.DISTANCE}" +
+                  " ORDER BY ${Constants.DB.BEST_TIMES.DISTANCE}"
 
-    val sql =
-        "SELECT ${Constants.DB.BEST_TIMES.DISTANCE}" +
-            ", AVG(${Constants.DB.BEST_TIMES.TIME}) as avg_time" +
-            ", COUNT(*) as count" +
-            " FROM ${Constants.DB.BEST_TIMES.TABLE}" +
-            " GROUP BY ${Constants.DB.BEST_TIMES.DISTANCE}" +
-            " ORDER BY ${Constants.DB.BEST_TIMES.DISTANCE}"
+          database.rawQuery(sql, null).use { cursor ->
+            while (cursor.moveToNext()) {
+              loadedSummaries.add(BestTimesSummaryEntity(cursor))
+            }
+          }
 
-    Log.d(TAG, "Loading best times summaries from database...")
-    database.rawQuery(sql, null).use { cursor ->
-      var count = 0
-      while (cursor.moveToNext()) {
-        val summary = BestTimesSummaryEntity(cursor)
-        summaries.add(summary)
-        Log.d(
-            TAG,
-            "Found summary: ${summary.distance}m, avg=${summary.averageTime}ms, count=${summary.count}",
-        )
-        count++
-      }
-      Log.d(TAG, "Total summaries found: $count")
-    }
-
-    for (summary in summaries) {
-      val bestTimeSql =
-          "SELECT * FROM ${Constants.DB.BEST_TIMES.TABLE}" +
-              " WHERE ${Constants.DB.BEST_TIMES.DISTANCE} = ?" +
-              " AND ${Constants.DB.BEST_TIMES.RANK} = 1" +
-              " LIMIT 1"
-      database.rawQuery(bestTimeSql, arrayOf(summary.distance.toString())).use { cursor ->
-        if (cursor.moveToFirst()) {
-          bestTimes.add(BestTimesEntity(cursor))
-        } else {
-          bestTimes.add(null)
-        }
-      }
-    }
-
-    adapter?.notifyDataSetChanged()
+          for (summary in loadedSummaries) {
+            val bestTimeSql =
+                "SELECT * FROM ${Constants.DB.BEST_TIMES.TABLE}" +
+                    " WHERE ${Constants.DB.BEST_TIMES.DISTANCE} = ?" +
+                    " AND ${Constants.DB.BEST_TIMES.RANK} = 1" +
+                    " LIMIT 1"
+            database.rawQuery(bestTimeSql, arrayOf(summary.distance.toString())).use { cursor ->
+              if (cursor.moveToFirst()) {
+                loadedBestTimes.add(BestTimesEntity(cursor))
+              } else {
+                loadedBestTimes.add(null)
+              }
+            }
+          }
+          Pair(loadedSummaries, loadedBestTimes)
+        },
+        { pair ->
+          if (!isAdded) return@runDb
+          summaries.clear()
+          summaries.addAll(pair.first)
+          bestTimes.clear()
+          bestTimes.addAll(pair.second)
+          adapter?.notifyDataSetChanged()
+        },
+    )
   }
 
   private fun forceRecomputation() {

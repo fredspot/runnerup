@@ -440,6 +440,7 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
 
   private DBHelper(Context context, int a) {
     super(context, DBNAME, null, DBVERSION);
+    setWriteAheadLoggingEnabled(true);
   }
 
   @Override

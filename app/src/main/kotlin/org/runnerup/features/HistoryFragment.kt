@@ -99,7 +99,10 @@ class HistoryFragment : Fragment(R.layout.history) {
     recyclerView.adapter = adapter
 
     AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
-    ActivityCleaner().conditionalRecompute(db)
+    val database = db
+    if (database != null) {
+      BgTasks.runDb({ ActivityCleaner().conditionalRecompute(database) }, {})
+    }
     reloadList()
   }
 

@@ -85,7 +85,7 @@ object MainLayoutNavigation {
 
   @JvmStatic
   fun runAutoComputeInBackground(activity: MainLayout) {
-    BgTasks.runDb(
+    BgTasks.runNetwork(
         {
           var db: SQLiteDatabase? = null
           try {
@@ -101,19 +101,7 @@ object MainLayoutNavigation {
             db?.let { DBHelper.closeDB(it) }
           }
         },
-        { _ ->
-          BgTasks.runNetwork(
-              {
-                val wdb = DBHelper.getWritableDatabase(activity)
-                try {
-                  DailyWeatherStore.syncMissingRunDays(wdb, OpenMeteoWeatherClient(), 15)
-                } finally {
-                  DBHelper.closeDB(wdb)
-                }
-              },
-              { _ -> },
-          )
-        },
+        { _ -> },
     )
   }
 
