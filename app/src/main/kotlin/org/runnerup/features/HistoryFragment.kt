@@ -126,34 +126,44 @@ class HistoryFragment : Fragment(R.layout.history) {
   private fun reloadList() {
     val database = db ?: return
     val fmt = formatter ?: return
+    val appCtx = context?.applicationContext
     val gen = ++loadGeneration
     BgTasks.runDb(
         { queryActivities(database) },
         { activities ->
           if (!isAdded || gen != loadGeneration) return@runDb
-          // Render the history list immediately so it never waits on conditions/elevation queries
-          adapter?.submit(buildDisplayRows(activities, emptyMap()))
+          // Render the history list immediately using any already-cached conditions lines
+          val immediateConds = HashMap<Long, String>(cachedCondLineById)
+          adapter?.submit(buildDisplayRows(activities, immediateConds))
           BgTasks.runNetwork(
-              { queryConditionsById(database, activities, fmt) },
+              { queryConditionsById(appCtx, database, activities, fmt) },
               { condLines ->
                 if (!isAdded || gen != loadGeneration) return@runNetwork
-                adapter?.submit(buildDisplayRows(activities, condLines))
+                if (condLines != immediateConds) {
+                  adapter?.submit(buildDisplayRows(activities, condLines))
+                }
               },
           )
         },
     )
   }
 
+  private data class LocStats(
+      val avgElev: Double?,
+      val sensorTemp: Double?,
+      val lat: Double?,
+      val lon: Double?,
+  )
+
   private fun queryConditionsById(
+      appCtx: android.content.Context?,
       database: SQLiteDatabase,
       activities: List<ActivityEntity>,
       fmt: Formatter,
   ): Map<Long, String> {
     if (activities.isEmpty()) return emptyMap()
-    val avgElevById = HashMap<Long, Double>()
-    val sensorTempById = HashMap<Long, Double>()
+    ensureLocStatsLoadedFromPrefs(appCtx)
     val gainById = HashMap<Long, Double>()
-    val coordById = HashMap<Long, Pair<Double, Double>>()
     try {
       database
           .rawQuery(
@@ -165,21 +175,36 @@ class HistoryFragment : Fragment(R.layout.history) {
               if (!c.isNull(1)) gainById[c.getLong(0)] = c.getDouble(1)
             }
           }
-      database
-          .rawQuery(
-              "SELECT ${DB.LOCATION.ACTIVITY}, AVG(COALESCE(${DB.LOCATION.TOPO_ALTITUDE}, ${DB.LOCATION.ALTITUDE})), AVG(${DB.LOCATION.TEMPERATURE}), AVG(${DB.LOCATION.LATITUDE}), AVG(${DB.LOCATION.LONGITUDE}) FROM ${DB.LOCATION.TABLE} GROUP BY ${DB.LOCATION.ACTIVITY}",
-              null,
-          )
-          .use { c ->
-            while (c.moveToNext()) {
-              val id = c.getLong(0)
-              if (!c.isNull(1)) avgElevById[id] = c.getDouble(1)
-              if (!c.isNull(2)) sensorTempById[id] = c.getDouble(2)
-              if (!c.isNull(3) && !c.isNull(4)) {
-                coordById[id] = Pair(c.getDouble(3), c.getDouble(4))
+      val missingIds = activities.mapNotNull { it.id }.filter { !cachedLocStatsById.containsKey(it) }
+      if (missingIds.isNotEmpty()) {
+        val whereClause =
+            if (cachedLocStatsById.isEmpty()) {
+              ""
+            } else {
+              "WHERE ${DB.LOCATION.ACTIVITY} IN (${missingIds.joinToString(",")})"
+            }
+        database
+            .rawQuery(
+                "SELECT ${DB.LOCATION.ACTIVITY}, AVG(COALESCE(${DB.LOCATION.TOPO_ALTITUDE}, ${DB.LOCATION.ALTITUDE})), AVG(${DB.LOCATION.TEMPERATURE}), AVG(${DB.LOCATION.LATITUDE}), AVG(${DB.LOCATION.LONGITUDE}) FROM ${DB.LOCATION.TABLE} $whereClause GROUP BY ${DB.LOCATION.ACTIVITY}",
+                null,
+            )
+            .use { c ->
+              while (c.moveToNext()) {
+                val id = c.getLong(0)
+                val elev = if (!c.isNull(1)) c.getDouble(1) else null
+                val temp = if (!c.isNull(2)) c.getDouble(2) else null
+                val lat = if (!c.isNull(3)) c.getDouble(3) else null
+                val lon = if (!c.isNull(4)) c.getDouble(4) else null
+                cachedLocStatsById[id] = LocStats(elev, temp, lat, lon)
               }
             }
+        for (id in missingIds) {
+          if (!cachedLocStatsById.containsKey(id)) {
+            cachedLocStatsById[id] = LocStats(null, null, null, null)
           }
+        }
+        saveLocStatsToPrefs(appCtx)
+      }
     } catch (_: Exception) {
     }
     val out = HashMap<Long, String>(activities.size)
@@ -187,16 +212,16 @@ class HistoryFragment : Fragment(R.layout.history) {
       val id = ae.id ?: continue
       val startSec = ae.startTime ?: 0L
       val durSec = (ae.time ?: 0L).toDouble()
-      var temp: Double? = sensorTempById[id]
+      val loc = cachedLocStatsById[id]
+      var temp: Double? = loc?.sensorTemp
       var hum: Double? = null
-      val coord = coordById[id]
-      if (startSec > 0L && coord != null) {
+      if (startSec > 0L && loc?.lat != null && loc.lon != null) {
         val dayWeather: DailyWeather24h? =
             DailyWeatherStore.getDay(
                 database,
                 DailyWeather24h.utcDate(startSec),
-                DailyWeather24h.toCell(coord.first),
-                DailyWeather24h.toCell(coord.second),
+                DailyWeather24h.toCell(loc.lat),
+                DailyWeather24h.toCell(loc.lon),
             )
         if (dayWeather != null) {
           val match = dayWeather.matchWindow(startSec, durSec)
@@ -215,7 +240,7 @@ class HistoryFragment : Fragment(R.layout.history) {
             }
         parts.add("$tStr$hStr")
       }
-      val avgElev = avgElevById[id]
+      val avgElev = loc?.avgElev
       if (RunConditionsAdjuster.hasAltitude(avgElev)) {
         parts.add(
             "Avg elev ${fmt.formatElevation(Formatter.Format.TXT_SHORT, avgElev!!)}",
@@ -226,7 +251,11 @@ class HistoryFragment : Fragment(R.layout.history) {
         parts.add("+${fmt.formatElevation(Formatter.Format.TXT_SHORT, gain)}")
       }
       if (parts.isNotEmpty()) {
-        out[id] = parts.joinToString("  ·  ")
+        val line = parts.joinToString("  ·  ")
+        out[id] = line
+        cachedCondLineById[id] = line
+      } else {
+        cachedCondLineById[id] = ""
       }
     }
     return out
@@ -500,6 +529,61 @@ class HistoryFragment : Fragment(R.layout.history) {
           conditionsText?.visibility = View.VISIBLE
           conditionsText?.text = row.conditionsLine
         }
+      }
+    }
+  }
+
+  companion object {
+    private const val PREF_LOC_STATS_CACHE = "history_loc_stats_cache_v1"
+    private val cachedLocStatsById = java.util.concurrent.ConcurrentHashMap<Long, LocStats>()
+    private val cachedCondLineById = java.util.concurrent.ConcurrentHashMap<Long, String>()
+    @Volatile private var prefsLoaded = false
+
+    @Synchronized
+    private fun ensureLocStatsLoadedFromPrefs(ctx: android.content.Context?) {
+      if (prefsLoaded || ctx == null) return
+      prefsLoaded = true
+      try {
+        val raw =
+            androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx)
+                .getString(PREF_LOC_STATS_CACHE, null) ?: return
+        for (line in raw.split('\n')) {
+          if (line.isBlank()) continue
+          val parts = line.split('|')
+          if (parts.size < 5) continue
+          val id = parts[0].toLongOrNull() ?: continue
+          val elev = parts[1].toDoubleOrNull()
+          val temp = parts[2].toDoubleOrNull()
+          val lat = parts[3].toDoubleOrNull()
+          val lon = parts[4].toDoubleOrNull()
+          cachedLocStatsById[id] = LocStats(elev, temp, lat, lon)
+        }
+      } catch (_: Exception) {
+      }
+    }
+
+    @Synchronized
+    private fun saveLocStatsToPrefs(ctx: android.content.Context?) {
+      if (ctx == null) return
+      try {
+        val sb = StringBuilder()
+        for ((id, s) in cachedLocStatsById) {
+          sb.append(id)
+              .append('|')
+              .append(s.avgElev ?: "")
+              .append('|')
+              .append(s.sensorTemp ?: "")
+              .append('|')
+              .append(s.lat ?: "")
+              .append('|')
+              .append(s.lon ?: "")
+              .append('\n')
+        }
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx)
+            .edit()
+            .putString(PREF_LOC_STATS_CACHE, sb.toString())
+            .apply()
+      } catch (_: Exception) {
       }
     }
   }

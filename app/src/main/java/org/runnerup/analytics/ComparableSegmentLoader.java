@@ -3,14 +3,20 @@ package org.runnerup.analytics;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.runnerup.analytics.ComparableSegmentExtractor.Sample;
 import org.runnerup.common.util.Constants.DB;
 
 /** Loads running tracks and turns them into comparable 1 km windows. */
 public final class ComparableSegmentLoader {
+
+  private static final Map<String, List<ComparableSegment>> SEGMENT_CACHE =
+      new ConcurrentHashMap<>();
+  private static final Map<Long, RunConditions> CONDITIONS_CACHE = new ConcurrentHashMap<>();
 
   private ComparableSegmentLoader() {}
 
@@ -32,14 +38,21 @@ public final class ComparableSegmentLoader {
         acts.add(new long[] {cursor.getLong(0), cursor.isNull(1) ? 0L : cursor.getLong(1)});
       }
     }
+    int zHash = Arrays.hashCode(zoneBounds);
     List<ComparableSegment> all = new ArrayList<>();
     for (long[] act : acts) {
       long id = act[0];
       long startSec = act[1];
       DailyWeather24h dayWeather = DailyWeatherStore.getForActivity(db, id, startSec);
-      all.addAll(
-          ComparableSegmentExtractor.extract(
-              id, loadSamples(db, id), zoneBounds, startSec, dayWeather));
+      String key = id + ":" + zHash + ":" + (dayWeather != null ? 1 : 0);
+      List<ComparableSegment> segs = SEGMENT_CACHE.get(key);
+      if (segs == null) {
+        segs =
+            ComparableSegmentExtractor.extract(
+                id, loadSamples(db, id), zoneBounds, startSec, dayWeather);
+        SEGMENT_CACHE.put(key, segs);
+      }
+      all.addAll(segs);
     }
     return all;
   }
@@ -53,7 +66,16 @@ public final class ComparableSegmentLoader {
       if (id == null) {
         continue;
       }
-      out.put(id, loadOne(db, id));
+      RunConditions cached = CONDITIONS_CACHE.get(id);
+      if (cached != null && cached.avgTempC != null) {
+        out.put(id, cached);
+      } else {
+        RunConditions loaded = loadOne(db, id);
+        if (loaded != null) {
+          CONDITIONS_CACHE.put(id, loaded);
+        }
+        out.put(id, loaded);
+      }
     }
     return out;
   }
