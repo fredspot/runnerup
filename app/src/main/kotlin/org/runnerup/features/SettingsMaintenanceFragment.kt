@@ -586,17 +586,26 @@ class SettingsMaintenanceFragment : PreferenceFragmentCompat() {
               }
             }
 
+            val zoneBounds = MainLayoutNavigation.monthlyComparisonZoneBounds(appCtx)
             org.runnerup.data.ComputationTracker.deleteTracking(
                 db,
                 org.runnerup.data.ComputationTracker.TYPE_BEST_TIMES,
                 org.runnerup.data.ComputationTracker.TYPE_STATISTICS,
                 org.runnerup.data.ComputationTracker.TYPE_MONTHLY_COMPARISON,
             )
-            org.runnerup.analytics.AutoComputeRunner.runAll(
-                db,
-                MainLayoutNavigation.monthlyComparisonZoneBounds(appCtx),
-            )
+            org.runnerup.analytics.AutoComputeRunner.runAll(db, zoneBounds)
+
+            activity?.runOnUiThread {
+              if (dialog.isShowing) {
+                dialog.progress = total
+                dialog.setMessage("Pre-computing Compare tab conditions & 1 km segments…")
+              }
+            }
+
             org.runnerup.analytics.ComparableSegmentLoader.clearCaches()
+            val allIds = activities.map { it.first }
+            org.runnerup.analytics.ComparableSegmentLoader.loadConditions(db, allIds)
+            org.runnerup.analytics.ComparableSegmentLoader.loadRunning(db, zoneBounds)
             HistoryFragment.invalidateCaches(appCtx)
 
             Pair(activities.size, weatherSynced)
