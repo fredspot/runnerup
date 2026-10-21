@@ -6,7 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import org.runnerup.data.RunningPaceBounds;
 
-/** Splits a track into 1 km windows with pace, elevation, temperature, and prior HR zones. */
+/** Splits a track into 1 km windows with pace, elevation, weather, and prior HR zones. */
 public final class ComparableSegmentExtractor {
 
   public static final double WINDOW_METERS = 1000;
@@ -59,6 +59,15 @@ public final class ComparableSegmentExtractor {
 
   public static List<ComparableSegment> extract(
       long activityId, List<Sample> samples, int[] zoneBounds) {
+    return extract(activityId, samples, zoneBounds, 0L, null);
+  }
+
+  public static List<ComparableSegment> extract(
+      long activityId,
+      List<Sample> samples,
+      int[] zoneBounds,
+      long activityStartSec,
+      DailyWeather24h dayWeather) {
     if (samples == null || samples.size() < 2) {
       return Collections.emptyList();
     }
@@ -93,9 +102,27 @@ public final class ComparableSegmentExtractor {
       }
       int avgHr = averageHr(points, start, end);
       Double avgTemp = averageTemp(points, start, end);
+      Double avgHumidity = null;
+      if (dayWeather != null && activityStartSec > 0L) {
+        long windowStartSec = activityStartSec + (elapsedStart / 1000L);
+        DailyWeather24h.HourMatch match = dayWeather.matchWindow(windowStartSec, pace);
+        if (avgTemp == null) {
+          avgTemp = match.temperatureC;
+        }
+        avgHumidity = match.humidityPct;
+      }
       double adjusted =
-          RunConditionsAdjuster.adjustedPace(pace, net, WINDOW_METERS, avgTemp);
-      built.add(new Window(i, pace, adjusted, avgHr, zoneForHr(avgHr, zoneBounds), net, avgTemp));
+          RunConditionsAdjuster.adjustedPace(pace, net, WINDOW_METERS, avgTemp, avgHumidity);
+      built.add(
+          new Window(
+              i,
+              pace,
+              adjusted,
+              avgHr,
+              zoneForHr(avgHr, zoneBounds),
+              net,
+              avgTemp,
+              avgHumidity));
     }
     List<ComparableSegment> segments = new ArrayList<>();
     for (int i = 0; i < built.size(); i++) {
@@ -117,6 +144,7 @@ public final class ComparableSegmentExtractor {
               window.avgHr,
               window.netElevationM,
               window.avgTempC,
+              window.avgHumidityPct,
               prevNear,
               prevFar));
     }
@@ -232,6 +260,7 @@ public final class ComparableSegmentExtractor {
     final int zone;
     final double netElevationM;
     final Double avgTempC;
+    final Double avgHumidityPct;
 
     Window(
         int index,
@@ -240,7 +269,8 @@ public final class ComparableSegmentExtractor {
         int avgHr,
         int zone,
         double netElevationM,
-        Double avgTempC) {
+        Double avgTempC,
+        Double avgHumidityPct) {
       this.index = index;
       this.paceSecPerKm = paceSecPerKm;
       this.adjustedPaceSecPerKm = adjustedPaceSecPerKm;
@@ -248,6 +278,7 @@ public final class ComparableSegmentExtractor {
       this.zone = zone;
       this.netElevationM = netElevationM;
       this.avgTempC = avgTempC;
+      this.avgHumidityPct = avgHumidityPct;
     }
   }
 }

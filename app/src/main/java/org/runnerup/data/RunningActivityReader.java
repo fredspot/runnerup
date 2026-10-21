@@ -342,6 +342,55 @@ public final class RunningActivityReader {
     return rows;
   }
 
+  /** All non-deleted running activities excluding {@code excludeId}, for fallback comparison. */
+  public static List<ActivityRow> getAllRunningActivitiesExcept(SQLiteDatabase db, long excludeId) {
+    List<ActivityRow> rows = new ArrayList<>();
+    String sql =
+        "SELECT "
+            + Constants.DB.PRIMARY_KEY
+            + ", "
+            + Constants.DB.ACTIVITY.START_TIME
+            + ", "
+            + Constants.DB.ACTIVITY.DISTANCE
+            + ", "
+            + Constants.DB.ACTIVITY.TIME
+            + ", "
+            + Constants.DB.ACTIVITY.AVG_HR
+            + ", "
+            + Constants.DB.ACTIVITY.MAX_HR
+            + " FROM "
+            + Constants.DB.ACTIVITY.TABLE
+            + " WHERE "
+            + Constants.DB.ACTIVITY.SPORT
+            + " = ? AND "
+            + Constants.DB.ACTIVITY.DELETED
+            + " = 0 AND "
+            + Constants.DB.PRIMARY_KEY
+            + " != ? AND "
+            + Constants.DB.ACTIVITY.DISTANCE
+            + " > 0 AND "
+            + Constants.DB.ACTIVITY.TIME
+            + " > 0";
+    try (Cursor cursor =
+        db.rawQuery(
+            sql,
+            new String[] {
+              String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING), String.valueOf(excludeId)
+            })) {
+      while (cursor.moveToNext()) {
+        rows.add(
+            new ActivityRow(
+                cursor.getLong(0),
+                cursor.getLong(1),
+                cursor.getDouble(2),
+                cursor.getLong(3),
+                cursor.isNull(4) ? 0 : cursor.getInt(4),
+                cursor.isNull(5) ? 0 : cursor.getInt(5)));
+      }
+    }
+    return rows;
+  }
+
   /** Distance/HR samples for overlay graphs. */
   public static List<HrSample> getHrDistanceSamples(SQLiteDatabase db, long activityId) {
     List<HrSample> samples = new ArrayList<>();

@@ -15,11 +15,13 @@ public final class ComparableSegmentLoader {
   private ComparableSegmentLoader() {}
 
   public static List<ComparableSegment> loadRunning(SQLiteDatabase db, int[] zoneBounds) {
-    List<Long> ids = new ArrayList<>();
+    List<long[]> acts = new ArrayList<>();
     try (Cursor cursor =
         db.rawQuery(
             "SELECT "
                 + DB.PRIMARY_KEY
+                + ", "
+                + DB.ACTIVITY.START_TIME
                 + " FROM "
                 + DB.ACTIVITY.TABLE
                 + " WHERE deleted = 0 AND "
@@ -27,12 +29,17 @@ public final class ComparableSegmentLoader {
                 + " = ?",
             new String[] {String.valueOf(DB.ACTIVITY.SPORT_RUNNING)})) {
       while (cursor.moveToNext()) {
-        ids.add(cursor.getLong(0));
+        acts.add(new long[] {cursor.getLong(0), cursor.isNull(1) ? 0L : cursor.getLong(1)});
       }
     }
     List<ComparableSegment> all = new ArrayList<>();
-    for (Long id : ids) {
-      all.addAll(ComparableSegmentExtractor.extract(id, loadSamples(db, id), zoneBounds));
+    for (long[] act : acts) {
+      long id = act[0];
+      long startSec = act[1];
+      DailyWeather24h dayWeather = DailyWeatherStore.getForActivity(db, id, startSec);
+      all.addAll(
+          ComparableSegmentExtractor.extract(
+              id, loadSamples(db, id), zoneBounds, startSec, dayWeather));
     }
     return all;
   }
@@ -92,23 +99,73 @@ public final class ComparableSegmentLoader {
         samples.add(new Sample(cursor.getDouble(0), cursor.getLong(1), hr, elevation, temp));
       }
     }
+    if (samples.size() < 2) {
+      samples = loadLapFallbackSamples(db, activityId);
+    }
     return samples;
+  }
+
+  /**
+   * When a run has no per-point GPS distance/elapsed rows, synthesize boundary samples from its
+   * laps so 1 km segments can still be extracted.
+   */
+  private static List<Sample> loadLapFallbackSamples(SQLiteDatabase db, long activityId) {
+    List<Sample> out = new ArrayList<>();
+    String sql =
+        "SELECT "
+            + DB.LAP.DISTANCE
+            + ", "
+            + DB.LAP.TIME
+            + ", "
+            + DB.LAP.AVG_HR
+            + " FROM "
+            + DB.LAP.TABLE
+            + " WHERE "
+            + DB.LAP.ACTIVITY
+            + " = ? ORDER BY "
+            + DB.LAP.LAP
+            + " ASC";
+    double cumDist = 0.0;
+    long cumMs = 0L;
+    try (Cursor c = db.rawQuery(sql, new String[] {String.valueOf(activityId)})) {
+      while (c.moveToNext()) {
+        double d = c.isNull(0) ? 0.0 : c.getDouble(0);
+        long tSec = c.isNull(1) ? 0L : c.getLong(1);
+        int hr = c.isNull(2) ? 0 : c.getInt(2);
+        if (d <= 0.0 || tSec <= 0L) continue;
+        if (out.isEmpty()) {
+          out.add(new Sample(0.0, 0L, hr, null, null));
+        }
+        cumDist += d;
+        cumMs += tSec * 1000L;
+        out.add(new Sample(cumDist, cumMs, hr, null, null));
+      }
+    }
+    return out;
   }
 
   private static RunConditions loadOne(SQLiteDatabase db, long activityId) {
     double gain = 0;
+    long startTimeSec = 0L;
+    long durationSec = 0L;
     try (Cursor cursor =
         db.rawQuery(
             "SELECT "
                 + DB.ACTIVITY.ELEVATION_GAIN
+                + ", "
+                + DB.ACTIVITY.START_TIME
+                + ", "
+                + DB.ACTIVITY.TIME
                 + " FROM "
                 + DB.ACTIVITY.TABLE
                 + " WHERE "
                 + DB.PRIMARY_KEY
                 + " = ?",
             new String[] {String.valueOf(activityId)})) {
-      if (cursor.moveToFirst() && !cursor.isNull(0)) {
-        gain = cursor.getDouble(0);
+      if (cursor.moveToFirst()) {
+        if (!cursor.isNull(0)) gain = cursor.getDouble(0);
+        if (!cursor.isNull(1)) startTimeSec = cursor.getLong(1);
+        if (!cursor.isNull(2)) durationSec = cursor.getLong(2);
       }
     }
     List<Sample> samples = loadSamples(db, activityId);
@@ -133,6 +190,15 @@ public final class ComparableSegmentLoader {
       net = lastElev - firstElev;
     }
     Double avgTemp = tempCount > 0 ? tempSum / tempCount : null;
-    return new RunConditions(gain, net, avgTemp);
+    Double avgHumidity = null;
+    DailyWeather24h dayWeather = DailyWeatherStore.getForActivity(db, activityId, startTimeSec);
+    if (dayWeather != null && startTimeSec > 0L) {
+      DailyWeather24h.HourMatch match = dayWeather.matchWindow(startTimeSec, durationSec);
+      if (avgTemp == null) {
+        avgTemp = match.temperatureC;
+      }
+      avgHumidity = match.humidityPct;
+    }
+    return new RunConditions(gain, net, avgTemp, avgHumidity);
   }
 }

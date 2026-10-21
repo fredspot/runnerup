@@ -165,8 +165,13 @@
   <string name="compare_engine_this_bpm">%1$d bpm</string>
   <string name="compare_elevation_gain">Elevation gain</string>
   <string name="compare_temperature">Temperature</string>
+  <string name="compare_humidity">Humidity</string>
   <string name="compare_adjusted_pace">Adjusted pace</string>
   <string name="compare_temperature_unavailable">Temperature unavailable</string>
+  <string name="compare_verdict_better">Adjusted pace %1$s/km faster (%2$s aerobic gain vs %3$d runs)</string>
+  <string name="compare_verdict_slower">Adjusted pace %1$s/km slower (%2$s aerobic change vs %3$d runs)</string>
+  <string name="compare_verdict_pace_only_better">Weather/grade-adjusted pace %1$s/km faster than %2$d comparable runs</string>
+  <string name="compare_verdict_pace_only_slower">Weather/grade-adjusted pace %1$s/km slower than %2$d comparable runs</string>
   <string name="compare_segments_title">Similar segments</string>
   <string name="compare_segments_empty">No 1 km segment has at least 3 matches yet.</string>
   <string name="compare_segment_flat">flat</string>

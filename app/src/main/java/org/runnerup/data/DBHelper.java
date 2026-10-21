@@ -49,7 +49,7 @@ import org.runnerup.core.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 51;
+  private static final int DBVERSION = 52;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -379,6 +379,23 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.ACTIVITY_INJURY.CREATED_AT + " integer not null")
           + ")";
 
+  private static final String CREATE_TABLE_DAILY_WEATHER =
+      "create table if not exists "
+          + DB.DAILY_WEATHER.TABLE
+          + " ( "
+          + (DB.DAILY_WEATHER.DATE + " text not null, ")
+          + (DB.DAILY_WEATHER.LAT_CELL + " integer not null, ")
+          + (DB.DAILY_WEATHER.LON_CELL + " integer not null, ")
+          + (DB.DAILY_WEATHER.TEMPS_C + " text not null, ")
+          + (DB.DAILY_WEATHER.HUMIDITIES + " text not null, ")
+          + "primary key ("
+          + DB.DAILY_WEATHER.DATE
+          + ", "
+          + DB.DAILY_WEATHER.LAT_CELL
+          + ", "
+          + DB.DAILY_WEATHER.LON_CELL
+          + "))";
+
   private static final String CREATE_INDEX_FEED =
       "create index "
           + "if not exists FEED_START_TIME "
@@ -449,6 +466,7 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     arg0.execSQL(CREATE_TABLE_STEP);
     arg0.execSQL(CREATE_TABLE_ACTIVITY_EVENT);
     arg0.execSQL(CREATE_INDEX_ACTIVITY_EVENT);
+    arg0.execSQL(CREATE_TABLE_DAILY_WEATHER);
 
     onCreateUpgrade(arg0, 0, DBVERSION);
   }
@@ -772,6 +790,9 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
               + " ADD COLUMN "
               + DB.ACTIVITY.STEPS
               + " integer");
+    }
+    if (oldVersion < 52) {
+      arg0.execSQL(CREATE_TABLE_DAILY_WEATHER);
     }
     if (oldVersion < 48) {
       arg0.execSQL(

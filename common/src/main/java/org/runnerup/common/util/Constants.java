@@ -420,6 +420,15 @@ public interface Constants {
       String LAST_COMPUTED = "last_computed";          // timestamp
     }
 
+    interface DAILY_WEATHER {
+      String TABLE = "daily_weather";
+      String DATE = "date"; // YYYY-MM-DD in UTC
+      String LAT_CELL = "lat_cell"; // round(lat * 10)
+      String LON_CELL = "lon_cell"; // round(lon * 10)
+      String TEMPS_C = "temps_c"; // 24 comma-separated hourly °C values
+      String HUMIDITIES = "humidities"; // 24 comma-separated hourly % values
+    }
+
     // Heart Rate Zone Constants (MHR = 186)
     interface HR_ZONES {
       int MHR = 186;

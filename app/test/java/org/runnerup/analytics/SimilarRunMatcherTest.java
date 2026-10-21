@@ -60,6 +60,19 @@ public class SimilarRunMatcherTest {
     assertEquals(SimilarRunMatcher.MAX_RESULTS, SimilarRunMatcher.rankSimilar(current, candidates).size());
   }
 
+  @Test
+  public void findBestComparable_neverEmptyWhenRunsExistOutOfStrictBand() {
+    ActivityRow current = row(1, 13000, 4200, 152);
+    List<ActivityRow> candidates =
+        Arrays.asList(
+            row(2, 9000, 2800, 155),
+            row(3, 8000, 2500, 158));
+    assertTrue(SimilarRunMatcher.findSimilar(current, candidates).isEmpty());
+    List<ActivityRow> comparable = SimilarRunMatcher.findBestComparable(current, candidates);
+    assertEquals(2, comparable.size());
+    assertEquals(2, comparable.get(0).activityId);
+  }
+
   private static ActivityRow row(long id, double distance, long time, int hr) {
     return new ActivityRow(id, 0, distance, time, hr, hr + 10);
   }

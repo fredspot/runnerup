@@ -16,12 +16,16 @@ import com.jjoe64.graphview.GraphView
 import com.jjoe64.graphview.series.DataPoint
 import com.jjoe64.graphview.series.LineGraphSeries
 import com.jjoe64.graphview.series.PointsGraphSeries
+import java.util.Locale
 import org.runnerup.R
 import org.runnerup.analytics.ComparableSegmentLoader
+import org.runnerup.analytics.DailyWeatherStore
 import org.runnerup.analytics.MonthlyComparisonCalculator
+import org.runnerup.analytics.OpenMeteoWeatherClient
 import org.runnerup.analytics.RunConditions
 import org.runnerup.analytics.RunConditionsAdjuster
 import org.runnerup.analytics.RunEngineStats
+import org.runnerup.analytics.RunImprovementAssessor
 import org.runnerup.analytics.SegmentComparer
 import org.runnerup.analytics.SimilarRunMatcher
 import org.runnerup.common.util.Constants.DB
@@ -33,7 +37,7 @@ import org.runnerup.data.RunningActivityReader.ActivityRow
 import org.runnerup.data.RunningActivityReader.HrSample
 import org.runnerup.ui.common.widget.TitleSpinner
 
-/** Compare tab: similar distance/pace runs with HR overlay and BPM-vs-pace. */
+/** Compare tab: similar distance/pace runs with HR overlay, weather/humidity adjustment, and segments. */
 internal class DetailCompareController {
 
   private var activity: DetailActivity? = null
@@ -47,6 +51,7 @@ internal class DetailCompareController {
   private var modeHrOverlay = true
   private var conditions: Map<Long, RunConditions> = emptyMap()
   private var segmentComparisons: List<SegmentComparer.Comparison> = emptyList()
+  private var weatherSyncStarted = false
 
   private var emptyHint: TextView? = null
   private var content: View? = null
@@ -126,30 +131,21 @@ internal class DetailCompareController {
     BgTasks.runDb(
         {
           val currentRow = RunningActivityReader.getActivityWithHr(database, id)
-          val candidates =
+          val allRunning =
               if (currentRow != null) {
-                RunningActivityReader.getRunningActivitiesNearDistance(
-                    database,
-                    id,
-                    currentRow.totalDistance,
-                    SimilarRunMatcher.DISTANCE_TOLERANCE,
-                )
+                RunningActivityReader.getAllRunningActivitiesExcept(database, id)
               } else {
                 emptyList()
               }
-          val allSimilar = SimilarRunMatcher.findSimilar(currentRow, candidates)
-          val ranked =
-              SimilarRunMatcher.cap(
-                  SimilarRunMatcher.sortBySimilarity(currentRow, allSimilar),
-                  SimilarRunMatcher.MAX_RESULTS,
-              )
+          val allSimilar = SimilarRunMatcher.findBestComparable(currentRow, allRunning)
+          val ranked = SimilarRunMatcher.cap(allSimilar, SimilarRunMatcher.MAX_RESULTS)
           val segments = ComparableSegmentLoader.loadRunning(database, zoneBounds)
           val currentSegments = segments.filter { it.activityId == id }
           val historical = segments.filter { it.activityId != id }
-          val comparisons = SegmentComparer.compare(currentSegments, historical)
+          val comparisons = SegmentComparer.compareSmart(currentSegments, historical)
           val conditionIds = ArrayList<Long>()
           conditionIds.add(id)
-          for (row in ranked) {
+          for (row in allSimilar) {
             conditionIds.add(row.activityId)
           }
           val loadedConditions = ComparableSegmentLoader.loadConditions(database, conditionIds)
@@ -163,6 +159,47 @@ internal class DetailCompareController {
           conditions = result.conditions
           selected = similar.firstOrNull()
           bindLoaded()
+          maybeSyncWeather(database, result.current, result.ranked)
+        },
+    )
+  }
+
+  private fun maybeSyncWeather(
+      database: SQLiteDatabase,
+      currentRow: ActivityRow?,
+      peers: List<ActivityRow>,
+  ) {
+    if (weatherSyncStarted || currentRow == null) return
+    val missingAny =
+        (listOf(currentRow) + peers).any { row ->
+          val cond = conditions[row.activityId]
+          cond == null ||
+              !RunConditionsAdjuster.hasTemperature(cond.avgTempC) ||
+              !RunConditionsAdjuster.hasHumidity(cond.avgHumidityPct)
+        }
+    if (!missingAny) return
+    weatherSyncStarted = true
+    BgTasks.runNetwork(
+        {
+          val client = OpenMeteoWeatherClient()
+          var fetched = 0
+          for (row in (listOf(currentRow) + peers)) {
+            val day =
+                DailyWeatherStore.ensureForActivity(
+                    database,
+                    row.activityId,
+                    row.startTime,
+                    client,
+                )
+            if (day != null) fetched++
+          }
+          fetched += DailyWeatherStore.syncMissingRunDays(database, client, 15)
+          fetched
+        },
+        { fetchedCount ->
+          if (fetchedCount > 0 && activity?.isFinishing == false) {
+            loadSimilar()
+          }
         },
     )
   }
@@ -369,6 +406,10 @@ internal class DetailCompareController {
         formatTemperature(act, thisConditions.avgTempC)
     act.findViewById<TextView>(R.id.compare_other_temperature).text =
         otherConditions?.let { formatTemperature(act, it.avgTempC) } ?: "--"
+    act.findViewById<TextView>(R.id.compare_this_humidity)?.text =
+        formatHumidity(thisConditions.avgHumidityPct)
+    act.findViewById<TextView>(R.id.compare_other_humidity)?.text =
+        otherConditions?.let { formatHumidity(it.avgHumidityPct) } ?: "--"
     act.findViewById<TextView>(R.id.compare_this_adjusted_pace).text =
         formatAdjustedPace(fmt, thisRun, thisConditions)
     act.findViewById<TextView>(R.id.compare_other_adjusted_pace).text =
@@ -377,6 +418,40 @@ internal class DetailCompareController {
         } else {
           "--"
         }
+    bindVerdict(act, thisRun)
+  }
+
+  private fun bindVerdict(act: DetailActivity, thisRun: ActivityRow) {
+    val verdictView = act.findViewById<TextView>(R.id.compare_improvement_verdict) ?: return
+    val verdict = RunImprovementAssessor.assess(thisRun, similarForStats, conditions)
+    if (!verdict.hasData() || verdict.adjustedPaceSavedSecPerKm == null) {
+      verdictView.visibility = View.GONE
+      return
+    }
+    verdictView.visibility = View.VISIBLE
+    val savedSec = verdict.adjustedPaceSavedSecPerKm
+    val absSecStr = String.format(Locale.US, "%ds", kotlin.math.round(kotlin.math.abs(savedSec)).toInt())
+    val aero = verdict.aerobicGainPct
+    val betterColor = ContextCompat.getColor(act, R.color.colorPrimary)
+    val worseColor = Color.parseColor("#F59E0B")
+    val isImproved = (aero != null && aero >= 0.0) || (aero == null && savedSec >= 0.0)
+    verdictView.setTextColor(if (isImproved) betterColor else worseColor)
+    if (aero != null) {
+      val aeroStr = String.format(Locale.US, "%+.1f%%", aero)
+      verdictView.text =
+          if (savedSec >= 0) {
+            act.getString(R.string.compare_verdict_better, absSecStr, aeroStr, verdict.peerCount)
+          } else {
+            act.getString(R.string.compare_verdict_slower, absSecStr, aeroStr, verdict.peerCount)
+          }
+    } else {
+      verdictView.text =
+          if (savedSec >= 0) {
+            act.getString(R.string.compare_verdict_pace_only_better, absSecStr, verdict.peerCount)
+          } else {
+            act.getString(R.string.compare_verdict_pace_only_slower, absSecStr, verdict.peerCount)
+          }
+    }
   }
 
   private fun bindSegments(act: DetailActivity, fmt: Formatter) {
@@ -453,13 +528,16 @@ internal class DetailCompareController {
         } else {
           ""
         }
-    val temp =
-        if (!RunConditionsAdjuster.hasTemperature(segment.avgTempC)) {
-          " · " + act.getString(R.string.compare_temperature_unavailable)
-        } else {
-          ""
+    val weather =
+        when {
+          RunConditionsAdjuster.hasTemperature(segment.avgTempC) &&
+              RunConditionsAdjuster.hasHumidity(segment.avgHumidityPct) ->
+              " · ${kotlin.math.round(segment.avgTempC!!).toInt()}°C ${kotlin.math.round(segment.avgHumidityPct!!).toInt()}%"
+          RunConditionsAdjuster.hasTemperature(segment.avgTempC) ->
+              " · ${kotlin.math.round(segment.avgTempC!!).toInt()}°C"
+          else -> " · " + act.getString(R.string.compare_temperature_unavailable)
         }
-    return "$km · $elev · $context · $pace$hr$temp"
+    return "$km · $elev · $context · $pace$hr$weather"
   }
 
   private fun refreshGraph() {
@@ -643,6 +721,13 @@ internal class DetailCompareController {
       return act.getString(R.string.compare_temperature_unavailable)
     }
     return "${kotlin.math.round(tempC!!).toInt()}°C"
+  }
+
+  private fun formatHumidity(humidityPct: Double?): String {
+    if (!RunConditionsAdjuster.hasHumidity(humidityPct)) {
+      return "--"
+    }
+    return "${kotlin.math.round(humidityPct!!).toInt()}%"
   }
 
   private fun formatAdjustedPace(fmt: Formatter, row: ActivityRow, conditions: RunConditions): String {

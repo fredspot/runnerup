@@ -1,8 +1,8 @@
 package org.runnerup.analytics;
 
 /**
- * Turns raw pace into a flat, mild-temperature equivalent so hills and heat do not look like
- * fitness.
+ * Turns raw pace into a flat, mild-temperature, moderate-humidity equivalent so hills, heat, and
+ * humidity do not obscure real aerobic fitness.
  */
 public final class RunConditionsAdjuster {
 
@@ -57,27 +57,59 @@ public final class RunConditionsAdjuster {
   }
 
   /**
-   * Expected slowdown versus mild weather. Above 15°C, 0.4% per degree. Below 5°C, 0.2% per
-   * degree. Missing temperature does not change pace.
+   * Expected slowdown versus mild weather (15°C, 50% RH). Above 15°C, 0.4% per degree. Below 5°C,
+   * 0.2% per degree.
    */
   public static double temperatureFactor(Double tempC) {
+    return weatherFactor(tempC, null);
+  }
+
+  /**
+   * Expected slowdown versus mild, moderate-humidity conditions (15°C, 50% RH).
+   *
+   * <ul>
+   *   <li>Temperature: +0.4% per °C above 15°C, +0.2% per °C below 5°C.
+   *   <li>Humidity: above 55% RH when warm (&gt;12°C), adds an evaporative cooling penalty scaled
+   *       by temperature (`(RH - 55) * 0.0005 * clamp((T - 12)/10, 0.25, 2.0)`).
+   * </ul>
+   */
+  public static double weatherFactor(Double tempC, Double humidityPct) {
     if (tempC == null || tempC.isNaN()) {
       return 1.0;
     }
     double hot = Math.max(0, tempC - 15.0) * 0.004;
     double cold = Math.max(0, 5.0 - tempC) * 0.002;
-    return 1.0 + hot + cold;
+    double humid = 0.0;
+    if (humidityPct != null && !humidityPct.isNaN() && tempC > 12.0 && humidityPct > 55.0) {
+      double warmScale = Math.max(0.25, Math.min(2.0, (tempC - 12.0) / 10.0));
+      humid = (humidityPct - 55.0) * 0.0005 * warmScale;
+    }
+    return 1.0 + hot + cold + humid;
   }
 
   public static boolean hasTemperature(Double tempC) {
     return tempC != null && !tempC.isNaN();
   }
 
+  public static boolean hasHumidity(Double humidityPct) {
+    return humidityPct != null && !humidityPct.isNaN();
+  }
+
   /** Grade adjustment, then the temperature factor is divided out. */
   public static double adjustedPace(
       double rawPaceSecPerKm, double netElevationM, double distanceM, Double tempC) {
+    return adjustedPace(rawPaceSecPerKm, netElevationM, distanceM, tempC, null);
+  }
+
+  /** Grade adjustment, then the combined temperature + humidity factor is divided out. */
+  public static double adjustedPace(
+      double rawPaceSecPerKm,
+      double netElevationM,
+      double distanceM,
+      Double tempC,
+      Double humidityPct) {
     double pace = gradeAdjustedPace(rawPaceSecPerKm, netElevationM, distanceM);
-    double factor = temperatureFactor(tempC);
+    double factor = weatherFactor(tempC, humidityPct);
     if (factor <= 0) {
       return pace;
     }

@@ -54,6 +54,14 @@ public class SegmentComparerTest {
     assertTrue(comparisons.isEmpty());
   }
 
+  @Test
+  public void compareSmart_fallsBackWhenFewerThanThreeStrictMatches() {
+    List<Comparison> smart =
+        SegmentComparer.compareSmart(extract(1, 260_000), extract(2, 300_000));
+    assertFalse(smart.isEmpty());
+    assertEquals(3, smart.size());
+  }
+
   private static List<ComparableSegment> extract(long activityId, long thirdKmMs) {
     return ComparableSegmentExtractor.extract(activityId, track(thirdKmMs, 0), ZONES);
   }

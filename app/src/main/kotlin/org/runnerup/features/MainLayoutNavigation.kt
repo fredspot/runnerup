@@ -28,6 +28,8 @@ import androidx.viewpager2.widget.ViewPager2
 import org.runnerup.BuildConfig
 import org.runnerup.R
 import org.runnerup.analytics.AutoComputeRunner
+import org.runnerup.analytics.DailyWeatherStore
+import org.runnerup.analytics.OpenMeteoWeatherClient
 import org.runnerup.analytics.MonthlyComparisonCalculator
 import org.runnerup.common.util.Constants.DB
 import org.runnerup.core.util.BgTasks
@@ -152,6 +154,13 @@ object MainLayoutNavigation {
                 )
                 .show()
           }
+          BgTasks.runNetwork(
+              {
+                val wdb = DBHelper.getWritableDatabase(activity)
+                DailyWeatherStore.syncMissingRunDays(wdb, OpenMeteoWeatherClient(), 25)
+              },
+              { _ -> },
+          )
         },
     )
   }
