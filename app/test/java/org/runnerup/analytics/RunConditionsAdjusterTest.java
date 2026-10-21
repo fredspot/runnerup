@@ -48,6 +48,23 @@ public class RunConditionsAdjusterTest {
   }
 
   @Test
+  public void mexicoHighAltitudeFlatRunAdjustsFasterThanSeaLevel() {
+    // 5:00/km (300 s/km) flat run at 2240 m in Mexico vs sea level (50 m)
+    double seaLevel = RunConditionsAdjuster.adjustedPace(300, 0, 0, 5000, 15.0, 50.0, 50.0);
+    double mexicoAltitude = RunConditionsAdjuster.adjustedPace(300, 0, 0, 5000, 15.0, 50.0, 2240.0);
+    assertEquals(300.0, seaLevel, 0.01);
+    assertTrue("Expected Mexico altitude adjusted pace < 285 s/km, got " + mexicoAltitude, mexicoAltitude < 285.0);
+  }
+
+  @Test
+  public void outAndBackRollingHillsAdjustsPaceEvenWhenNetElevationIsZero() {
+    // 10 km loop with 0 m net elevation but 150 m cumulative climb
+    double flatLoop = RunConditionsAdjuster.adjustedPace(300, 0, 0, 10000, 15.0, 50.0, 50.0);
+    double hillyLoop = RunConditionsAdjuster.adjustedPace(300, 0, 150, 10000, 15.0, 50.0, 50.0);
+    assertTrue(hillyLoop < flatLoop);
+  }
+
+  @Test
   public void dailyWeather24h_matchesHoursAndEncodesRoundTrip() {
     double[] temps = new double[24];
     double[] hums = new double[24];

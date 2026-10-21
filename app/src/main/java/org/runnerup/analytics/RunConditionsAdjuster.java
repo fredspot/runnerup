@@ -1,8 +1,9 @@
 package org.runnerup.analytics;
 
 /**
- * Turns raw pace into a flat, mild-temperature, moderate-humidity equivalent so hills, heat, and
- * humidity do not obscure real aerobic fitness.
+ * Turns raw pace into a flat, sea-level, mild-temperature, moderate-humidity equivalent so hills,
+ * heat, humidity, and high-altitude hypoxia (e.g. running at 2200 m in Mexico) do not obscure real
+ * aerobic fitness.
  */
 public final class RunConditionsAdjuster {
 
@@ -11,6 +12,9 @@ public final class RunConditionsAdjuster {
 
   /** Energy cost of flat running from the Minetti polynomial. */
   public static final double FLAT_COST = 3.6;
+
+  /** Altitude above sea level (m) where aerobic VO2max loss begins to noticeably slow running. */
+  public static final double ALTITUDE_THRESHOLD_M = 300.0;
 
   private RunConditionsAdjuster() {}
 
@@ -41,19 +45,41 @@ public final class RunConditionsAdjuster {
   }
 
   /**
-   * Flat-equivalent pace. Uphill effort comes out faster than the watch pace. {@code rawPace} is
-   * seconds per kilometre.
+   * Flat-equivalent pace considering both net elevation change and cumulative climb/descent on
+   * rolling/out-and-back courses. {@code rawPace} is seconds per kilometre.
    */
   public static double gradeAdjustedPace(
       double rawPaceSecPerKm, double netElevationM, double distanceM) {
-    if (rawPaceSecPerKm <= 0) {
+    return gradeAdjustedPace(rawPaceSecPerKm, netElevationM, 0.0, distanceM);
+  }
+
+  /**
+   * Flat-equivalent pace that accounts for both net grade (`netElevationM / distanceM`) and
+   * out-and-back / rolling climb (`elevationGainM / distanceM`). On a loop or out-and-back where
+   * net elevation is 0 m, climbing and descending still cost extra metabolic energy (~22% per 100 m
+   * climbed per km).
+   */
+  public static double gradeAdjustedPace(
+      double rawPaceSecPerKm,
+      double netElevationM,
+      double elevationGainM,
+      double distanceM) {
+    if (rawPaceSecPerKm <= 0 || distanceM <= 0) {
       return rawPaceSecPerKm;
     }
-    double cost = energyCost(grade(netElevationM, distanceM));
-    if (cost <= 0) {
+    double netCost = energyCost(grade(netElevationM, distanceM));
+    double netFactor = netCost > 0 ? (netCost / FLAT_COST) : 1.0;
+
+    // Out-and-back / rolling hills: climb beyond what net elevation already explains.
+    double unexplainedClimbM = Math.max(0.0, elevationGainM - Math.max(0.0, netElevationM));
+    double rollingGrade = Math.min(0.15, unexplainedClimbM / distanceM);
+    double rollingExtraFactor = 1.0 + rollingGrade * 2.2;
+
+    double totalGradeFactor = netFactor * rollingExtraFactor;
+    if (totalGradeFactor <= 0) {
       return rawPaceSecPerKm;
     }
-    return rawPaceSecPerKm * (FLAT_COST / cost);
+    return rawPaceSecPerKm / totalGradeFactor;
   }
 
   /**
@@ -87,6 +113,25 @@ public final class RunConditionsAdjuster {
     return 1.0 + hot + cold + humid;
   }
 
+  /**
+   * Expected aerobic slowdown from reduced partial pressure of oxygen at altitude above sea level
+   * (Péronnet et al. 1991 / Daniels):
+   *
+   * <ul>
+   *   <li>Below 300 m ASL: no penalty (`1.0`).
+   *   <li>Above 300 m ASL: ~2.6% per 1000 m plus a quadratic term (`0.4% * km^2`), giving ~4.6% at
+   *       1600 m (Denver) and ~6.8% at 2240 m (Mexico City).
+   * </ul>
+   */
+  public static double altitudeFactor(Double avgElevationM) {
+    if (avgElevationM == null || avgElevationM.isNaN() || avgElevationM <= ALTITUDE_THRESHOLD_M) {
+      return 1.0;
+    }
+    double kmAboveThreshold = Math.min(5.0, (avgElevationM - ALTITUDE_THRESHOLD_M) / 1000.0);
+    double penalty = 0.026 * kmAboveThreshold + 0.004 * kmAboveThreshold * kmAboveThreshold;
+    return 1.0 + penalty;
+  }
+
   public static boolean hasTemperature(Double tempC) {
     return tempC != null && !tempC.isNaN();
   }
@@ -95,10 +140,14 @@ public final class RunConditionsAdjuster {
     return humidityPct != null && !humidityPct.isNaN();
   }
 
+  public static boolean hasAltitude(Double avgElevationM) {
+    return avgElevationM != null && !avgElevationM.isNaN();
+  }
+
   /** Grade adjustment, then the temperature factor is divided out. */
   public static double adjustedPace(
       double rawPaceSecPerKm, double netElevationM, double distanceM, Double tempC) {
-    return adjustedPace(rawPaceSecPerKm, netElevationM, distanceM, tempC, null);
+    return adjustedPace(rawPaceSecPerKm, netElevationM, 0.0, distanceM, tempC, null, null);
   }
 
   /** Grade adjustment, then the combined temperature + humidity factor is divided out. */
@@ -108,11 +157,26 @@ public final class RunConditionsAdjuster {
       double distanceM,
       Double tempC,
       Double humidityPct) {
-    double pace = gradeAdjustedPace(rawPaceSecPerKm, netElevationM, distanceM);
-    double factor = weatherFactor(tempC, humidityPct);
-    if (factor <= 0) {
+    return adjustedPace(rawPaceSecPerKm, netElevationM, 0.0, distanceM, tempC, humidityPct, null);
+  }
+
+  /**
+   * Full environmental normalization: grade (net + rolling climb), temperature + humidity, and
+   * altitude above sea level (hypoxia).
+   */
+  public static double adjustedPace(
+      double rawPaceSecPerKm,
+      double netElevationM,
+      double elevationGainM,
+      double distanceM,
+      Double tempC,
+      Double humidityPct,
+      Double avgAltitudeM) {
+    double pace = gradeAdjustedPace(rawPaceSecPerKm, netElevationM, elevationGainM, distanceM);
+    double envFactor = weatherFactor(tempC, humidityPct) * altitudeFactor(avgAltitudeM);
+    if (envFactor <= 0) {
       return pace;
     }
-    return pace / factor;
+    return pace / envFactor;
   }
 }

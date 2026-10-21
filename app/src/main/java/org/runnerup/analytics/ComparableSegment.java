@@ -10,6 +10,7 @@ public final class ComparableSegment {
   public final double adjustedPaceSecPerKm;
   public final int avgHr;
   public final double netElevationM;
+  public final Double avgElevationM;
   public final Double avgTempC;
   public final Double avgHumidityPct;
   /** Zone of the immediately previous kilometre. 0 when this is the first kilometre. */
@@ -34,6 +35,7 @@ public final class ComparableSegment {
         adjustedPaceSecPerKm,
         avgHr,
         netElevationM,
+        null,
         avgTempC,
         null,
         prevZoneNear,
@@ -51,12 +53,39 @@ public final class ComparableSegment {
       Double avgHumidityPct,
       int prevZoneNear,
       int prevZoneFar) {
+    this(
+        activityId,
+        windowIndex,
+        paceSecPerKm,
+        adjustedPaceSecPerKm,
+        avgHr,
+        netElevationM,
+        null,
+        avgTempC,
+        avgHumidityPct,
+        prevZoneNear,
+        prevZoneFar);
+  }
+
+  public ComparableSegment(
+      long activityId,
+      int windowIndex,
+      double paceSecPerKm,
+      double adjustedPaceSecPerKm,
+      int avgHr,
+      double netElevationM,
+      Double avgElevationM,
+      Double avgTempC,
+      Double avgHumidityPct,
+      int prevZoneNear,
+      int prevZoneFar) {
     this.activityId = activityId;
     this.windowIndex = windowIndex;
     this.paceSecPerKm = paceSecPerKm;
     this.adjustedPaceSecPerKm = adjustedPaceSecPerKm;
     this.avgHr = avgHr;
     this.netElevationM = netElevationM;
+    this.avgElevationM = avgElevationM;
     this.avgTempC = avgTempC;
     this.avgHumidityPct = avgHumidityPct;
     this.prevZoneNear = prevZoneNear;

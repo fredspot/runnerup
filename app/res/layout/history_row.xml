@@ -145,6 +145,18 @@
                 android:textAppearance="@style/ListDescription" />
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/history_list_conditions"
+            style="@style/RunnerUpCard.Content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="@color/colorTextSecondary"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

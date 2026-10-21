@@ -169,7 +169,7 @@ public final class ComparableSegmentLoader {
     return out;
   }
 
-  private static RunConditions loadOne(SQLiteDatabase db, long activityId) {
+  public static RunConditions loadOne(SQLiteDatabase db, long activityId) {
     double gain = 0;
     long startTimeSec = 0L;
     long durationSec = 0L;
@@ -196,14 +196,18 @@ public final class ComparableSegmentLoader {
     List<Sample> samples = loadSamples(db, activityId);
     Double firstElev = null;
     Double lastElev = null;
+    double elevSum = 0;
+    int elevCount = 0;
     double tempSum = 0;
     int tempCount = 0;
     for (Sample sample : samples) {
-      if (sample.elevationM != null) {
+      if (sample.elevationM != null && !sample.elevationM.isNaN()) {
         if (firstElev == null) {
           firstElev = sample.elevationM;
         }
         lastElev = sample.elevationM;
+        elevSum += sample.elevationM;
+        elevCount++;
       }
       if (sample.temperatureC != null && !sample.temperatureC.isNaN()) {
         tempSum += sample.temperatureC;
@@ -213,6 +217,10 @@ public final class ComparableSegmentLoader {
     double net = 0;
     if (firstElev != null && lastElev != null) {
       net = lastElev - firstElev;
+    }
+    Double avgElev = elevCount > 0 ? elevSum / elevCount : null;
+    if (avgElev == null) {
+      avgElev = queryMeanAltitudeFallback(db, activityId);
     }
     Double avgTemp = tempCount > 0 ? tempSum / tempCount : null;
     Double avgHumidity = null;
@@ -224,6 +232,30 @@ public final class ComparableSegmentLoader {
       }
       avgHumidity = match.humidityPct;
     }
-    return new RunConditions(gain, net, avgTemp, avgHumidity);
+    return new RunConditions(gain, net, avgElev, avgTemp, avgHumidity);
+  }
+
+  private static Double queryMeanAltitudeFallback(SQLiteDatabase db, long activityId) {
+    String sql =
+        "SELECT AVG(COALESCE("
+            + DB.LOCATION.TOPO_ALTITUDE
+            + ", "
+            + DB.LOCATION.ALTITUDE
+            + ")) FROM "
+            + DB.LOCATION.TABLE
+            + " WHERE "
+            + DB.LOCATION.ACTIVITY
+            + " = ? AND ("
+            + DB.LOCATION.TOPO_ALTITUDE
+            + " IS NOT NULL OR "
+            + DB.LOCATION.ALTITUDE
+            + " IS NOT NULL)";
+    try (Cursor c = db.rawQuery(sql, new String[] {String.valueOf(activityId)})) {
+      if (c.moveToFirst() && !c.isNull(0)) {
+        return c.getDouble(0);
+      }
+    } catch (Exception ignored) {
+    }
+    return null;
   }
 }

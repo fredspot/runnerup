@@ -164,6 +164,8 @@
   <string name="compare_engine_no_hr">This run has no heart-rate data.</string>
   <string name="compare_engine_this_bpm">%1$d bpm</string>
   <string name="compare_elevation_gain">Elevation gain</string>
+  <string name="compare_avg_elevation">Avg elevation</string>
+  <string name="header_avg_elevation">Avg elev %1$s</string>
   <string name="compare_temperature">Temperature</string>
   <string name="compare_humidity">Humidity</string>
   <string name="compare_adjusted_pace">Adjusted pace</string>

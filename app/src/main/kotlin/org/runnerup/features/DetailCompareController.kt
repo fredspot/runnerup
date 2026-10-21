@@ -137,18 +137,19 @@ internal class DetailCompareController {
               } else {
                 emptyList()
               }
-          val allSimilar = SimilarRunMatcher.findBestComparable(currentRow, allRunning)
+          val candidateIds = ArrayList<Long>(allRunning.size + 1)
+          candidateIds.add(id)
+          for (row in allRunning) {
+            candidateIds.add(row.activityId)
+          }
+          val loadedConditions = ComparableSegmentLoader.loadConditions(database, candidateIds)
+          val allSimilar =
+              SimilarRunMatcher.findBestComparable(currentRow, allRunning, loadedConditions)
           val ranked = SimilarRunMatcher.cap(allSimilar, SimilarRunMatcher.MAX_RESULTS)
           val segments = ComparableSegmentLoader.loadRunning(database, zoneBounds)
           val currentSegments = segments.filter { it.activityId == id }
           val historical = segments.filter { it.activityId != id }
           val comparisons = SegmentComparer.compareSmart(currentSegments, historical)
-          val conditionIds = ArrayList<Long>()
-          conditionIds.add(id)
-          for (row in allSimilar) {
-            conditionIds.add(row.activityId)
-          }
-          val loadedConditions = ComparableSegmentLoader.loadConditions(database, conditionIds)
           CompareLoad(currentRow, ranked, allSimilar, comparisons, loadedConditions)
         },
         { result ->
@@ -265,7 +266,7 @@ internal class DetailCompareController {
   }
 
   private fun bindEngine(act: DetailActivity, thisRun: ActivityRow) {
-    val snap = RunEngineStats.compute(thisRun, similarForStats)
+    val snap = RunEngineStats.compute(thisRun, similarForStats, conditions)
     val bpmView = act.findViewById<TextView>(R.id.compare_engine_this_bpm)
     val hint = act.findViewById<TextView>(R.id.compare_engine_hint)
     val columns = act.findViewById<View>(R.id.compare_engine_columns)
@@ -402,6 +403,10 @@ internal class DetailCompareController {
         formatElevation(fmt, thisConditions.elevationGainM)
     act.findViewById<TextView>(R.id.compare_other_elevation).text =
         otherConditions?.let { formatElevation(fmt, it.elevationGainM) } ?: "--"
+    act.findViewById<TextView>(R.id.compare_this_avg_elevation)?.text =
+        formatAvgElevation(fmt, thisConditions.avgElevationM)
+    act.findViewById<TextView>(R.id.compare_other_avg_elevation)?.text =
+        otherConditions?.let { formatAvgElevation(fmt, it.avgElevationM) } ?: "--"
     act.findViewById<TextView>(R.id.compare_this_temperature).text =
         formatTemperature(act, thisConditions.avgTempC)
     act.findViewById<TextView>(R.id.compare_other_temperature).text =
@@ -528,6 +533,12 @@ internal class DetailCompareController {
         } else {
           ""
         }
+    val alt =
+        if (RunConditionsAdjuster.hasAltitude(segment.avgElevationM)) {
+          " · @${fmt.formatElevation(Formatter.Format.TXT_SHORT, segment.avgElevationM!!)}"
+        } else {
+          ""
+        }
     val weather =
         when {
           RunConditionsAdjuster.hasTemperature(segment.avgTempC) &&
@@ -537,7 +548,7 @@ internal class DetailCompareController {
               " · ${kotlin.math.round(segment.avgTempC!!).toInt()}°C"
           else -> " · " + act.getString(R.string.compare_temperature_unavailable)
         }
-    return "$km · $elev · $context · $pace$hr$weather"
+    return "$km · $elev · $context · $pace$hr$alt$weather"
   }
 
   private fun refreshGraph() {
@@ -626,7 +637,7 @@ internal class DetailCompareController {
     graph.title = activity?.getString(R.string.compare_mode_bpm_pace)
     graph.gridLabelRenderer.verticalAxisTitle = "bpm"
     graph.gridLabelRenderer.horizontalAxisTitle =
-        activity?.getString(R.string.avg_pace)
+        activity?.getString(R.string.compare_adjusted_pace)
     graph.gridLabelRenderer.setLabelFormatter(
         object : DefaultLabelFormatter() {
           override fun formatLabel(value: Double, isValueX: Boolean): String {
@@ -638,16 +649,21 @@ internal class DetailCompareController {
           }
         },
     )
+    fun plotPace(row: ActivityRow): Double {
+      val cond = conditions[row.activityId]
+      val adj = cond?.adjustedPaceSecPerKm(row.totalDistance, row.totalTime) ?: 0.0
+      return if (adj > 0) adj else SimilarRunMatcher.paceSecPerKm(row.totalDistance, row.totalTime)
+    }
     val withHr =
         similarRows
             .filter { it.avgHr > 0 }
-            .sortedBy { SimilarRunMatcher.paceSecPerKm(it.totalDistance, it.totalTime) }
+            .sortedBy { plotPace(it) }
     if (withHr.isNotEmpty()) {
       val points =
           withHr
               .map {
                 DataPoint(
-                    SimilarRunMatcher.paceSecPerKm(it.totalDistance, it.totalTime),
+                    plotPace(it),
                     it.avgHr.toDouble(),
                 )
               }
@@ -658,7 +674,7 @@ internal class DetailCompareController {
       graph.addSeries(similarSeries)
     }
     if (currentRow.avgHr > 0) {
-      val pace = SimilarRunMatcher.paceSecPerKm(currentRow.totalDistance, currentRow.totalTime)
+      val pace = plotPace(currentRow)
       val currentSeries =
           PointsGraphSeries(arrayOf(DataPoint(pace, currentRow.avgHr.toDouble())))
       currentSeries.color = Color.parseColor("#53B1FC")
@@ -714,6 +730,13 @@ internal class DetailCompareController {
       return "--"
     }
     return fmt.formatElevation(Formatter.Format.TXT_SHORT, meters)
+  }
+
+  private fun formatAvgElevation(fmt: Formatter, meters: Double?): String {
+    if (!RunConditionsAdjuster.hasAltitude(meters)) {
+      return "--"
+    }
+    return fmt.formatElevation(Formatter.Format.TXT_SHORT, meters!!)
   }
 
   private fun formatTemperature(act: DetailActivity, tempC: Double?): String {

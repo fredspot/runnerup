@@ -73,6 +73,23 @@ public class SimilarRunMatcherTest {
     assertEquals(2, comparable.get(0).activityId);
   }
 
+  @Test
+  public void findBestComparable_matchesMexicoHighAltitudeRunToSeaLevelRunViaAdjustedPace() {
+    // Current run in Mexico (2240 m, 26°C, 70% RH): 10 km in 54:00 (324 s/km raw, ~290 s/km adjusted)
+    ActivityRow mexicoRun = row(1, 10000, 3240, 152);
+    // Past cool sea-level run: 10 km in 48:20 (290 s/km raw & adjusted) — raw pace is >10% faster,
+    // so raw matching would reject it, but smart conditions-adjusted matching recognizes it as the
+    // exact same aerobic effort.
+    ActivityRow seaLevelRun = row(2, 10000, 2900, 152);
+    assertFalse(SimilarRunMatcher.isSimilar(10000, 3240, 10000, 2900));
+
+    java.util.Map<Long, RunConditions> conds = new java.util.HashMap<>();
+    conds.put(1L, new RunConditions(20, 0, 2240.0, 26.0, 70.0));
+    conds.put(2L, new RunConditions(20, 0, 40.0, 14.0, 50.0));
+
+    assertTrue(SimilarRunMatcher.isWithinSmartTolerance(mexicoRun, seaLevelRun, conds, 0.12, 0.10));
+  }
+
   private static ActivityRow row(long id, double distance, long time, int hr) {
     return new ActivityRow(id, 0, distance, time, hr, hr + 10);
   }

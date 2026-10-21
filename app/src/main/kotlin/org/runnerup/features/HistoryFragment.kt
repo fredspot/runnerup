@@ -40,6 +40,9 @@ import androidx.recyclerview.widget.RecyclerView
 import java.util.Calendar
 import java.util.Date
 import org.runnerup.R
+import org.runnerup.analytics.DailyWeather24h
+import org.runnerup.analytics.DailyWeatherStore
+import org.runnerup.analytics.RunConditionsAdjuster
 import org.runnerup.common.util.Constants.DB
 import org.runnerup.core.util.ActivitySummaryBinder
 import org.runnerup.core.util.BgTasks
@@ -122,14 +125,96 @@ class HistoryFragment : Fragment(R.layout.history) {
 
   private fun reloadList() {
     val database = db ?: return
+    val fmt = formatter ?: return
     val gen = ++loadGeneration
     BgTasks.runDb(
-        { queryActivities(database) },
-        { activities ->
+        {
+          val activities = queryActivities(database)
+          val condLines = queryConditionsById(database, activities, fmt)
+          Pair(activities, condLines)
+        },
+        { pair ->
           if (!isAdded || gen != loadGeneration) return@runDb
-          adapter?.submit(buildDisplayRows(activities))
+          adapter?.submit(buildDisplayRows(pair.first, pair.second))
         },
     )
+  }
+
+  private fun queryConditionsById(
+      database: SQLiteDatabase,
+      activities: List<ActivityEntity>,
+      fmt: Formatter,
+  ): Map<Long, String> {
+    if (activities.isEmpty()) return emptyMap()
+    val avgElevById = HashMap<Long, Double>()
+    val sensorTempById = HashMap<Long, Double>()
+    val gainById = HashMap<Long, Double>()
+    try {
+      database
+          .rawQuery(
+              "SELECT ${DB.PRIMARY_KEY}, ${DB.ACTIVITY.ELEVATION_GAIN} FROM ${DB.ACTIVITY.TABLE} WHERE ${DB.ACTIVITY.DELETED} = 0",
+              null,
+          )
+          .use { c ->
+            while (c.moveToNext()) {
+              if (!c.isNull(1)) gainById[c.getLong(0)] = c.getDouble(1)
+            }
+          }
+      database
+          .rawQuery(
+              "SELECT ${DB.LOCATION.ACTIVITY}, AVG(COALESCE(${DB.LOCATION.TOPO_ALTITUDE}, ${DB.LOCATION.ALTITUDE})), AVG(${DB.LOCATION.TEMPERATURE}) FROM ${DB.LOCATION.TABLE} GROUP BY ${DB.LOCATION.ACTIVITY}",
+              null,
+          )
+          .use { c ->
+            while (c.moveToNext()) {
+              val id = c.getLong(0)
+              if (!c.isNull(1)) avgElevById[id] = c.getDouble(1)
+              if (!c.isNull(2)) sensorTempById[id] = c.getDouble(2)
+            }
+          }
+    } catch (_: Exception) {
+    }
+    val out = HashMap<Long, String>(activities.size)
+    for (ae in activities) {
+      val id = ae.id ?: continue
+      val startSec = ae.startTime ?: 0L
+      val durSec = (ae.time ?: 0L).toDouble()
+      var temp: Double? = sensorTempById[id]
+      var hum: Double? = null
+      if (startSec > 0L) {
+        val dayWeather: DailyWeather24h? = DailyWeatherStore.getForActivity(database, id, startSec)
+        if (dayWeather != null) {
+          val match = dayWeather.matchWindow(startSec, durSec)
+          if (temp == null) temp = match.temperatureC
+          hum = match.humidityPct
+        }
+      }
+      val parts = ArrayList<String>(3)
+      if (RunConditionsAdjuster.hasTemperature(temp)) {
+        val tStr = "${kotlin.math.round(temp!!).toInt()}°C"
+        val hStr =
+            if (RunConditionsAdjuster.hasHumidity(hum)) {
+              " · ${kotlin.math.round(hum!!).toInt()}% RH"
+            } else {
+              ""
+            }
+        parts.add("$tStr$hStr")
+      }
+      val avgElev = avgElevById[id]
+      if (RunConditionsAdjuster.hasAltitude(avgElev)) {
+        parts.add(
+            "Avg elev ${fmt.formatElevation(Formatter.Format.TXT_SHORT, avgElev!!)}",
+        )
+      }
+      val gain = gainById[id]
+      if (gain != null && gain > 0.5) {
+        parts.add("+${fmt.formatElevation(Formatter.Format.TXT_SHORT, gain)}")
+      }
+      if (parts.isNotEmpty()) {
+        out[id] = parts.joinToString("  ·  ")
+      }
+    }
+    return out
   }
 
   private fun queryActivities(database: SQLiteDatabase): List<ActivityEntity> {
@@ -173,7 +258,10 @@ class HistoryFragment : Fragment(R.layout.history) {
     return result
   }
 
-  private fun buildDisplayRows(activities: List<ActivityEntity>): List<HistoryRow> {
+  private fun buildDisplayRows(
+      activities: List<ActivityEntity>,
+      condLines: Map<Long, String>,
+  ): List<HistoryRow> {
     val fmt = formatter ?: return emptyList()
     val rows = ArrayList<HistoryRow>(activities.size)
     var prevYear = -1
@@ -186,7 +274,7 @@ class HistoryFragment : Fragment(R.layout.history) {
       val month = cal.get(Calendar.MONTH)
       val showHeader = year != prevYear || month != prevMonth
       val headerText = if (showHeader) fmt.formatMonth(cal.time) else null
-      rows.add(HistoryRow(entity, showHeader, headerText))
+      rows.add(HistoryRow(entity, showHeader, headerText, condLines[entity.id]))
       prevYear = year
       prevMonth = month
     }
@@ -277,6 +365,7 @@ class HistoryFragment : Fragment(R.layout.history) {
       val entity: ActivityEntity,
       val showMonthHeader: Boolean,
       val monthHeaderText: String?,
+      val conditionsLine: String? = null,
   )
 
   private class HistoryItemSpacingDecoration(private val spacingPx: Int) :
@@ -332,6 +421,7 @@ class HistoryFragment : Fragment(R.layout.history) {
       private val paceText: TextView = itemView.findViewById(R.id.history_list_pace)
       private val emblem: ImageView = itemView.findViewById(R.id.history_list_emblem)
       private val additionalInfo: TextView = itemView.findViewById(R.id.history_list_additional)
+      private val conditionsText: TextView? = itemView.findViewById(R.id.history_list_conditions)
       private var activityId: Long? = null
 
       init {
@@ -387,6 +477,13 @@ class HistoryFragment : Fragment(R.layout.history) {
           durationText.text =
               if (dur != null) fmt.formatElapsedTime(Formatter.Format.TXT_SHORT, dur) else ""
           paceText.text = ""
+        }
+
+        if (row.conditionsLine.isNullOrBlank()) {
+          conditionsText?.visibility = View.GONE
+        } else {
+          conditionsText?.visibility = View.VISIBLE
+          conditionsText?.text = row.conditionsLine
         }
       }
     }

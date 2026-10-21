@@ -395,6 +395,31 @@
               android:layout_width="0dp"
               android:layout_height="wrap_content"
               android:layout_weight="1"
+              android:text="@string/compare_avg_elevation"
+              android:textColor="@color/colorText" />
+          <TextView
+              android:id="@+id/compare_this_avg_elevation"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorAccent" />
+          <TextView
+              android:id="@+id/compare_other_avg_elevation"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorText" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
               android:text="@string/compare_temperature"
               android:textColor="@color/colorText" />
           <TextView

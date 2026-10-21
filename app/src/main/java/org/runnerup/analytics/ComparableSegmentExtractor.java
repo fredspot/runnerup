@@ -6,7 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import org.runnerup.data.RunningPaceBounds;
 
-/** Splits a track into 1 km windows with pace, elevation, weather, and prior HR zones. */
+/** Splits a track into 1 km windows with pace, elevation, altitude, weather, and prior HR zones. */
 public final class ComparableSegmentExtractor {
 
   public static final double WINDOW_METERS = 1000;
@@ -100,6 +100,7 @@ public final class ComparableSegmentExtractor {
       if (elevStart != null && elevEnd != null) {
         net = elevEnd - elevStart;
       }
+      Double avgElev = averageElevation(points, start, end, elevStart, elevEnd);
       int avgHr = averageHr(points, start, end);
       Double avgTemp = averageTemp(points, start, end);
       Double avgHumidity = null;
@@ -112,7 +113,8 @@ public final class ComparableSegmentExtractor {
         avgHumidity = match.humidityPct;
       }
       double adjusted =
-          RunConditionsAdjuster.adjustedPace(pace, net, WINDOW_METERS, avgTemp, avgHumidity);
+          RunConditionsAdjuster.adjustedPace(
+              pace, net, Math.max(0.0, net), WINDOW_METERS, avgTemp, avgHumidity, avgElev);
       built.add(
           new Window(
               i,
@@ -121,6 +123,7 @@ public final class ComparableSegmentExtractor {
               avgHr,
               zoneForHr(avgHr, zoneBounds),
               net,
+              avgElev,
               avgTemp,
               avgHumidity));
     }
@@ -143,6 +146,7 @@ public final class ComparableSegmentExtractor {
               window.adjustedPaceSecPerKm,
               window.avgHr,
               window.netElevationM,
+              window.avgElevationM,
               window.avgTempC,
               window.avgHumidityPct,
               prevNear,
@@ -233,6 +237,29 @@ public final class ComparableSegmentExtractor {
     return (int) Math.round(sum / (double) count);
   }
 
+  private static Double averageElevation(
+      List<Sample> points, double start, double end, Double elevStart, Double elevEnd) {
+    double sum = 0;
+    int count = 0;
+    for (Sample point : points) {
+      if (point.distanceM <= start || point.distanceM > end || point.elevationM == null) {
+        continue;
+      }
+      if (point.elevationM.isNaN()) {
+        continue;
+      }
+      sum += point.elevationM;
+      count++;
+    }
+    if (count > 0) {
+      return sum / count;
+    }
+    if (elevStart != null && elevEnd != null) {
+      return 0.5 * (elevStart + elevEnd);
+    }
+    return null;
+  }
+
   private static Double averageTemp(List<Sample> points, double start, double end) {
     double sum = 0;
     int count = 0;
@@ -259,6 +286,7 @@ public final class ComparableSegmentExtractor {
     final int avgHr;
     final int zone;
     final double netElevationM;
+    final Double avgElevationM;
     final Double avgTempC;
     final Double avgHumidityPct;
 
@@ -269,6 +297,7 @@ public final class ComparableSegmentExtractor {
         int avgHr,
         int zone,
         double netElevationM,
+        Double avgElevationM,
         Double avgTempC,
         Double avgHumidityPct) {
       this.index = index;
@@ -277,6 +306,7 @@ public final class ComparableSegmentExtractor {
       this.avgHr = avgHr;
       this.zone = zone;
       this.netElevationM = netElevationM;
+      this.avgElevationM = avgElevationM;
       this.avgTempC = avgTempC;
       this.avgHumidityPct = avgHumidityPct;
     }

@@ -4,11 +4,16 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.runnerup.data.RunningActivityReader.ActivityRow;
 
 /**
- * Interpretable heart-performance numbers versus similar distance/pace runs. Lower average HR at
- * the same effort is treated as a stronger aerobic engine.
+ * Interpretable heart-performance numbers versus comparable runs.
+ *
+ * <p>When environmental conditions (`RunConditions`: grade, temperature, humidity, and altitude
+ * above sea level) are available, each peer run's heart rate is normalized to the current run's
+ * conditions-adjusted pace using cardiac cost (`beats per adjusted km`), so a slower raw pace in
+ * Mexico altitude or summer heat is evaluated fairly against a cool sea-level run.
  */
 public final class RunEngineStats {
 
@@ -51,19 +56,28 @@ public final class RunEngineStats {
   private RunEngineStats() {}
 
   public static Snapshot compute(ActivityRow current, List<ActivityRow> similar) {
+    return compute(current, similar, null);
+  }
+
+  public static Snapshot compute(
+      ActivityRow current,
+      List<ActivityRow> similar,
+      Map<Long, RunConditions> conditions) {
     if (current == null || current.avgHr <= 0 || similar == null) {
       return empty();
     }
     int year = yearFromEpochSeconds(current.startTime);
+    double curAdjPace = adjustedPace(current, conditions);
     List<Integer> allHr = new ArrayList<>();
     List<Integer> yearHr = new ArrayList<>();
     for (ActivityRow row : similar) {
       if (row == null || row.avgHr <= 0 || row.activityId == current.activityId) {
         continue;
       }
-      allHr.add(row.avgHr);
+      int eqHr = equivalentHrAtCurrentEffort(row, curAdjPace, conditions);
+      allHr.add(eqHr);
       if (yearFromEpochSeconds(row.startTime) == year) {
-        yearHr.add(row.avgHr);
+        yearHr.add(eqHr);
       }
     }
     Integer meanAll = mean(allHr);
@@ -77,6 +91,31 @@ public final class RunEngineStats {
         meanYear,
         meanAll == null ? null : current.avgHr - meanAll,
         meanYear == null ? null : current.avgHr - meanYear);
+  }
+
+  /**
+   * Projects a peer run's average HR to the current run's conditions-adjusted speed (`curAdjPace`)
+   * via cardiac cost (`HR * adjPace`), clamped to ±15% so extreme pace gaps don't distort BPM.
+   * When conditions are not provided, returns {@code peer.avgHr} unchanged.
+   */
+  private static int equivalentHrAtCurrentEffort(
+      ActivityRow peer, double curAdjPace, Map<Long, RunConditions> conditions) {
+    if (conditions == null || curAdjPace <= 0) {
+      return peer.avgHr;
+    }
+    double peerAdjPace = adjustedPace(peer, conditions);
+    if (peerAdjPace <= 0) {
+      return peer.avgHr;
+    }
+    double speedRatio = Math.max(0.85, Math.min(1.15, peerAdjPace / curAdjPace));
+    return (int) Math.round(peer.avgHr * speedRatio);
+  }
+
+  private static double adjustedPace(ActivityRow row, Map<Long, RunConditions> conditions) {
+    if (conditions != null && conditions.containsKey(row.activityId)) {
+      return conditions.get(row.activityId).adjustedPaceSecPerKm(row.totalDistance, row.totalTime);
+    }
+    return SimilarRunMatcher.paceSecPerKm(row.totalDistance, row.totalTime);
   }
 
   /** Share of peers with a higher (worse) HR, 0–100. Null when the sample is too small. */

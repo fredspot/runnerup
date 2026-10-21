@@ -3,9 +3,10 @@ package org.runnerup.analytics;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.runnerup.data.RunningActivityReader.ActivityRow;
 
-/** Matches activities with similar distance and pace for run-to-run comparison. */
+/** Matches activities with similar distance and pace (raw or conditions-adjusted) for comparison. */
 public final class SimilarRunMatcher {
 
   public static final double DISTANCE_TOLERANCE = 0.10;
@@ -58,6 +59,53 @@ public final class SimilarRunMatcher {
     return Math.abs(currentPace - otherPace) / currentPace <= paceTol;
   }
 
+  /**
+   * True when distance is within {@code distTol} and EITHER raw pace OR conditions-adjusted pace
+   * (weather + humidity + hills + altitude) is within {@code paceTol}. This allows a run in
+   * 30°C/80% humidity or at 2200 m altitude in Mexico to match the same aerobic effort at sea
+   * level.
+   */
+  public static boolean isWithinSmartTolerance(
+      ActivityRow current,
+      ActivityRow other,
+      Map<Long, RunConditions> conditions,
+      double distTol,
+      double paceTol) {
+    if (current == null
+        || other == null
+        || current.totalDistance <= 0
+        || other.totalDistance <= 0
+        || current.totalTime <= 0
+        || other.totalTime <= 0) {
+      return false;
+    }
+    double distErr = Math.abs(current.totalDistance - other.totalDistance) / current.totalDistance;
+    if (distErr > distTol) {
+      return false;
+    }
+    double curRaw = paceSecPerKm(current.totalDistance, current.totalTime);
+    double othRaw = paceSecPerKm(other.totalDistance, other.totalTime);
+    if (curRaw <= 0 || othRaw <= 0) {
+      return false;
+    }
+    if (Math.abs(curRaw - othRaw) / curRaw <= paceTol) {
+      return true;
+    }
+    double curAdj = adjustedPaceFor(current, conditions);
+    double othAdj = adjustedPaceFor(other, conditions);
+    if (curAdj > 0 && othAdj > 0 && Math.abs(curAdj - othAdj) / curAdj <= paceTol) {
+      return true;
+    }
+    return false;
+  }
+
+  private static double adjustedPaceFor(ActivityRow row, Map<Long, RunConditions> conditions) {
+    if (conditions != null && conditions.containsKey(row.activityId)) {
+      return conditions.get(row.activityId).adjustedPaceSecPerKm(row.totalDistance, row.totalTime);
+    }
+    return paceSecPerKm(row.totalDistance, row.totalTime);
+  }
+
   /** Combined relative error within strict 10% tolerances; lower is a closer match. */
   public static double similarityScore(
       double currentDistanceM,
@@ -89,6 +137,36 @@ public final class SimilarRunMatcher {
     return distErr + paceErr;
   }
 
+  /**
+   * Smart distance + effort error that uses the better of raw-pace closeness and
+   * conditions-adjusted-pace closeness (plus a small HR-zone closeness tiebreaker when HR is
+   * available).
+   */
+  public static double smartClosenessScore(
+      ActivityRow current, ActivityRow other, Map<Long, RunConditions> conditions) {
+    if (current == null || other == null) {
+      return Double.POSITIVE_INFINITY;
+    }
+    double rawErr =
+        rawDistanceAndPaceError(
+            current.totalDistance, current.totalTime, other.totalDistance, other.totalTime);
+    if (Double.isInfinite(rawErr)) {
+      return rawErr;
+    }
+    double distErr = Math.abs(current.totalDistance - other.totalDistance) / current.totalDistance;
+    double curAdj = adjustedPaceFor(current, conditions);
+    double othAdj = adjustedPaceFor(other, conditions);
+    double adjPaceErr =
+        (curAdj > 0 && othAdj > 0) ? Math.abs(curAdj - othAdj) / curAdj : Double.POSITIVE_INFINITY;
+    double rawPaceErr = rawErr - distErr;
+    double bestPaceErr = Math.min(rawPaceErr, adjPaceErr);
+    double hrBonus = 0.0;
+    if (current.avgHr > 0 && other.avgHr > 0) {
+      hrBonus = 0.15 * (Math.abs(current.avgHr - other.avgHr) / (double) current.avgHr);
+    }
+    return distErr + bestPaceErr + hrBonus;
+  }
+
   public static List<ActivityRow> findSimilar(ActivityRow current, List<ActivityRow> candidates) {
     if (current == null || candidates == null || candidates.isEmpty()) {
       return Collections.emptyList();
@@ -105,39 +183,47 @@ public final class SimilarRunMatcher {
     return matched;
   }
 
+  public static List<ActivityRow> findBestComparable(
+      ActivityRow current, List<ActivityRow> allCandidates) {
+    return findBestComparable(current, allCandidates, null);
+  }
+
   /**
-   * Smart tiered matching so the Compare tab is never empty when past runs exist:
+   * Smart tiered matching using both raw and conditions-adjusted pace (heat, humidity, hills, and
+   * altitude above sea level):
    *
    * <ol>
-   *   <li>Strict: ±10% distance and ±10% pace.
-   *   <li>Broadened: ±25% distance and ±20% pace.
-   *   <li>Closest overall: top {@link #MAX_RESULTS} runs sorted by combined distance + pace error.
+   *   <li>Strict: ±12% distance and ±10% pace (raw or conditions-adjusted).
+   *   <li>Broadened: ±25% distance and ±20% pace (raw or conditions-adjusted).
+   *   <li>Closest overall: top {@link #MAX_RESULTS} runs sorted by {@link #smartClosenessScore}.
    * </ol>
    */
   public static List<ActivityRow> findBestComparable(
-      ActivityRow current, List<ActivityRow> allCandidates) {
+      ActivityRow current,
+      List<ActivityRow> allCandidates,
+      Map<Long, RunConditions> conditions) {
     if (current == null || allCandidates == null || allCandidates.isEmpty()) {
       return Collections.emptyList();
     }
-    List<ActivityRow> strict = findSimilar(current, allCandidates);
+    List<ActivityRow> strict = new ArrayList<>();
+    for (ActivityRow row : allCandidates) {
+      if (row == null || row.activityId == current.activityId) continue;
+      if (isWithinSmartTolerance(current, row, conditions, 0.12, 0.10)) {
+        strict.add(row);
+      }
+    }
     if (!strict.isEmpty()) {
-      return sortByCloseness(current, strict);
+      return sortBySmartCloseness(current, strict, conditions);
     }
     List<ActivityRow> broadened = new ArrayList<>();
     for (ActivityRow row : allCandidates) {
       if (row == null || row.activityId == current.activityId) continue;
-      if (isWithinTolerance(
-          current.totalDistance,
-          current.totalTime,
-          row.totalDistance,
-          row.totalTime,
-          0.25,
-          0.20)) {
+      if (isWithinSmartTolerance(current, row, conditions, 0.25, 0.20)) {
         broadened.add(row);
       }
     }
     if (!broadened.isEmpty()) {
-      return sortByCloseness(current, broadened);
+      return sortBySmartCloseness(current, broadened, conditions);
     }
     List<ActivityRow> pool = new ArrayList<>();
     for (ActivityRow row : allCandidates) {
@@ -146,11 +232,18 @@ public final class SimilarRunMatcher {
         pool.add(row);
       }
     }
-    return cap(sortByCloseness(current, pool), MAX_RESULTS);
+    return cap(sortBySmartCloseness(current, pool, conditions), MAX_RESULTS);
   }
 
   public static List<ActivityRow> sortByCloseness(
       ActivityRow current, List<ActivityRow> matches) {
+    return sortBySmartCloseness(current, matches, null);
+  }
+
+  public static List<ActivityRow> sortBySmartCloseness(
+      ActivityRow current,
+      List<ActivityRow> matches,
+      Map<Long, RunConditions> conditions) {
     if (current == null || matches == null || matches.isEmpty()) {
       return Collections.emptyList();
     }
@@ -159,10 +252,8 @@ public final class SimilarRunMatcher {
         sorted,
         (a, b) ->
             Double.compare(
-                rawDistanceAndPaceError(
-                    current.totalDistance, current.totalTime, a.totalDistance, a.totalTime),
-                rawDistanceAndPaceError(
-                    current.totalDistance, current.totalTime, b.totalDistance, b.totalTime)));
+                smartClosenessScore(current, a, conditions),
+                smartClosenessScore(current, b, conditions)));
     return sorted;
   }
 
