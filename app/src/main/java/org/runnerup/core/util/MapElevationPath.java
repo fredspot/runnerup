@@ -62,7 +62,7 @@ public final class MapElevationPath {
         || lat.length != elevM.length) {
       return out;
     }
-    int[] idx = TopographyInterpolator.downsampleIndices(lat.length, maxPoints);
+      int[] idx = TopographyInterpolator.downsampleIndices(lat.length, maxPoints);
     double[] xs = new double[idx.length];
     double[] ys = new double[idx.length];
     double[] zs = new double[idx.length];
@@ -72,6 +72,9 @@ public final class MapElevationPath {
       zs[i] = elevM[idx[i]];
     }
     fillGaps(zs);
+    if (zs.length > 5) {
+      zs = org.runnerup.tracking.elevation.ElevationSmoother.smooth(null, zs);
+    }
     double min = Double.POSITIVE_INFINITY;
     double max = Double.NEGATIVE_INFINITY;
     for (double z : zs) {

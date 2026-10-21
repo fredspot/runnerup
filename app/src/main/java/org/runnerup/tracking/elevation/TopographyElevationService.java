@@ -80,21 +80,61 @@ public final class TopographyElevationService {
     }
 
     double[] gps = gpsAltitudes(points);
+    double[] dist = trackDistances(points);
     boolean gpsOk = hasFinite(gps);
     boolean barometer = hasBarometer(db, activityId);
     double[] series;
     if (barometer && gpsOk) {
-      series = gps;
+      series = ElevationSmoother.smooth(dist, gps);
     } else if (topo != null) {
       series = topo;
     } else if (gpsOk) {
-      series = gps;
+      series = ElevationSmoother.smooth(dist, gps);
     } else {
       return false;
     }
-    ElevationGain.Result gain = ElevationGain.compute(series, ElevationGain.DEFAULT_THRESHOLD_M);
+    ElevationGain.Result gain =
+        ElevationGain.compute(dist, series, ElevationGain.DEFAULT_THRESHOLD_M);
     writeGain(db, activityId, gain);
     return true;
+  }
+
+  /**
+   * Re-smooths existing stored elevation (`topo_altitude` or `altitude`) and updates activity
+   * `elevation_gain` / `elevation_loss` without requiring a network lookup.
+   */
+  public static void recomputeStoredElevation(SQLiteDatabase db, long activityId) {
+    List<TrackPoint> points = loadTrackWithTopo(db, activityId);
+    if (points.size() < 2) return;
+    double[] dist = trackDistances(points);
+    double[] raw = new double[points.size()];
+    boolean anyTopo = false;
+    for (int i = 0; i < points.size(); i++) {
+      Double alt = points.get(i).gpsAltitude;
+      raw[i] = alt == null ? Double.NaN : alt;
+    }
+    try (Cursor c =
+        db.rawQuery(
+            "SELECT COUNT(*) FROM "
+                + Constants.DB.LOCATION.TABLE
+                + " WHERE "
+                + Constants.DB.LOCATION.ACTIVITY
+                + " = ? AND "
+                + Constants.DB.LOCATION.TOPO_ALTITUDE
+                + " IS NOT NULL",
+            new String[] {String.valueOf(activityId)})) {
+      if (c.moveToFirst() && c.getInt(0) > 0) {
+        anyTopo = true;
+      }
+    }
+    if (!hasFinite(raw)) return;
+    double[] smoothed = ElevationSmoother.smooth(dist, raw);
+    if (anyTopo) {
+      writeTopoAltitudes(db, points, smoothed);
+    }
+    ElevationGain.Result gain =
+        ElevationGain.compute(dist, smoothed, ElevationGain.DEFAULT_THRESHOLD_M);
+    writeGain(db, activityId, gain);
   }
 
   static double[] lookupTrack(List<TrackPoint> points, ElevationLookup lookup) throws IOException {
@@ -122,7 +162,8 @@ public final class TopographyElevationService {
         trackX[i] = i;
       }
     }
-    return TopographyInterpolator.interpolate(sampleX, sampleElev, trackX);
+    double[] interpolated = TopographyInterpolator.interpolate(sampleX, sampleElev, trackX);
+    return points.size() > 5 ? ElevationSmoother.smooth(trackX, interpolated) : interpolated;
   }
 
   static boolean hasIncreasingDistance(double[] sampleDistanceM) {
@@ -212,6 +253,57 @@ public final class TopographyElevationService {
       series[i] = alt == null ? Double.NaN : alt;
     }
     return series;
+  }
+
+  private static double[] trackDistances(List<TrackPoint> points) {
+    double[] dist = new double[points.size()];
+    for (int i = 0; i < points.size(); i++) {
+      dist[i] = points.get(i).distanceM;
+    }
+    return dist;
+  }
+
+  static List<TrackPoint> loadTrackWithTopo(SQLiteDatabase db, long activityId) {
+    List<TrackPoint> points = new ArrayList<>();
+    String sql =
+        "SELECT "
+            + Constants.DB.PRIMARY_KEY
+            + ", "
+            + Constants.DB.LOCATION.LATITUDE
+            + ", "
+            + Constants.DB.LOCATION.LONGITUDE
+            + ", "
+            + Constants.DB.LOCATION.DISTANCE
+            + ", COALESCE("
+            + Constants.DB.LOCATION.TOPO_ALTITUDE
+            + ", "
+            + Constants.DB.LOCATION.ALTITUDE
+            + ")"
+            + " FROM "
+            + Constants.DB.LOCATION.TABLE
+            + " WHERE "
+            + Constants.DB.LOCATION.ACTIVITY
+            + " = ? ORDER BY "
+            + Constants.DB.LOCATION.ELAPSED
+            + " ASC, "
+            + Constants.DB.LOCATION.TIME
+            + " ASC";
+    try (Cursor cursor = db.rawQuery(sql, new String[] {String.valueOf(activityId)})) {
+      while (cursor.moveToNext()) {
+        if (cursor.isNull(1) || cursor.isNull(2)) {
+          continue;
+        }
+        Double alt = cursor.isNull(4) ? null : cursor.getDouble(4);
+        points.add(
+            new TrackPoint(
+                cursor.getLong(0),
+                cursor.getDouble(1),
+                cursor.getDouble(2),
+                cursor.isNull(3) ? 0 : cursor.getDouble(3),
+                alt));
+      }
+    }
+    return points;
   }
 
   private static void writeTopoAltitudes(

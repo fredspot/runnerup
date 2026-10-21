@@ -30,6 +30,7 @@ import org.runnerup.R
 import org.runnerup.analytics.AutoComputeRunner
 import org.runnerup.analytics.DailyWeatherStore
 import org.runnerup.analytics.OpenMeteoWeatherClient
+import org.runnerup.tracking.elevation.TopographyElevationService
 import org.runnerup.analytics.MonthlyComparisonCalculator
 import org.runnerup.common.util.Constants.DB
 import org.runnerup.core.util.BgTasks
@@ -114,6 +115,7 @@ object MainLayoutNavigation {
                       val id = cursor.getLong(0)
                       try {
                         cleaner.recompute(db, id)
+                        TopographyElevationService.recomputeStoredElevation(db, id)
                       } catch (e: Exception) {
                         Log.w(
                             activity.javaClass.simpleName,
@@ -170,5 +172,5 @@ object MainLayoutNavigation {
       MonthlyComparisonCalculator.resolveZoneBounds(HRZones(context))
 
   private const val PREF_ACTIVITY_BULK_STAMP = "activity_bulk_recompute_stamp"
-  private const val BULK_RECOMPUTE_DATA_REVISION = 2
+  private const val BULK_RECOMPUTE_DATA_REVISION = 3
 }

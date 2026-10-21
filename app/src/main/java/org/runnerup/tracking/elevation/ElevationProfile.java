@@ -26,15 +26,16 @@ public final class ElevationProfile {
       return new Series(new double[0], new double[0], 0);
     }
     double[] xs = x;
-    double[] ys = elevationM;
+    double[] ys = x.length > 5 ? ElevationSmoother.smooth(x, elevationM) : elevationM;
     if (maxPoints > 1 && x.length > maxPoints) {
       int[] idx = TopographyInterpolator.downsampleIndices(x.length, maxPoints);
       xs = new double[idx.length];
-      ys = new double[idx.length];
+      double[] downY = new double[idx.length];
       for (int i = 0; i < idx.length; i++) {
         xs[i] = x[idx[i]];
-        ys[i] = elevationM[idx[i]];
+        downY[i] = ys[idx[i]];
       }
+      ys = downY;
     }
     double min = ys[0];
     double max = ys[0];

@@ -101,6 +101,31 @@ public final class ComparableSegmentLoader {
     }
     if (samples.size() < 2) {
       samples = loadLapFallbackSamples(db, activityId);
+    } else if (samples.size() > 5) {
+      double[] dist = new double[samples.size()];
+      double[] elev = new double[samples.size()];
+      boolean anyElev = false;
+      for (int i = 0; i < samples.size(); i++) {
+        Sample s = samples.get(i);
+        dist[i] = s.distanceM;
+        if (s.elevationM != null && !s.elevationM.isNaN()) {
+          elev[i] = s.elevationM;
+          anyElev = true;
+        } else {
+          elev[i] = Double.NaN;
+        }
+      }
+      if (anyElev) {
+        double[] smoothed =
+            org.runnerup.tracking.elevation.ElevationSmoother.smooth(dist, elev);
+        List<Sample> smoothedSamples = new ArrayList<>(samples.size());
+        for (int i = 0; i < samples.size(); i++) {
+          Sample s = samples.get(i);
+          Double sm = Double.isNaN(smoothed[i]) ? s.elevationM : smoothed[i];
+          smoothedSamples.add(new Sample(s.distanceM, s.elapsedMs, s.hr, sm, s.temperatureC));
+        }
+        samples = smoothedSamples;
+      }
     }
     return samples;
   }
