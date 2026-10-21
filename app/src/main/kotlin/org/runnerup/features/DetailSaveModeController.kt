@@ -56,9 +56,9 @@ internal class DetailSaveModeController(private val activity: DetailActivity) {
       saveButton: Button,
       discardButton: Button,
       resumeButton: Button,
-      notes: EditText,
-      sport: TitleSpinner,
-      manualDistance: TitleSpinner,
+      notes: EditText?,
+      sport: TitleSpinner?,
+      manualDistance: TitleSpinner?,
       headerData: ContentValues,
       mDB: SQLiteDatabase,
       mID: Long,
@@ -114,7 +114,7 @@ internal class DetailSaveModeController(private val activity: DetailActivity) {
     if (mode != MODE_SAVE) return false
     saveActivity()
     val returnIntent = Intent()
-    val sportValue = sport?.valueInt ?: return false
+    val sportValue = sport?.valueInt ?: headerData?.getAsInteger(DB.ACTIVITY.SPORT) ?: 0
     if (Sport.hasManualDistance(sportValue)) {
       returnIntent.putExtra("MANUAL_DISTANCE", headerData?.getAsDouble(DB.ACTIVITY.DISTANCE))
     }
@@ -136,18 +136,16 @@ internal class DetailSaveModeController(private val activity: DetailActivity) {
     }
     notes?.let { WidgetUtil.setEditable(it, value) }
     sport?.isEnabled = value
-    activity.updateViewForSport(sport?.valueInt ?: 0)
+    val sportValue = sport?.valueInt ?: headerData?.getAsInteger(DB.ACTIVITY.SPORT) ?: 0
+    activity.updateViewForSport(sportValue)
     rootView?.let { androidx.core.view.ViewCompat.requestApplyInsets(it) }
   }
 
   fun saveActivity() {
     val db = mDB ?: return
     val data = headerData ?: return
-    val sportSpinner = sport ?: return
-    val notesView = notes ?: return
-    val sportValue = sportSpinner.valueInt
-    data.put(DB.ACTIVITY.COMMENT, notesView.text.toString())
-    data.put(DB.ACTIVITY.SPORT, sportValue)
+    notes?.let { data.put(DB.ACTIVITY.COMMENT, it.text.toString()) }
+    sport?.let { data.put(DB.ACTIVITY.SPORT, it.valueInt) }
     val whereArgs = arrayOf(mID.toString())
     db.update(DB.ACTIVITY.TABLE, data, "_id = ?", whereArgs)
     try {
@@ -161,6 +159,7 @@ internal class DetailSaveModeController(private val activity: DetailActivity) {
       Log.e("DetailActivity", "Failed to simplify path: " + e.message)
     }
     AutomaticBackupManager.createBackupIfNeeded(activity)
+    TopographyElevationFiller.fillAsync(activity, mID, force = true)
   }
 
   private fun autoSaveActivity() {

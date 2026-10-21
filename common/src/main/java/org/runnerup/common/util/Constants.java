@@ -52,6 +52,9 @@ public interface Constants {
       String META_DATA = "meta_data";
       String DELETED = "deleted";
       String NULLCOLUMNHACK = "nullColumnHack";
+      String ELEVATION_GAIN = "elevation_gain";
+      String ELEVATION_LOSS = "elevation_loss";
+      String STEPS = "steps";
 
       int SPORT_RUNNING = 0;
       int SPORT_BIKING = 1;
@@ -77,6 +80,7 @@ public interface Constants {
       String ACCURANCY = "accurancy";
       String ALTITUDE = "altitude";
       String GPS_ALTITUDE = "gps_altitude";
+      String TOPO_ALTITUDE = "topo_altitude";
       String SPEED = "speed";
       String BEARING = "bearing";
       String SATELLITES = "satellites";

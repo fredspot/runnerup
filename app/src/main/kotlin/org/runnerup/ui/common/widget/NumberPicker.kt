@@ -58,6 +58,19 @@ class NumberPicker(context: Context, attrs: AttributeSet?) : LinearLayout(contex
   private val textSize = 25
   private var digits = DIGITS
   private var fmtString = "%0${digits}d"
+  private val formatter =
+      object : ValueFormatter {
+        private val builder = StringBuilder()
+        private val fmt = java.util.Formatter(builder)
+        private val args = arrayOfNulls<Any>(1)
+
+        override fun toString(value: Int): String {
+          args[0] = value
+          builder.delete(0, builder.length)
+          fmt.format(fmtString, *args)
+          return fmt.toString()
+        }
+      }
 
   init {
     valueText = createValueText(context)
@@ -245,20 +258,6 @@ class NumberPicker(context: Context, attrs: AttributeSet?) : LinearLayout(contex
       readd()
     }
   }
-
-  private val formatter =
-      object : ValueFormatter {
-        private val builder = StringBuilder()
-        private val fmt = java.util.Formatter(builder)
-        private val args = arrayOfNulls<Any>(1)
-
-        override fun toString(value: Int): String {
-          args[0] = value
-          builder.delete(0, builder.length)
-          fmt.format(fmtString, *args)
-          return fmt.toString()
-        }
-      }
 
   fun setRange(min: Int, max: Int, wrap: Boolean) {
     minValue = min

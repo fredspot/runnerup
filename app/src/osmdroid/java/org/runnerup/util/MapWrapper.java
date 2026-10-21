@@ -77,15 +77,15 @@ public class MapWrapper implements Constants {
 
   private Route buildRoute(LoadParam param) {
     Route route = new Route(param.context, param.mapView);
-    route.map.setInfoWindow(null);
-    route.map.getOutlinePaint().setStrokeWidth(10.f);
     LocationEntity.LocationList<LocationEntity> ll =
         new LocationEntity.LocationList<>(param.mDB, param.mID);
     List<GeoPoint> points = new LinkedList<>();
+    List<Double> elevations = new ArrayList<>();
     int lastLap = -1;
     for (LocationEntity loc : ll) {
       GeoPoint point = new GeoPoint(loc.getLatitude(), loc.getLongitude());
       points.add(point);
+      elevations.add(loc.getPreferredElevationM());
 
       int lap = loc.getLap();
       if (lastLap != lap) {
@@ -104,19 +104,33 @@ public class MapWrapper implements Constants {
       }
     }
     ll.close();
-    route.map.setPoints(points);
+    double[] elevRange = MapElevationPath.minMax(elevations);
+    if (elevRange != null) {
+      route.elevMin = elevRange[0];
+      route.elevMax = elevRange[1];
+    }
+    route.lines.add(outlinePolyline(param.mapView, points));
+    for (MapElevationPath.Segment seg : toElevationSegments(points, elevations)) {
+      route.lines.add(coloredPolyline(param.mapView, seg));
+    }
+    route.center = points.isEmpty() ? null : points.get(0);
     return route;
   }
 
   private void applyRoute(LoadParam param, Route route) {
-    if (route != null && route.map != null && route.markers != null) {
+    if (route != null && route.markers != null) {
+      for (Polyline line : route.lines) {
+        route.mapView.getOverlays().add(line);
+      }
       for (Marker marker : route.markers) {
         route.mapView.getOverlays().add(marker);
       }
-      route.mapView.getOverlays().add(route.map);
     }
-    if (route != null && route.map != null && !route.map.getPoints().isEmpty()) {
-      param.iMapController.setCenter(route.map.getPoints().get(0));
+    if (route != null && route.center != null) {
+      param.iMapController.setCenter(route.center);
+    }
+    if (route != null) {
+      MapElevationLegend.bind(mapView, formatter, route.elevMin, route.elevMax);
     }
   }
 
@@ -124,13 +138,54 @@ public class MapWrapper implements Constants {
     Route(Context context, MapView mapView) {
       this.context = context;
       this.mapView = mapView;
-      this.map = new Polyline(mapView, true);
     }
 
     final Context context;
     final MapView mapView;
-    final Polyline map;
+    final List<Polyline> lines = new ArrayList<>();
     List<Marker> markers = new ArrayList<>(2);
+    GeoPoint center;
+    double elevMin = Double.NaN;
+    double elevMax = Double.NaN;
+  }
+
+  private static List<MapElevationPath.Segment> toElevationSegments(
+      List<GeoPoint> points, List<Double> elevations) {
+    int n = points.size();
+    if (n != elevations.size() || n < 2) {
+      return new ArrayList<>();
+    }
+    double[] lat = new double[n];
+    double[] lng = new double[n];
+    double[] elev = new double[n];
+    for (int i = 0; i < n; i++) {
+      lat[i] = points.get(i).getLatitude();
+      lng[i] = points.get(i).getLongitude();
+      elev[i] = elevations.get(i);
+    }
+    return MapElevationPath.segments(lat, lng, elev);
+  }
+
+  private static Polyline outlinePolyline(MapView mapView, List<GeoPoint> points) {
+    Polyline line = new Polyline(mapView, true);
+    line.setInfoWindow(null);
+    line.getOutlinePaint().setStrokeWidth(16.f);
+    line.getOutlinePaint().setColor(MapElevationPath.OUTLINE_COLOR);
+    line.setPoints(points);
+    return line;
+  }
+
+  private static Polyline coloredPolyline(MapView mapView, MapElevationPath.Segment seg) {
+    Polyline line = new Polyline(mapView, true);
+    line.setInfoWindow(null);
+    line.getOutlinePaint().setStrokeWidth(10.f);
+    line.getOutlinePaint().setColor(seg.color);
+    List<GeoPoint> points = new ArrayList<>(seg.lat.length);
+    for (int i = 0; i < seg.lat.length; i++) {
+      points.add(new GeoPoint(seg.lat[i], seg.lng[i]));
+    }
+    line.setPoints(points);
+    return line;
   }
 
   private class LoadParam {
@@ -152,6 +207,13 @@ public class MapWrapper implements Constants {
     final long mID;
     final MapView mapView;
     final IMapController iMapController;
+  }
+
+  public void reload() {
+    mapView.getOverlays().clear();
+    IMapController iMapController = mapView.getController();
+    LoadParam param = new LoadParam(context, mDB, mID, mapView, iMapController);
+    BgTasks.runDb(() -> buildRoute(param), route -> applyRoute(param, route));
   }
 
   public void onResume() {

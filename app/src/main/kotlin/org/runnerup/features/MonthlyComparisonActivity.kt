@@ -17,6 +17,7 @@
 
 package org.runnerup.features
 
+import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.os.Bundle
 import android.util.Log
@@ -93,15 +94,18 @@ class MonthlyComparisonActivity : AppCompatActivity() {
   }
 
   private fun ensureComparisonDataLoaded() {
-    if (needsZonePaceRecompute()) {
+    if (needsRecompute()) {
       recomputeComparisonAsync()
     } else {
       loadComparisonData()
     }
   }
 
-  private fun needsZonePaceRecompute(): Boolean {
+  private fun needsRecompute(): Boolean {
     val database = db ?: return true
+    if (MonthlyComparisonCalculator.isDataStale(database)) {
+      return true
+    }
     val sql = "SELECT * FROM ${Constants.DB.MONTHLY_COMPARISON.TABLE} LIMIT 1"
     return database.rawQuery(sql, null).use { cursor ->
       MonthlyComparisonBinder.needsZonePaceRecompute(cursor)
@@ -145,36 +149,91 @@ class MonthlyComparisonActivity : AppCompatActivity() {
           try {
             val data = MonthlyComparisonBinder.readFromCursor(cursor)
             MonthlyComparisonBinder.bind(this, rootView, formatter, data)
-            showContent(MonthlyComparisonBinder.hasMeaningfulData(data))
+            wireMonthClicks(data)
+            applyContentState(loading = false, hasData = MonthlyComparisonBinder.hasMeaningfulData(data))
           } catch (e: Exception) {
             Log.e(TAG, "Error reading monthly comparison data: ${e.message}", e)
-            showContent(false)
+            applyContentState(loading = false, hasData = false)
           }
+        } else {
+          applyContentState(loading = false, hasData = false)
         }
       }
     } catch (e: Exception) {
       Log.e(TAG, "Error loading comparison data: ${e.message}", e)
-      showContent(false)
-    } finally {
-      setLoading(false)
+      applyContentState(loading = false, hasData = false)
     }
   }
 
   private fun setLoading(loading: Boolean) {
-    isLoading = loading
-    loadingIndicator.visibility = if (loading) View.VISIBLE else View.GONE
     if (loading) {
-      contentScroll.visibility = View.GONE
-      emptyHint.visibility = View.GONE
+      applyContentState(loading = true, hasData = false)
     }
   }
 
-  private fun showContent(hasData: Boolean) {
-    if (isLoading) {
-      return
+  private fun wireMonthClicks(data: MonthlyComparisonBinder.Data) {
+    val current = MonthlyComparisonBinder.parseHistoryMonth(data.currentMonthYear)
+    if (current != null) {
+      val thisMonthIds =
+          intArrayOf(
+              R.id.this_month_avg_pace,
+              R.id.this_month_total_km,
+              R.id.this_month_avg_distance_per_run,
+              R.id.this_month_avg_bpm,
+              R.id.this_month_pb_count,
+              R.id.this_month_top25_count,
+              R.id.this_month_avg_pace_zone_3,
+              R.id.this_month_easy_pace,
+          )
+      for (id in thisMonthIds) {
+        findViewById<View>(id)?.setOnClickListener { openHistory(current[0], current[1]) }
+      }
     }
-    emptyHint.visibility = if (hasData) View.GONE else View.VISIBLE
-    contentScroll.visibility = if (hasData) View.VISIBLE else View.GONE
+    wireBest(R.id.best_month_avg_pace, R.id.best_month_avg_pace_label, data.bestAvgPaceMonth)
+    wireBest(R.id.best_month_total_km, R.id.best_month_total_km_label, data.bestTotalKmMonth)
+    wireBest(
+        R.id.best_month_avg_distance_per_run,
+        R.id.best_month_avg_distance_per_run_label,
+        data.bestAvgDistancePerRunMonth,
+    )
+    wireBest(R.id.best_month_avg_bpm, R.id.best_month_avg_bpm_label, data.bestAvgBpmMonth)
+    wireBest(R.id.best_month_pb_count, R.id.best_month_pb_count_label, data.bestPbCountMonth)
+    wireBest(R.id.best_month_top25_count, R.id.best_month_top25_count_label, data.bestTop25CountMonth)
+    wireBest(
+        R.id.best_month_avg_pace_zone_3,
+        R.id.best_month_avg_pace_zone_3_label,
+        data.bestZoneMonth[3],
+    )
+    wireBest(
+        R.id.best_month_easy_pace,
+        R.id.best_month_easy_pace_label,
+        MonthlyComparisonBinder.bestEasyMonth(data),
+    )
+  }
+
+  private fun wireBest(valueId: Int, labelId: Int, monthLabel: String?) {
+    val month = MonthlyComparisonBinder.parseHistoryMonth(monthLabel) ?: return
+    val click = View.OnClickListener { openHistory(month[0], month[1]) }
+    findViewById<View>(valueId)?.setOnClickListener(click)
+    findViewById<View>(labelId)?.setOnClickListener(click)
+  }
+
+  private fun openHistory(year: Int, monthZeroBased: Int) {
+    val intent = Intent(this, MainLayout::class.java)
+    intent.putExtra("HISTORY_TAB", true)
+    intent.putExtra("FILTER_YEAR", year)
+    intent.putExtra("FILTER_MONTH", monthZeroBased)
+    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    startActivity(intent)
+    finish()
+  }
+
+  private fun applyContentState(loading: Boolean, hasData: Boolean) {
+    isLoading = loading
+    val state = MonthlyComparisonBinder.resolveContentState(loading, hasData)
+    loadingIndicator.visibility = if (state.showLoading) View.VISIBLE else View.GONE
+    contentScroll.visibility = if (state.showTable) View.VISIBLE else View.GONE
+    emptyHint.visibility = if (state.showEmpty) View.VISIBLE else View.GONE
   }
 
   companion object {

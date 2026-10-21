@@ -15,6 +15,7 @@ public final class ComputationTracker {
   public static final String TYPE_STATISTICS = "statistics";
   public static final String TYPE_HR_ZONES = "hr_zones";
   public static final String TYPE_YEARLY_CUMULATIVE = "yearly_cumulative";
+  public static final String TYPE_MONTHLY_COMPARISON = "monthly_comparison";
 
   private ComputationTracker() {}
 

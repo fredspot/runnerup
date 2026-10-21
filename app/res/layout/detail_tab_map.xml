@@ -1,10 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                    android:id="@+id/tab_map"
-		    android:layout_width="match_parent"
-		    android:layout_height="match_parent">
-		  <org.runnerup.core.util.MapViewWrapper
-		      android:id="@+id/mapview"
-		      android:layout_width="match_parent"
-		      android:layout_height="match_parent" />
-		  </LinearLayout>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tab_map"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <org.runnerup.core.util.MapViewWrapper
+        android:id="@+id/mapview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:id="@+id/map_elevation_legend"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="12dp"
+        android:background="@drawable/map_elevation_legend_bg"
+        android:elevation="6dp"
+        android:orientation="vertical"
+        android:paddingStart="10dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/elevation_graph"
+            android:textColor="@color/colorText"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <org.runnerup.core.util.MapElevationLegendBar
+            android:layout_width="132dp"
+            android:layout_height="8dp"
+            android:layout_marginTop="6dp" />
+
+        <LinearLayout
+            android:layout_width="132dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/map_elevation_legend_low"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/map_elevation_legend_low"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/map_elevation_legend_high"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:text="@string/map_elevation_legend_high"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

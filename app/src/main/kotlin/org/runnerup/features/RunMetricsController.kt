@@ -40,6 +40,7 @@ internal class RunMetricsController(
     private val intervalHr: TextView,
     private val currentHr: TextView,
     private val activityHeaderHr: TextView,
+    private val activitySteps: TextView?,
     private val workoutListController: RunWorkoutListController,
 ) {
 
@@ -97,6 +98,14 @@ internal class RunMetricsController(
       intervalHr.visibility = View.GONE
       currentHr.visibility = View.GONE
       activityHeaderHr.visibility = View.GONE
+    }
+
+    val steps = tracker.currentSteps
+    if (activitySteps != null && steps != null && steps > 0) {
+      activitySteps.visibility = View.VISIBLE
+      activitySteps.text = activitySteps.context.getString(org.runnerup.R.string.steps_count, steps)
+    } else {
+      activitySteps?.visibility = View.GONE
     }
 
     workoutListController.onCurrentStepChanged(workout.getCurrentStep())

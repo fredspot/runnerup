@@ -35,8 +35,8 @@ internal object DetailHeaderBinder {
       timeView: TextView,
       paceView: TextView,
       paceSeparator: View?,
-      manualDistance: TitleSpinner,
-      sport: TitleSpinner,
+      manualDistance: TitleSpinner?,
+      sport: TitleSpinner?,
       data: ContentValues,
       fromManualDistance: Boolean,
   ) {
@@ -45,8 +45,8 @@ internal object DetailHeaderBinder {
       distanceMeters = data.getAsDouble(Constants.DB.ACTIVITY.DISTANCE)
       if (!fromManualDistance) {
         val distance = distanceMeters.toInt()
-        manualDistance.setValue(distance.toLong().toString())
-        manualDistance.setValue(distance)
+        manualDistance?.setValue(distance.toLong().toString())
+        manualDistance?.setValue(distance)
       }
     } else {
       distanceView.text = ""
@@ -75,7 +75,7 @@ internal object DetailHeaderBinder {
     }
 
     if (data.containsKey(Constants.DB.ACTIVITY.SPORT)) {
-      sport.setValue(data.getAsInteger(Constants.DB.ACTIVITY.SPORT))
+      sport?.setValue(data.getAsInteger(Constants.DB.ACTIVITY.SPORT))
     }
   }
 }

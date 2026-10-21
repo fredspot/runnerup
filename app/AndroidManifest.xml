@@ -102,6 +102,16 @@
             android:theme="@style/AppTheme"/>
 
         <activity
+            android:name=".features.ActivityEditActivity"
+            android:label="@string/edit_activity_title"
+            android:parentActivityName=".features.DetailActivity"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".features.DetailActivity"/>
+        </activity>
+
+        <activity
             android:name=".features.DetailActivity"
             android:configChanges="orientation|screenSize|uiMode"
             android:parentActivityName=".features.MainLayout"

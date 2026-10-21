@@ -311,6 +311,7 @@ class HRSettingsActivity : AppCompatActivity(), HRClient {
       logBuffer.setLength(5000)
     }
     tvLog.text = logBuffer.toString()
+    Log.i("HRSettings", msg)
   }
 
   private fun load() {

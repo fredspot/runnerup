@@ -49,7 +49,7 @@ import org.runnerup.core.workout.FileFormats;
 
 public class DBHelper extends SQLiteOpenHelper implements Constants {
 
-  private static final int DBVERSION = 49;
+  private static final int DBVERSION = 51;
   private static final String DBNAME = "runnerup.db";
 
   // DBVERSION update
@@ -75,6 +75,9 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.ACTIVITY.MAX_HR + " integer, ")
           + (DB.ACTIVITY.AVG_CADENCE + " real, ")
           + (DB.ACTIVITY.META_DATA + " text, ")
+          + (DB.ACTIVITY.ELEVATION_GAIN + " real, ")
+          + (DB.ACTIVITY.ELEVATION_LOSS + " real, ")
+          + (DB.ACTIVITY.STEPS + " integer, ")
           + ("deleted integer not null default 0, ")
           + "nullColumnHack text null"
           + ");";
@@ -98,6 +101,7 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
           + (DB.LOCATION.ELAPSED + " real, ")
           + (DB.LOCATION.DISTANCE + " real, ")
           + (DB.LOCATION.GPS_ALTITUDE + " real, ")
+          + (DB.LOCATION.TOPO_ALTITUDE + " real, ")
           + (DB.LOCATION.ACCURANCY + " real, ")
           + (DB.LOCATION.SPEED + " real, ")
           + (DB.LOCATION.BEARING + " real, ")
@@ -740,6 +744,34 @@ public class DBHelper extends SQLiteOpenHelper implements Constants {
     if (oldVersion < 49) {
       // Legacy bug: avg_hr stored peak BPM and max_hr stored average BPM.
       ActivityCleaner.repairSwappedActivityHeartRates(arg0);
+    }
+    if (oldVersion < 50) {
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.LOCATION.TABLE
+              + " ADD COLUMN "
+              + DB.LOCATION.TOPO_ALTITUDE
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.ACTIVITY.TABLE
+              + " ADD COLUMN "
+              + DB.ACTIVITY.ELEVATION_GAIN
+              + " real");
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.ACTIVITY.TABLE
+              + " ADD COLUMN "
+              + DB.ACTIVITY.ELEVATION_LOSS
+              + " real");
+    }
+    if (oldVersion < 51) {
+      arg0.execSQL(
+          "ALTER TABLE "
+              + DB.ACTIVITY.TABLE
+              + " ADD COLUMN "
+              + DB.ACTIVITY.STEPS
+              + " integer");
     }
     if (oldVersion < 48) {
       arg0.execSQL(

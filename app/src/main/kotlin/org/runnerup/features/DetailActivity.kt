@@ -56,6 +56,7 @@ class DetailActivity : AppCompatActivity(), Constants {
   lateinit var mDB: SQLiteDatabase
   internal val syncController = DetailSyncController()
   internal val graphController = DetailGraphController()
+  internal val compareController = DetailCompareController()
   internal val saveModeController = DetailSaveModeController(this)
   internal val menuController = DetailMenuController(this)
   internal val lapListHost =
@@ -103,6 +104,8 @@ class DetailActivity : AppCompatActivity(), Constants {
   lateinit var activityPace: TextView
   lateinit var activityPaceSeparator: View
   lateinit var activityDistance: TextView
+  lateinit var activitySteps: TextView
+  lateinit var activityStepsSeparator: View
 
   var sport: TitleSpinner? = null
   var manualDistance: TitleSpinner? = null
@@ -118,6 +121,8 @@ class DetailActivity : AppCompatActivity(), Constants {
   internal val tabsController = DetailTabsController(this)
   var mapTab: View? = null
   var mapTabIndex = -1
+  var compareTab: View? = null
+  var compareTabIndex = -1
 
   var mapWrapper: MapWrapper? = null
 
@@ -128,6 +133,7 @@ class DetailActivity : AppCompatActivity(), Constants {
   var headerData = ContentValues()
   private lateinit var accountListLauncher: ActivityResultLauncher<Intent>
   private lateinit var configureLauncher: ActivityResultLauncher<Intent>
+  private lateinit var editLauncher: ActivityResultLauncher<Intent>
 
   private lateinit var clearUploadClick: View.OnLongClickListener
   private lateinit var onSendChecked: CompoundButton.OnCheckedChangeListener
@@ -138,6 +144,23 @@ class DetailActivity : AppCompatActivity(), Constants {
     tabsController.onCreate()
     setContentView(R.layout.detail)
     rootView = findViewById(R.id.detail_view)
+
+    val intent = intent
+    mID = intent.getLongExtra("ID", -1)
+    val intentMode = intent.getStringExtra("mode")
+    when {
+      intentMode.contentEquals("save") -> {
+        saveModeController.mode = DetailSaveModeController.MODE_SAVE
+      }
+      intentMode.contentEquals("details") -> {
+        saveModeController.mode = DetailSaveModeController.MODE_DETAILS
+      }
+      else -> {
+        if (BuildConfig.DEBUG) {
+          throw AssertionError()
+        }
+      }
+    }
     tabsController.setupDetailTabs()
 
     val toolbar = findViewById<Toolbar>(R.id.actionbar)
@@ -145,10 +168,6 @@ class DetailActivity : AppCompatActivity(), Constants {
     supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
     WidgetUtil.addLegacyOverflowButton(window)
-
-    val intent = intent
-    mID = intent.getLongExtra("ID", -1)
-    val intentMode = intent.getStringExtra("mode")
 
     if (intentMode != null && intentMode.contentEquals("details")) {
       val sourceTab = intent.getIntExtra("source_tab", -1)
@@ -170,21 +189,17 @@ class DetailActivity : AppCompatActivity(), Constants {
     syncManager.setConfigureLauncher(configureLauncher)
     accountListLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { requery() }
-    formatter = Formatter(this)
-
-    when {
-      intentMode.contentEquals("save") -> {
-        saveModeController.mode = DetailSaveModeController.MODE_SAVE
-      }
-      intentMode.contentEquals("details") -> {
-        saveModeController.mode = DetailSaveModeController.MODE_DETAILS
-      }
-      else -> {
-        if (BuildConfig.DEBUG) {
-          throw AssertionError()
+    editLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+          if (result.resultCode == RESULT_OK) {
+            fillHeaderData()
+            requery()
+            graphController.reload()
+            compareController.reload()
+            mapWrapper?.reload()
+          }
         }
-      }
-    }
+    formatter = Formatter(this)
 
     saveButton = findViewById(R.id.save_button)
     findViewById<View>(R.id.discard_button)
@@ -194,6 +209,8 @@ class DetailActivity : AppCompatActivity(), Constants {
     activityDistance = findViewById(R.id.activity_distance)
     activityPace = findViewById(R.id.activity_pace)
     activityPaceSeparator = findViewById(R.id.activity_pace_separator)
+    activitySteps = findViewById(R.id.activity_steps)
+    activityStepsSeparator = findViewById(R.id.activity_steps_separator)
 
     clearUploadClick =
         syncController.createClearUploadListener(this, syncManager, mID) { requery() }
@@ -278,11 +295,9 @@ class DetailActivity : AppCompatActivity(), Constants {
       R.id.menu_save_activity -> saveModeController.onMenuSaveSelected()
       R.id.menu_delete_activity -> menuController.onDeleteSelected()
       R.id.menu_edit_activity -> {
-        if (!saveModeController.edit) {
-          saveModeController.setEdit(true)
-          notes?.requestFocus()
-          requery()
-        }
+        val editIntent = Intent(this, ActivityEditActivity::class.java)
+        editIntent.putExtra(ActivityEditActivity.EXTRA_ACTIVITY_ID, mID)
+        editLauncher.launch(editIntent)
       }
       R.id.menu_recompute_activity -> menuController.onRecomputeSelected()
       R.id.menu_simplify_path -> menuController.onSimplifyPathSelected()

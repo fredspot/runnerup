@@ -37,6 +37,7 @@ object MonthlyComparisonBinder {
     @JvmField var currentPbCount: Int = 0
     @JvmField var currentAvgDistancePerRun: Double? = null
     @JvmField var currentTop25Count: Int = 0
+    @JvmField var currentMonthYear: String? = null
 
     @JvmField var otherAvgPace: Double? = null
     @JvmField var otherTotalKm: Double? = null
@@ -75,6 +76,8 @@ object MonthlyComparisonBinder {
         getDoubleColumn(cursor, Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_DISTANCE_PER_RUN)
     data.currentTop25Count =
         getIntColumn(cursor, Constants.DB.MONTHLY_COMPARISON.CURRENT_TOP25_COUNT)
+    data.currentMonthYear =
+        getStringColumn(cursor, Constants.DB.MONTHLY_COMPARISON.CURRENT_MONTH_YEAR)
 
     data.otherAvgPace = getDoubleColumn(cursor, Constants.DB.MONTHLY_COMPARISON.OTHER_AVG_PACE)
     data.otherTotalKm = getDoubleColumn(cursor, Constants.DB.MONTHLY_COMPARISON.OTHER_TOTAL_KM)
@@ -112,22 +115,31 @@ object MonthlyComparisonBinder {
     return data
   }
 
+  /**
+   * True when the cached row is missing or predates zone-pace columns. Empty zone paces (no HR
+   * data) are valid and must not force a recompute loop.
+   */
   @JvmStatic
   fun needsZonePaceRecompute(cursor: Cursor): Boolean {
     if (cursor.count == 0) {
       return true
     }
-    if (cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_1) < 0) {
-      return true
+    return cursor.getColumnIndex(Constants.DB.MONTHLY_COMPARISON.CURRENT_AVG_PACE_ZONE_1) < 0
+  }
+
+  class ContentState(
+      @JvmField val showLoading: Boolean,
+      @JvmField val showTable: Boolean,
+      @JvmField val showEmpty: Boolean,
+  )
+
+  /** Loading spinner hides table and empty hint. After load, show table or empty hint. */
+  @JvmStatic
+  fun resolveContentState(loading: Boolean, hasData: Boolean): ContentState {
+    if (loading) {
+      return ContentState(true, false, false)
     }
-    if (cursor.moveToFirst()) {
-      val data = readFromCursor(cursor)
-      return data.currentZonePace[1] <= 0 &&
-          data.currentZonePace[2] <= 0 &&
-          data.currentZonePace[3] <= 0 &&
-          data.currentZonePace[4] <= 0
-    }
-    return true
+    return ContentState(false, hasData, !hasData)
   }
 
   @JvmStatic
@@ -168,6 +180,43 @@ object MonthlyComparisonBinder {
       easyLabel.text =
           context.getString(R.string.monthly_comparison_zone_pace_metric_unconfigured, 1)
     }
+  }
+
+  /**
+   * Year and 0-based month for history filtering. Accepts `YYYY-MM`, `Sep24`, and `Sep2024`.
+   */
+  @JvmStatic
+  fun parseHistoryMonth(label: String?): IntArray? {
+    if (label.isNullOrBlank()) {
+      return null
+    }
+    val text = label.trim()
+    val iso = Regex("^(\\d{4})-(\\d{2})$").matchEntire(text)
+    if (iso != null) {
+      val year = iso.groupValues[1].toInt()
+      val month = iso.groupValues[2].toInt()
+      if (month !in 1..12) {
+        return null
+      }
+      return intArrayOf(year, month - 1)
+    }
+    val named = Regex("^([A-Za-z]{3})(\\d{2}|\\d{4})$").matchEntire(text) ?: return null
+    val monthIndex =
+        arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+            .indexOf(
+                named.groupValues[1].lowercase(Locale.US).replaceFirstChar { it.uppercase() },
+            )
+    if (monthIndex < 0) {
+      return null
+    }
+    val yearToken = named.groupValues[2].toInt()
+    val year = if (yearToken < 100) 2000 + yearToken else yearToken
+    return intArrayOf(year, monthIndex)
+  }
+
+  @JvmStatic
+  fun bestEasyMonth(data: Data): String {
+    return bestEasyMonthLabel(data.bestZonePace, data.bestZoneMonth)
   }
 
   @JvmStatic

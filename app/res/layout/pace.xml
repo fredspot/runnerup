@@ -29,16 +29,36 @@
       android:title="@string/pace_metric" />
 
   <HorizontalScrollView
+      android:id="@+id/pace_legend_scroll"
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:scrollbars="none"
+      android:paddingStart="16dp"
+      android:paddingEnd="16dp"
+      android:paddingTop="8dp"
+      app:layout_constraintTop_toBottomOf="@id/metric_spinner"
+      app:layout_constraintStart_toStartOf="parent"
+      app:layout_constraintEnd_toEndOf="parent">
+
+    <LinearLayout
+        android:id="@+id/pace_legend"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal" />
+  </HorizontalScrollView>
+
+  <HorizontalScrollView
       android:id="@+id/pace_scroll"
       android:layout_width="0dp"
       android:layout_height="0dp"
-      app:layout_constraintTop_toBottomOf="@id/metric_spinner"
+      app:layout_constraintTop_toBottomOf="@id/pace_legend_scroll"
       app:layout_constraintBottom_toBottomOf="parent"
       app:layout_constraintStart_toStartOf="parent"
       app:layout_constraintEnd_toEndOf="parent"
       android:fillViewport="false"
       android:scrollbars="horizontal"
-      android:layout_margin="16dp">
+      android:layout_margin="8dp">
 
     <LinearLayout
         android:layout_width="wrap_content"

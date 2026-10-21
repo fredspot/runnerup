@@ -35,19 +35,20 @@ internal class DetailTabsController(private val activity: DetailActivity) {
     val hasMap = USING_OSMDROID || BuildConfig.MAPBOX_ENABLED > 0
     val layouts = ArrayList<Int>()
     val titles = ArrayList<String>()
-    layouts.add(R.layout.detail_tab_overview)
-    titles.add("Overview")
     layouts.add(R.layout.detail_tab_laps)
     titles.add(activity.getString(org.runnerup.common.R.string.Laps))
     if (hasMap) {
+      activity.mapTabIndex = layouts.size
       layouts.add(R.layout.detail_tab_map)
       titles.add(activity.getString(org.runnerup.common.R.string.Map))
-      activity.mapTabIndex = 2
     } else {
       activity.mapTabIndex = -1
     }
     layouts.add(R.layout.detail_tab_graph)
     titles.add(activity.getString(org.runnerup.common.R.string.Graph))
+    layouts.add(R.layout.detail_tab_compare)
+    titles.add(activity.getString(R.string.compare_tab))
+    activity.compareTabIndex = layouts.size - 1
     val layoutArr = layouts.map { it.toInt() }.toIntArray()
     activity.detailPager?.apply {
       adapter = DetailTabAdapter(layoutArr)
@@ -58,6 +59,9 @@ internal class DetailTabsController(private val activity: DetailActivity) {
     }.attach()
     if (hasMap && activity.mapTabIndex >= 0) {
       detailTabLayout.getTabAt(activity.mapTabIndex)?.view?.let { activity.mapTab = it }
+    }
+    if (activity.compareTabIndex >= 0) {
+      detailTabLayout.getTabAt(activity.compareTabIndex)?.view?.let { activity.compareTab = it }
     }
   }
 
@@ -71,6 +75,7 @@ internal class DetailTabsController(private val activity: DetailActivity) {
     activity.mapTab?.visibility =
         if (Sport.isWithoutGps(sportValue)) View.GONE else View.VISIBLE
     activity.graphController.updateForSport(sportValue)
+    activity.compareController.updateForSport(sportValue)
   }
 
   fun onStart() {

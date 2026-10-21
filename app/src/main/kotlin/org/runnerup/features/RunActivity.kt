@@ -143,6 +143,7 @@ class RunActivity : AppCompatActivity(), TickListener {
             intervalHr,
             currentHr,
             activityHeaderHr,
+            findViewById(R.id.run_activity_steps),
             workoutListController!!,
         )
 

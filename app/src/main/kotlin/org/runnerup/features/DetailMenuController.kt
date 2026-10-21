@@ -33,7 +33,7 @@ internal class DetailMenuController(private val activity: DetailActivity) {
   private var mStartTime: Long = 0
   private var sport: TitleSpinner? = null
 
-  fun bind(mDB: SQLiteDatabase, mID: Long, sport: TitleSpinner) {
+  fun bind(mDB: SQLiteDatabase, mID: Long, sport: TitleSpinner?) {
     this.mDB = mDB
     this.mID = mID
     this.sport = sport
@@ -46,11 +46,12 @@ internal class DetailMenuController(private val activity: DetailActivity) {
   fun onRecomputeSelected() {
     AlertDialog.Builder(activity)
         .setTitle(org.runnerup.common.R.string.Recompute_activity)
-        .setMessage(org.runnerup.common.R.string.Are_you_sure)
+        .setMessage(R.string.recompute_restores_gps)
         .setPositiveButton(org.runnerup.common.R.string.Yes) { dialog, _ ->
           dialog.dismiss()
           val db = mDB ?: return@setPositiveButton
           ActivityCleaner().recompute(db, mID, true)
+          TopographyElevationFiller.fillAsync(activity, mID, force = true)
           activity.requery()
           activity.fillHeaderData()
           activity.finish()

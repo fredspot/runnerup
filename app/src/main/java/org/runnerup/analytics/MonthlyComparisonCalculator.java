@@ -26,6 +26,7 @@ import java.util.Locale;
 import org.runnerup.common.util.Constants;
 import org.runnerup.core.util.HRZones;
 import org.runnerup.data.ComputationTracker;
+import org.runnerup.data.RunningActivityReader;
 import org.runnerup.data.RunningPaceBounds;
 
 public class MonthlyComparisonCalculator implements Constants {
@@ -214,6 +215,12 @@ public class MonthlyComparisonCalculator implements Constants {
     values.put(Constants.DB.MONTHLY_COMPARISON.LAST_COMPUTED, System.currentTimeMillis());
 
     db.insert(Constants.DB.MONTHLY_COMPARISON.TABLE, null, values);
+
+    long latestActivityId = RunningActivityReader.getLatestRunningActivityId(db);
+    if (latestActivityId > 0) {
+      ComputationTracker.updateLastActivityId(
+          db, ComputationTracker.TYPE_MONTHLY_COMPARISON, latestActivityId);
+    }
 
     Log.i(TAG, "Monthly comparison computation completed");
     return 1;
@@ -1019,7 +1026,7 @@ public class MonthlyComparisonCalculator implements Constants {
 
   /**
    * Checks if monthly comparison data is stale.
-   * 
+   *
    * @param db Database instance
    * @return true if data is stale and needs recomputation
    */
@@ -1037,10 +1044,9 @@ public class MonthlyComparisonCalculator implements Constants {
           Log.i(TAG, "No monthly comparison record found, data is stale");
           return true;
         }
-        boolean isStale = ComputationTracker.isStaleByCalendarMonth(cursor.getLong(0));
-        Log.i(TAG, "Monthly comparison staleness: stale=" + isStale);
-        return isStale;
       }
+      return ComputationTracker.isStaleByLastActivityId(
+          db, ComputationTracker.TYPE_MONTHLY_COMPARISON);
     } catch (Exception e) {
       Log.e(TAG, "Error checking monthly comparison staleness: " + e.getMessage(), e);
       return true;

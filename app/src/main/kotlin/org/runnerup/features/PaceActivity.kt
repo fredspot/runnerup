@@ -10,10 +10,13 @@
 package org.runnerup.features
 
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.ViewCompat
@@ -30,6 +33,7 @@ class PaceActivity : AppCompatActivity() {
   private var mDB: SQLiteDatabase? = null
   private lateinit var metricSpinner: TitleSpinner
   private lateinit var chart: PaceChart
+  private lateinit var legend: LinearLayout
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -54,6 +58,7 @@ class PaceActivity : AppCompatActivity() {
 
     metricSpinner = findViewById(R.id.metric_spinner)
     chart = findViewById(R.id.pace_chart)
+    legend = findViewById(R.id.pace_legend)
 
     val labels =
         arrayOf(getString(R.string.pace_metric_laps), getString(R.string.pace_metric_avg_hr))
@@ -112,9 +117,11 @@ class PaceActivity : AppCompatActivity() {
             Constants.DB.LAP.TIME +
             ", l." +
             Constants.DB.LAP.DISTANCE +
+            ", COALESCE(l." +
+            Constants.DB.LAP.AVG_HR +
             ", a." +
             Constants.DB.ACTIVITY.AVG_HR +
-            " FROM " +
+            ") FROM " +
             Constants.DB.LAP.TABLE +
             " l JOIN " +
             Constants.DB.ACTIVITY.TABLE +
@@ -170,12 +177,54 @@ class PaceActivity : AppCompatActivity() {
     chart.setBins(centers)
     chart.setData(yearToBins)
     chart.setMetric(if (metric == METRIC_LAPS) PaceChart.Metric.LAPS else PaceChart.Metric.AVG_HR)
+    bindLegend(PaceChart.sortedYears(yearToBins))
+  }
+
+  private fun bindLegend(years: List<Int>) {
+    legend.removeAllViews()
+    val density = resources.displayMetrics.density
+    val swatchSize = (12 * density).toInt()
+    val gap = (12 * density).toInt()
+    val swatchMargin = (6 * density).toInt()
+    for (i in years.indices) {
+      val row = LinearLayout(this)
+      row.orientation = LinearLayout.HORIZONTAL
+      row.gravity = android.view.Gravity.CENTER_VERTICAL
+      val lp =
+          LinearLayout.LayoutParams(
+              ViewGroup.LayoutParams.WRAP_CONTENT,
+              ViewGroup.LayoutParams.WRAP_CONTENT,
+          )
+      if (i > 0) {
+        lp.marginStart = gap
+      }
+      row.layoutParams = lp
+
+      val swatch = View(this)
+      val swatchLp = LinearLayout.LayoutParams(swatchSize, swatchSize)
+      swatchLp.marginEnd = swatchMargin
+      swatch.layoutParams = swatchLp
+      val drawable = GradientDrawable()
+      drawable.shape = GradientDrawable.RECTANGLE
+      drawable.cornerRadius = 2 * density
+      drawable.setColor(PaceChart.PALETTE[i % PaceChart.PALETTE.size])
+      swatch.background = drawable
+
+      val label = TextView(this)
+      label.text = years[i].toString()
+      label.setTextColor(0xFFFFFFFF.toInt())
+      label.textSize = 12f
+
+      row.addView(swatch)
+      row.addView(label)
+      legend.addView(row)
+    }
   }
 
   class BinStats {
     @JvmField var laps: Int = 0
-    var hrSum: Int = 0
-    var hrCount: Int = 0
+    @JvmField var hrSum: Int = 0
+    @JvmField var hrCount: Int = 0
 
     fun avgHr(): Float = if (hrCount > 0) hrSum / hrCount.toFloat() else 0f
   }

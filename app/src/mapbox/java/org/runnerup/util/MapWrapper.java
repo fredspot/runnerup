@@ -24,7 +24,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.database.sqlite.SQLiteDatabase;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.ViewTreeObserver;
@@ -59,6 +58,7 @@ public class MapWrapper implements Constants {
 
   private final MapView mapView;
   private LineManager lineManager;
+  private MapboxMap mapboxMapRef;
   private SymbolManager symbolManager;
 
   private final long mID;
@@ -83,6 +83,7 @@ public class MapWrapper implements Constants {
     mapView.onCreate(savedInstanceState);
     mapView.getMapAsync(
         mapboxMap -> {
+          mapboxMapRef = mapboxMap;
           SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
           Resources res = context.getResources();
           String val =
@@ -101,6 +102,16 @@ public class MapWrapper implements Constants {
                 BgTasks.runDb(() -> buildRoute(loadParam), route -> applyRoute(loadParam, route));
               });
         });
+  }
+
+  public void reload() {
+    if (mapboxMapRef == null || lineManager == null || symbolManager == null) {
+      return;
+    }
+    lineManager.deleteAll();
+    symbolManager.deleteAll();
+    LoadParam loadParam = new LoadParam(context, mDB, mID, mapboxMapRef);
+    BgTasks.runDb(() -> buildRoute(loadParam), route -> applyRoute(loadParam, route));
   }
 
   public void onResume() {
@@ -137,13 +148,16 @@ public class MapWrapper implements Constants {
     mapView.onDestroy();
   }
 
-  class Route {
+    class Route {
     Route(Context context, MapboxMap map) {
       this.context = context;
       this.map = map;
     }
 
     final List<LatLng> path = new ArrayList<>(10);
+    List<MapElevationPath.Segment> elevationSegments = new ArrayList<>();
+    double elevMin = Double.NaN;
+    double elevMax = Double.NaN;
     final ArrayList<SymbolOptions> markers = new ArrayList<>(10);
     final Context context;
     final MapboxMap map;
@@ -168,9 +182,11 @@ public class MapWrapper implements Constants {
       LocationEntity.LocationList<LocationEntity> ll =
           new LocationEntity.LocationList<>(params.mDB, params.mID);
       int lastLap = 0;
+      List<Double> elevations = new ArrayList<>();
       for (LocationEntity loc : ll) {
         LatLng point = new LatLng(loc.getLatitude(), loc.getLongitude());
         route.path.add(point);
+        elevations.add(loc.getPreferredElevationM());
 
         Integer type;
         // Start/end markers are not set in db, special handling
@@ -230,6 +246,12 @@ public class MapWrapper implements Constants {
         }
       }
       ll.close();
+      double[] elevRange = MapElevationPath.minMax(elevations);
+      if (elevRange != null) {
+        route.elevMin = elevRange[0];
+        route.elevMax = elevRange[1];
+      }
+      route.elevationSegments = toElevationSegments(route.path, elevations);
 
       // Track is normally ended with a pause, not always followed by an end
       // Ignore the pause
@@ -258,14 +280,30 @@ public class MapWrapper implements Constants {
         ScaleBarPlugin scaleBarPlugin = new ScaleBarPlugin(mapView, route.map);
 
         scaleBarPlugin.create(new ScaleBarOptions(route.context));
+        MapElevationLegend.bind(mapView, formatter, route.elevMin, route.elevMax);
 
         if (route.path.size() > 1) {
-          LineOptions lineOptions =
+          LineOptions outline =
               new LineOptions()
                   .withLatLngs(route.path)
-                  .withLineColor(ColorUtils.colorToRgbaString(Color.RED))
-                  .withLineWidth(3.0f);
-          lineManager.create(lineOptions);
+                  .withLineColor(ColorUtils.colorToRgbaString(MapElevationPath.OUTLINE_COLOR))
+                  .withLineWidth(7.0f);
+          lineManager.create(outline);
+          if (route.elevationSegments != null && !route.elevationSegments.isEmpty()) {
+            for (MapElevationPath.Segment seg : route.elevationSegments) {
+              lineManager.create(
+                  new LineOptions()
+                      .withLatLngs(toLatLngs(seg))
+                      .withLineColor(ColorUtils.colorToRgbaString(seg.color))
+                      .withLineWidth(4.5f));
+            }
+          } else {
+            lineManager.create(
+                new LineOptions()
+                    .withLatLngs(route.path)
+                    .withLineColor(ColorUtils.colorToRgbaString(MapElevationColor.FALLBACK))
+                    .withLineWidth(4.5f));
+          }
           Log.v(getClass().getName(), "Added line");
 
           final LatLngBounds box = new LatLngBounds.Builder().includes(route.path).build();
@@ -349,5 +387,30 @@ public class MapWrapper implements Constants {
         }
         Log.v(getClass().getName(), "Added " + route.markers.size() + " markers");
       }
+  }
+
+  private static List<MapElevationPath.Segment> toElevationSegments(
+      List<LatLng> path, List<Double> elevations) {
+    int n = path.size();
+    if (n != elevations.size() || n < 2) {
+      return new ArrayList<>();
+    }
+    double[] lat = new double[n];
+    double[] lng = new double[n];
+    double[] elev = new double[n];
+    for (int i = 0; i < n; i++) {
+      lat[i] = path.get(i).getLatitude();
+      lng[i] = path.get(i).getLongitude();
+      elev[i] = elevations.get(i);
+    }
+    return MapElevationPath.segments(lat, lng, elev);
+  }
+
+  private static List<LatLng> toLatLngs(MapElevationPath.Segment seg) {
+    List<LatLng> points = new ArrayList<>(seg.lat.length);
+    for (int i = 0; i < seg.lat.length; i++) {
+      points.add(new LatLng(seg.lat[i], seg.lng[i]));
+    }
+    return points;
   }
 }

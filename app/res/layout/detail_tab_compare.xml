@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tab_compare"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="@dimen/activity_margin">
+
+  <TextView
+      android:id="@+id/compare_empty"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_gravity="center_horizontal"
+      android:paddingTop="24dp"
+      android:gravity="center"
+      android:text="@string/compare_empty"
+      android:textColor="@color/colorTextSecondary"
+      android:textSize="14sp"
+      android:visibility="gone" />
+
+  <ScrollView
+      android:id="@+id/compare_content"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:fillViewport="true"
+      android:visibility="gone">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+      <LinearLayout
+          android:id="@+id/compare_engine"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginBottom="12dp"
+          android:background="@drawable/card_background"
+          android:orientation="vertical"
+          android:padding="12dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/compare_engine_title"
+            android:textColor="@color/colorText"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/compare_engine_this_bpm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/colorAccent"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/compare_engine_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/compare_engine_subtitle"
+            android:textColor="@color/colorTextSecondary"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:id="@+id/compare_engine_columns"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+          <LinearLayout
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:orientation="vertical"
+              android:paddingEnd="8dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/compare_engine_this_year"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/compare_engine_year_percentile"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/colorText"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/compare_engine_year_delta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/colorText"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/compare_engine_year_mean"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/compare_engine_year_n"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="12sp" />
+          </LinearLayout>
+
+          <View
+              android:layout_width="1dp"
+              android:layout_height="match_parent"
+              android:background="@color/colorControlHighlight" />
+
+          <LinearLayout
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:orientation="vertical"
+              android:paddingStart="8dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/compare_engine_all_years"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/compare_engine_all_percentile"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/colorText"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/compare_engine_all_delta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/colorText"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/compare_engine_all_mean"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/compare_engine_all_n"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/colorTextSecondary"
+                android:textSize="12sp" />
+          </LinearLayout>
+        </LinearLayout>
+      </LinearLayout>
+
+      <org.runnerup.ui.common.widget.TitleSpinner
+          android:id="@+id/compare_mode_spinner"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginBottom="8dp"
+          android:title="@string/compare_mode" />
+
+      <TextView
+          android:id="@+id/compare_similar_title"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:paddingBottom="4dp"
+          android:text="@string/compare_similar_runs"
+          android:textColor="@color/colorText"
+          android:textStyle="bold"
+          android:textSize="14sp" />
+
+      <androidx.recyclerview.widget.RecyclerView
+          android:id="@+id/compare_similar_list"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:nestedScrollingEnabled="false"
+          android:overScrollMode="never" />
+
+      <TextView
+          android:id="@+id/compare_segments_title"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="12dp"
+          android:paddingBottom="4dp"
+          android:text="@string/compare_segments_title"
+          android:textColor="@color/colorText"
+          android:textStyle="bold"
+          android:textSize="14sp" />
+
+      <TextView
+          android:id="@+id/compare_segments_empty"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:paddingBottom="8dp"
+          android:text="@string/compare_segments_empty"
+          android:textColor="@color/colorTextSecondary"
+          android:textSize="13sp"
+          android:visibility="gone" />
+
+      <LinearLayout
+          android:id="@+id/compare_segments_list"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="vertical" />
+
+      <LinearLayout
+          android:id="@+id/compare_summary"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="8dp"
+          android:background="@drawable/card_background"
+          android:orientation="vertical"
+          android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:text="@string/compare_metric"
+              android:textColor="@color/colorTextSecondary"
+              android:textSize="12sp" />
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:text="@string/compare_this_run"
+              android:textColor="@color/colorAccent"
+              android:textSize="12sp" />
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:text="@string/compare_selected_run"
+              android:textColor="@color/colorText"
+              android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:text="@string/Distance"
+              android:textColor="@color/colorText" />
+          <TextView
+              android:id="@+id/compare_this_distance"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorAccent" />
+          <TextView
+              android:id="@+id/compare_other_distance"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorText" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:text="@string/Time"
+              android:textColor="@color/colorText" />
+          <TextView
+              android:id="@+id/compare_this_time"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorAccent" />
+          <TextView
+              android:id="@+id/compare_other_time"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorText" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:text="@string/avg_pace"
+              android:textColor="@color/colorText" />
+          <TextView
+              android:id="@+id/compare_this_pace"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorAccent" />
+          <TextView
+              android:id="@+id/compare_other_pace"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorText" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:text="@string/compare_avg_bpm"
+              android:textColor="@color/colorText" />
+          <TextView
+              android:id="@+id/compare_this_hr"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorAccent" />
+          <TextView
+              android:id="@+id/compare_other_hr"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorText" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:text="@string/compare_elevation_gain"
+              android:textColor="@color/colorText" />
+          <TextView
+              android:id="@+id/compare_this_elevation"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorAccent" />
+          <TextView
+              android:id="@+id/compare_other_elevation"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorText" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:text="@string/compare_temperature"
+              android:textColor="@color/colorText" />
+          <TextView
+              android:id="@+id/compare_this_temperature"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorAccent" />
+          <TextView
+              android:id="@+id/compare_other_temperature"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorText" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+          <TextView
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:text="@string/compare_adjusted_pace"
+              android:textColor="@color/colorText" />
+          <TextView
+              android:id="@+id/compare_this_adjusted_pace"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorAccent" />
+          <TextView
+              android:id="@+id/compare_other_adjusted_pace"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:textColor="@color/colorText" />
+        </LinearLayout>
+      </LinearLayout>
+
+      <LinearLayout
+          android:id="@+id/compare_graph_host"
+          android:layout_width="match_parent"
+          android:layout_height="220dp"
+          android:layout_marginTop="12dp"
+          android:orientation="vertical" />
+    </LinearLayout>
+  </ScrollView>
+</FrameLayout>

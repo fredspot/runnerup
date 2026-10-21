@@ -122,6 +122,7 @@ public class LocationEntity extends AbstractEntity {
             Constants.DB.LOCATION.LATITUDE,
             Constants.DB.LOCATION.LONGITUDE,
             Constants.DB.LOCATION.ALTITUDE,
+            Constants.DB.LOCATION.TOPO_ALTITUDE,
             Constants.DB.LOCATION.TYPE,
             Constants.DB.LOCATION.TIME,
             Constants.DB.LOCATION.LAP,
@@ -281,6 +282,30 @@ public class LocationEntity extends AbstractEntity {
     return null;
   }
 
+  public void setTopoAltitude(Double value) {
+    values().put(Constants.DB.LOCATION.TOPO_ALTITUDE, value);
+  }
+
+  public Double getTopoAltitude() {
+    if (values().containsKey(Constants.DB.LOCATION.TOPO_ALTITUDE)) {
+      return values().getAsDouble(Constants.DB.LOCATION.TOPO_ALTITUDE);
+    }
+    return null;
+  }
+
+  /** DEM altitude when present, otherwise GPS/baro altitude. NaN if neither exists. */
+  public double getPreferredElevationM() {
+    Double topo = getTopoAltitude();
+    if (topo != null) {
+      return topo;
+    }
+    Double alt = getAltitude();
+    if (alt != null) {
+      return alt;
+    }
+    return Double.NaN;
+  }
+
   /** Altitude of the location, raw GPS format (not baro or geoid adjusted) */
   public void setGPSAltitude(Double value) {
     values().put(Constants.DB.LOCATION.GPS_ALTITUDE, value);
@@ -380,6 +405,7 @@ public class LocationEntity extends AbstractEntity {
     columns.add(Constants.DB.LOCATION.LATITUDE);
     columns.add(Constants.DB.LOCATION.LONGITUDE);
     columns.add(Constants.DB.LOCATION.ALTITUDE);
+    columns.add(Constants.DB.LOCATION.TOPO_ALTITUDE);
 
     columns.add(Constants.DB.LOCATION.HR);
     columns.add(Constants.DB.LOCATION.CADENCE);

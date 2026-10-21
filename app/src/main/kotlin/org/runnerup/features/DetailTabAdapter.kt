@@ -22,7 +22,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 
-/** ViewPager2 pages for {@link DetailActivity} (overview, laps, map, graph). */
+/** ViewPager2 pages for {@link DetailActivity} (laps, map, graph, compare). */
 class DetailTabAdapter(private val pageLayouts: IntArray) :
     RecyclerView.Adapter<DetailTabAdapter.PageViewHolder>() {
 

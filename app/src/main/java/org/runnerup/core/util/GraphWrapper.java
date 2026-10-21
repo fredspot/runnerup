@@ -21,13 +21,16 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Paint;
 import org.runnerup.core.util.BgTasks;
 import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
 import android.widget.Toast;
+import androidx.annotation.Nullable;
 import androidx.preference.PreferenceManager;
 import com.jjoe64.graphview.DefaultLabelFormatter;
 import com.jjoe64.graphview.GraphView;
@@ -42,21 +45,21 @@ import org.runnerup.R;
 import org.runnerup.common.util.Constants;
 import org.runnerup.data.entities.LocationEntity;
 import org.runnerup.features.HRZonesBar;
+import org.runnerup.tracking.elevation.ElevationProfile;
 import org.runnerup.core.workout.SpeedUnit;
 
 public class GraphWrapper implements Constants {
-  /** Omit warmup from detail graphs so HR scale is not dominated by start-up readings. */
-  private static final double GRAPH_WARMUP_OMIT_METERS = 500;
-  private static final double GRAPH_WARMUP_OMIT_MIN_RUN_METERS = 3000;
-
   private final GraphView graphView;
   private final GraphView graphView2;
+  private final GraphView graphView3;
 
   private final LinearLayout graphTab;
   private final HRZonesBar hrzonesBar;
   private final Formatter formatter;
-  private final LinearLayout hrzonesBarLayout;
+  @Nullable private final LinearLayout hrzonesBarLayout;
   private final LoadParam loadParam;
+  private volatile int loadGeneration = 0;
+  private boolean syncingX = false;
 
   interface XAxis {
     String label();
@@ -74,7 +77,7 @@ public class GraphWrapper implements Constants {
   public GraphWrapper(
       Context context,
       LinearLayout graphTab,
-      LinearLayout hrzonesBarLayout,
+      @Nullable LinearLayout hrzonesBarLayout,
       final Formatter formatter,
       SQLiteDatabase mDB,
       long mID,
@@ -124,7 +127,8 @@ public class GraphWrapper implements Constants {
     loadParam = new LoadParam(context, mDB, mID);
 
     graphView = new GraphView(context);
-    graphView.setTitle(formatter.formatVelocityLabel());
+    graphView.setTitle(
+        formatter.formatVelocityLabel() + " (" + formatter.getVelocityUnit(context) + ")");
     graphView
         .getGridLabelRenderer()
         .setLabelFormatter(
@@ -138,15 +142,13 @@ public class GraphWrapper implements Constants {
                 }
               }
             });
-    graphView.getGridLabelRenderer().setVerticalAxisTitle(formatter.getVelocityUnit(context));
     graphView.getGridLabelRenderer().setHorizontalAxisTitle("");
-    // enable zoom
     graphView.getViewport().setScalable(true);
     graphView.getViewport().setScrollable(true);
+    configureSharedChartStyle(graphView);
 
     graphView2 = new GraphView(context);
-    graphView2.setTitle(context.getString(org.runnerup.common.R.string.Heart_rate));
-    graphView2.getGridLabelRenderer().setVerticalAxisTitle("bpm");
+    graphView2.setTitle(context.getString(org.runnerup.common.R.string.Heart_rate) + " (bpm)");
     configureHeartRateHorizontalAxis(graphView2);
     graphView2
         .getGridLabelRenderer()
@@ -164,8 +166,122 @@ public class GraphWrapper implements Constants {
     graphView2.getViewport().setScalable(true);
     graphView2.getViewport().setScrollable(true);
 
+    graphView3 = new GraphView(context);
+    graphView3.setTitle(context.getString(R.string.elevation_graph) + " (m)");
+    graphView3.getViewport().setScalable(true);
+    graphView3.getViewport().setScrollable(true);
+    configureSharedChartStyle(graphView2);
+    configureSharedChartStyle(graphView3);
+    linkHorizontalAxes();
+
     hrzonesBar = new HRZonesBar(context);
     loadGraphAsync();
+  }
+
+  private int sharedPaddingPx() {
+    return (int) (12 * graphView.getContext().getResources().getDisplayMetrics().density + 0.5f);
+  }
+
+  /** Same padding and no vertical title, so the plot's left edge is only the Y labels. */
+  private void configureSharedChartStyle(GraphView graph) {
+    GridLabelRenderer labels = graph.getGridLabelRenderer();
+    labels.setVerticalAxisTitle("");
+    labels.setPadding(sharedPaddingPx());
+  }
+
+  private void linkHorizontalAxes() {
+    final GraphView[] charts = new GraphView[] {graphView, graphView2, graphView3};
+    for (final GraphView source : charts) {
+      source
+          .getViewport()
+          .setOnXAxisBoundsChangedListener(
+              (minX, maxX, reason) -> {
+                if (syncingX) {
+                  return;
+                }
+                syncingX = true;
+                try {
+                  for (GraphView other : charts) {
+                    if (other == source) {
+                      continue;
+                    }
+                    other.getViewport().setXAxisBoundsManual(true);
+                    other.getViewport().setMinX(minX);
+                    other.getViewport().setMaxX(maxX);
+                  }
+                } finally {
+                  syncingX = false;
+                }
+              });
+    }
+  }
+
+  /** One Y-label column and one X window so the same moment lines up on every chart. */
+  private void alignCharts() {
+    GraphView[] charts = new GraphView[] {graphView, graphView2, graphView3};
+    int padding = sharedPaddingPx();
+    Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    int maxLabel = 0;
+    float density = graphView.getContext().getResources().getDisplayMetrics().density;
+    for (GraphView chart : charts) {
+      if (chart.getSeries().isEmpty()) {
+        continue;
+      }
+      GridLabelRenderer labels = chart.getGridLabelRenderer();
+      labels.setPadding(padding);
+      labels.setVerticalAxisTitle("");
+      paint.setTextSize(labels.getTextSize());
+      boolean manualY = chart.getViewport().isYAxisBoundsManual();
+      double minY = chart.getViewport().getMinY(!manualY);
+      double maxY = chart.getViewport().getMaxY(!manualY);
+      for (int i = 0; i <= 4; i++) {
+        double y = minY + (maxY - minY) * i / 4.0;
+        String text = labels.getLabelFormatter().formatLabel(y, false);
+        if (text != null) {
+          maxLabel = Math.max(maxLabel, (int) Math.ceil(paint.measureText(text)));
+        }
+      }
+    }
+    if (maxLabel > 0) {
+      maxLabel += (int) (8 * density + 0.5f);
+      for (GraphView chart : charts) {
+        if (chart.getSeries().isEmpty()) {
+          continue;
+        }
+        chart.getGridLabelRenderer().setLabelVerticalWidth(maxLabel);
+      }
+    }
+    pinSharedX(charts);
+  }
+
+  private void pinSharedX(GraphView[] charts) {
+    double[][] ranges = new double[charts.length][];
+    for (int i = 0; i < charts.length; i++) {
+      if (charts[i].getSeries().isEmpty()) {
+        continue;
+      }
+      ranges[i] =
+          new double[] {
+            charts[i].getViewport().getMinX(true), charts[i].getViewport().getMaxX(true)
+          };
+    }
+    double[] shared = GraphAxis.sharedXRange(false, ranges);
+    if (shared == null) {
+      return;
+    }
+    syncingX = true;
+    try {
+      for (GraphView chart : charts) {
+        if (chart.getSeries().isEmpty()) {
+          continue;
+        }
+        chart.getViewport().setXAxisBoundsManual(true);
+        chart.getViewport().setMinX(shared[0]);
+        chart.getViewport().setMaxX(shared[1]);
+      }
+    } finally {
+      syncingX = false;
+    }
   }
 
   /** Whole km/mi on the graph x-axis (axis title already names the unit). */
@@ -188,31 +304,31 @@ public class GraphWrapper implements Constants {
     Context context = graph.getContext();
     GridLabelRenderer labels = graph.getGridLabelRenderer();
     labels.setHorizontalAxisTitle(getHeartRateHorizontalAxisTitle(context));
-    int paddingPx =
-        (int) (12 * context.getResources().getDisplayMetrics().density + 0.5f);
-    labels.setPadding(paddingPx);
+    labels.setPadding(sharedPaddingPx());
     labels.setHorizontalAxisTitleTextSize(labels.getTextSize() * 0.9f);
   }
 
   /** Fit the HR chart Y axis to the data range so BPM variation is visible. */
   private void applyHeartRateYAxisBounds(GraphView graph, LineGraphSeries<DataPoint> series) {
-    double minHr = series.getLowestValueY();
-    double maxHr = series.getHighestValueY();
-    if (maxHr <= minHr) {
-      return;
-    }
-    double range = maxHr - minHr;
-    double pad = Math.max(5.0, range * 0.08);
-    double yMin = Math.floor((minHr - pad) / 5.0) * 5.0;
-    double yMax = Math.ceil((maxHr + pad) / 5.0) * 5.0;
-    if (yMax - yMin < 30) {
-      double mid = (minHr + maxHr) / 2.0;
-      yMin = Math.floor((mid - 15) / 5.0) * 5.0;
-      yMax = Math.ceil((mid + 15) / 5.0) * 5.0;
-    }
+    applyZoomedYAxisBounds(graph, series, 30, true);
+  }
+
+  private void applyZoomedYAxisBounds(
+      GraphView graph, LineGraphSeries<DataPoint> series, double minSpan, boolean clampMinToZero) {
+    double[] bounds =
+        GraphAxis.zoomedBounds(
+            series.getLowestValueY(), series.getHighestValueY(), minSpan, clampMinToZero);
     graph.getViewport().setYAxisBoundsManual(true);
-    graph.getViewport().setMinY(Math.max(0, yMin));
-    graph.getViewport().setMaxY(yMax);
+    graph.getViewport().setMinY(bounds[0]);
+    graph.getViewport().setMaxY(bounds[1]);
+    graph.onDataChanged(false, true);
+  }
+
+  public void reload() {
+    graphView.removeAllSeries();
+    graphView2.removeAllSeries();
+    graphView3.removeAllSeries();
+    loadGraphAsync();
   }
 
   public void setUseDistanceAsX(boolean val) {
@@ -229,11 +345,18 @@ public class GraphWrapper implements Constants {
     configureHeartRateHorizontalAxis(graphView2);
     graphView.removeAllSeries();
     graphView2.removeAllSeries();
+    graphView3.removeAllSeries();
     loadGraphAsync();
   }
 
   private void loadGraphAsync() {
-    BgTasks.runDb(() -> produceGraph(loadParam), this::applyGraphProducer);
+    final int gen = ++loadGeneration;
+    BgTasks.runDb(() -> produceGraph(loadParam), data -> {
+      if (gen != loadGeneration) {
+        return;
+      }
+      applyGraphProducer(data);
+    });
   }
 
   private GraphProducer produceGraph(LoadParam params) {
@@ -270,6 +393,7 @@ public class GraphWrapper implements Constants {
     }
     graphData.clearSmooth(xAxis.getX(tot_distance, tot_time));
     graphData.omitWarmupIfNeeded(tot_distance, useDistanceAsX);
+    graphData.elevationPoints = loadElevationPoints(params.mDB, params.mID);
 
     ll.close();
     Log.e(getClass().getName(), "Finished loading " + cnt + " points"
@@ -277,28 +401,161 @@ public class GraphWrapper implements Constants {
     return graphData;
   }
 
+  private static ElevationProfile.Series toElevationProfile(List<DataPoint> points) {
+    double[] x = new double[points.size()];
+    double[] y = new double[points.size()];
+    for (int i = 0; i < points.size(); i++) {
+      x[i] = points.get(i).getX();
+      y[i] = points.get(i).getY();
+    }
+    return ElevationProfile.prepare(x, y, 200);
+  }
+
+  private static double maxValue(double[] values) {
+    double max = values[0];
+    for (double v : values) {
+      if (v > max) {
+        max = v;
+      }
+    }
+    return max;
+  }
+
+  /** GraphView requires strictly increasing X values. */
+  static List<DataPoint> uniqueIncreasingX(List<DataPoint> points) {
+    List<DataPoint> out = new ArrayList<>();
+    Double lastX = null;
+    for (DataPoint p : points) {
+      if (lastX != null && p.getX() <= lastX) {
+        continue;
+      }
+      out.add(p);
+      lastX = p.getX();
+    }
+    return out;
+  }
+
+  private List<DataPoint> loadElevationPoints(SQLiteDatabase db, long activityId) {
+    List<DataPoint> topo = queryElevationPoints(db, activityId, true);
+    if (topo.size() >= 2) {
+      return topo;
+    }
+    return queryElevationPoints(db, activityId, false);
+  }
+
+  private List<DataPoint> queryElevationPoints(
+      SQLiteDatabase db, long activityId, boolean topoOnly) {
+    List<DataPoint> points = new ArrayList<>();
+    String xColumn = useDistanceAsX ? DB.LOCATION.DISTANCE : DB.LOCATION.ELAPSED;
+    String yExpr =
+        topoOnly
+            ? DB.LOCATION.TOPO_ALTITUDE
+            : "COALESCE(" + DB.LOCATION.TOPO_ALTITUDE + ", " + DB.LOCATION.ALTITUDE + ")";
+    String yFilter =
+        topoOnly
+            ? DB.LOCATION.TOPO_ALTITUDE + " IS NOT NULL"
+            : "("
+                + DB.LOCATION.TOPO_ALTITUDE
+                + " IS NOT NULL OR "
+                + DB.LOCATION.ALTITUDE
+                + " IS NOT NULL)";
+    String sql =
+        "SELECT "
+            + xColumn
+            + ", "
+            + yExpr
+            + " FROM "
+            + DB.LOCATION.TABLE
+            + " WHERE "
+            + DB.LOCATION.ACTIVITY
+            + " = ? AND "
+            + yFilter
+            + " AND "
+            + xColumn
+            + " IS NOT NULL ORDER BY "
+            + DB.LOCATION.ELAPSED
+            + " ASC, "
+            + DB.LOCATION.TIME
+            + " ASC";
+    try (Cursor cursor = db.rawQuery(sql, new String[] {String.valueOf(activityId)})) {
+      while (cursor.moveToNext()) {
+        if (cursor.isNull(0) || cursor.isNull(1)) {
+          continue;
+        }
+        double x = cursor.getDouble(0);
+        if (!useDistanceAsX) {
+          x = x / 1000.0;
+        }
+        points.add(new DataPoint(x, cursor.getDouble(1)));
+      }
+    } catch (Exception e) {
+      Log.w(getClass().getName(), "Failed to load elevation points", e);
+    }
+    return points;
+  }
+
   private void applyGraphProducer(GraphProducer graphData) {
     graphData.complete(graphView);
     graphTab.removeView(graphView);
     graphTab.removeView(graphView2);
-    if (graphData.HasPaceInfo() && !graphData.HasHRInfo()) {
-      graphTab.addView(graphView);
-    } else if (!graphData.HasPaceInfo() && graphData.HasHRInfo()) {
-      graphTab.addView(graphView2);
-    } else if (graphData.HasPaceInfo() && graphData.HasHRInfo()) {
-      graphTab.addView(
-          graphView, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.5f));
-
-      graphTab.addView(
-          graphView2, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.5f));
+    graphTab.removeView(graphView3);
+    boolean pace = graphData.HasPaceInfo();
+    boolean hr = graphData.HasHRInfo();
+    boolean elev = graphData.HasElevationInfo();
+    int n = (pace ? 1 : 0) + (hr ? 1 : 0) + (elev ? 1 : 0);
+    float weight = n > 0 ? 1f / n : 1f;
+    if (pace) {
+      graphTab.addView(graphView, new LayoutParams(LayoutParams.MATCH_PARENT, 0, weight));
     }
+    if (hr) {
+      graphTab.addView(graphView2, new LayoutParams(LayoutParams.MATCH_PARENT, 0, weight));
+    }
+    if (elev) {
+      List<DataPoint> elevPoints = uniqueIncreasingX(graphData.elevationPoints);
+      ElevationProfile.Series profile = toElevationProfile(elevPoints);
+      if (profile.x.length >= 2) {
+        DataPoint[] plot = new DataPoint[profile.x.length];
+        for (int i = 0; i < profile.x.length; i++) {
+          plot[i] = new DataPoint(profile.x[i], profile.plotY[i]);
+        }
+        LineGraphSeries<DataPoint> elevSeries = new LineGraphSeries<>(plot);
+        elevSeries.setColor(0xFF34D399);
+        elevSeries.setThickness(6);
+        graphView3.removeAllSeries();
+        graphView3.addSeries(elevSeries);
+        double[] bounds = GraphAxis.zoomedBounds(0, maxValue(profile.plotY), 6, true);
+        graphView3.getViewport().setYAxisBoundsManual(true);
+        graphView3.getViewport().setMinY(bounds[0]);
+        graphView3.getViewport().setMaxY(bounds[1]);
+        final double yOffset = profile.yOffset;
+        graphView3.getGridLabelRenderer().setHorizontalAxisTitle(xAxis.label());
+        graphView3
+            .getGridLabelRenderer()
+            .setLabelFormatter(
+                new DefaultLabelFormatter() {
+                  @Override
+                  public String formatLabel(double value, boolean isValueX) {
+                    if (isValueX) {
+                      return xAxis.formatValue(value);
+                    }
+                    return formatter.formatElevation(
+                        Formatter.Format.TXT_SHORT, value + yOffset);
+                  }
+                });
+        graphTab.addView(
+            graphView3, new LayoutParams(LayoutParams.MATCH_PARENT, 0, weight * 1.4f));
+      }
+    }
+    alignCharts();
 
-    hrzonesBarLayout.removeView(hrzonesBar);
-    if (graphData.HasHRZHist()) {
-      hrzonesBarLayout.setVisibility(View.VISIBLE);
-      hrzonesBarLayout.addView(hrzonesBar);
-    } else {
-      hrzonesBarLayout.setVisibility(View.GONE);
+    if (hrzonesBarLayout != null) {
+      hrzonesBarLayout.removeView(hrzonesBar);
+      if (graphData.HasHRZHist()) {
+        hrzonesBarLayout.setVisibility(View.VISIBLE);
+        hrzonesBarLayout.addView(hrzonesBar);
+      } else {
+        hrzonesBarLayout.setVisibility(View.GONE);
+      }
     }
     if (!firstLoad) {
       graphTab.invalidate();
@@ -327,6 +584,7 @@ public class GraphWrapper implements Constants {
     double max_velocity = Double.MIN_VALUE;
     final List<DataPoint> velocityList;
     final List<DataPoint> hrList;
+    List<DataPoint> elevationPoints = new ArrayList<>();
 
     boolean showPace = false;
     boolean showHR = false;
@@ -716,12 +974,20 @@ public class GraphWrapper implements Constants {
       return showHR && showHRZhist;
     }
 
+    public boolean HasElevationInfo() {
+      return elevationPoints != null && elevationPoints.size() > 1;
+    }
+
     void omitWarmupIfNeeded(double totalRunMeters, boolean distanceOnX) {
-      if (!distanceOnX || totalRunMeters <= GRAPH_WARMUP_OMIT_MIN_RUN_METERS) {
+      if (!GraphAxis.omitWarmup(totalRunMeters, distanceOnX)) {
         return;
       }
-      velocityList.removeIf(p -> p.getX() < GRAPH_WARMUP_OMIT_METERS);
-      hrList.removeIf(p -> p.getX() < GRAPH_WARMUP_OMIT_METERS);
+      double cutoff = GraphAxis.WARMUP_OMIT_METERS;
+      velocityList.removeIf(p -> p.getX() < cutoff);
+      hrList.removeIf(p -> p.getX() < cutoff);
+      if (elevationPoints != null) {
+        elevationPoints.removeIf(p -> p.getX() < cutoff);
+      }
     }
   }
 

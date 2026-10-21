@@ -268,4 +268,106 @@ public final class RunningActivityReader {
 
     return laps;
   }
+
+  public static final class HrSample {
+    public final double distanceM;
+    public final int hr;
+
+    public HrSample(double distanceM, int hr) {
+      this.distanceM = distanceM;
+      this.hr = hr;
+    }
+  }
+
+  /**
+   * Running activities whose distance is within {@code relativeTolerance} of {@code distanceM},
+   * excluding {@code excludeId}. Pace filtering is left to {@code SimilarRunMatcher}.
+   */
+  public static List<ActivityRow> getRunningActivitiesNearDistance(
+      SQLiteDatabase db, long excludeId, double distanceM, double relativeTolerance) {
+    List<ActivityRow> rows = new ArrayList<>();
+    if (distanceM <= 0 || relativeTolerance < 0) {
+      return rows;
+    }
+    double minDistance = distanceM * (1.0 - relativeTolerance);
+    double maxDistance = distanceM * (1.0 + relativeTolerance);
+    String sql =
+        "SELECT "
+            + Constants.DB.PRIMARY_KEY
+            + ", "
+            + Constants.DB.ACTIVITY.START_TIME
+            + ", "
+            + Constants.DB.ACTIVITY.DISTANCE
+            + ", "
+            + Constants.DB.ACTIVITY.TIME
+            + ", "
+            + Constants.DB.ACTIVITY.AVG_HR
+            + ", "
+            + Constants.DB.ACTIVITY.MAX_HR
+            + " FROM "
+            + Constants.DB.ACTIVITY.TABLE
+            + " WHERE "
+            + Constants.DB.ACTIVITY.SPORT
+            + " = ? AND "
+            + Constants.DB.ACTIVITY.DELETED
+            + " = 0 AND "
+            + Constants.DB.PRIMARY_KEY
+            + " != ? AND "
+            + Constants.DB.ACTIVITY.DISTANCE
+            + " >= ? AND "
+            + Constants.DB.ACTIVITY.DISTANCE
+            + " <= ? AND "
+            + Constants.DB.ACTIVITY.TIME
+            + " > 0";
+    try (Cursor cursor =
+        db.rawQuery(
+            sql,
+            new String[] {
+              String.valueOf(Constants.DB.ACTIVITY.SPORT_RUNNING),
+              String.valueOf(excludeId),
+              String.valueOf(minDistance),
+              String.valueOf(maxDistance)
+            })) {
+      while (cursor.moveToNext()) {
+        rows.add(
+            new ActivityRow(
+                cursor.getLong(0),
+                cursor.getLong(1),
+                cursor.getDouble(2),
+                cursor.getLong(3),
+                cursor.isNull(4) ? 0 : cursor.getInt(4),
+                cursor.isNull(5) ? 0 : cursor.getInt(5)));
+      }
+    }
+    return rows;
+  }
+
+  /** Distance/HR samples for overlay graphs. */
+  public static List<HrSample> getHrDistanceSamples(SQLiteDatabase db, long activityId) {
+    List<HrSample> samples = new ArrayList<>();
+    String sql =
+        "SELECT "
+            + Constants.DB.LOCATION.DISTANCE
+            + ", "
+            + Constants.DB.LOCATION.HR
+            + " FROM "
+            + Constants.DB.LOCATION.TABLE
+            + " WHERE "
+            + Constants.DB.LOCATION.ACTIVITY
+            + " = ? AND "
+            + Constants.DB.LOCATION.HR
+            + " > 0 AND "
+            + Constants.DB.LOCATION.DISTANCE
+            + " > 0 ORDER BY "
+            + Constants.DB.LOCATION.ELAPSED
+            + " ASC, "
+            + Constants.DB.LOCATION.TIME
+            + " ASC";
+    try (Cursor cursor = db.rawQuery(sql, new String[] {String.valueOf(activityId)})) {
+      while (cursor.moveToNext()) {
+        samples.add(new HrSample(cursor.getDouble(0), cursor.getInt(1)));
+      }
+    }
+    return samples;
+  }
 }

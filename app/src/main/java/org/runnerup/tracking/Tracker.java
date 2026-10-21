@@ -640,6 +640,10 @@ public class Tracker extends android.app.Service implements LocationListener, Co
     tmp.put(
         Constants.DB.ACTIVITY.TIME,
         Math.round(getTimeMs() / 1000.0d)); // time should be updated last for conditionalRecompute
+    Integer steps = trackerCadence.getSteps();
+    if (steps != null) {
+      tmp.put(Constants.DB.ACTIVITY.STEPS, steps);
+    }
 
     String[] key = {Long.toString(mActivityId)};
     mDB.update(DB.ACTIVITY.TABLE, tmp, "_id = ?", key);
@@ -941,6 +945,10 @@ public class Tracker extends android.app.Service implements LocationListener, Co
 
   public Float getCurrentCadence() {
     return trackerCadence.getValue();
+  }
+
+  public Integer getCurrentSteps() {
+    return trackerCadence.getSteps();
   }
 
   public Float getCurrentTemperature() {

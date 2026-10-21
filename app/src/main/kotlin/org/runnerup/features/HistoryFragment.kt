@@ -102,6 +102,7 @@ class HistoryFragment : Fragment(R.layout.history) {
 
   override fun onResume() {
     super.onResume()
+    context?.let { ActivityStepCountFiller.fillMissingAsync(it) }
     reloadList()
   }
 

@@ -32,6 +32,8 @@ public class MapWrapper {
 
   public void onCreate(Bundle savedInstanceState) {}
 
+  public void reload() {}
+
   public void onResume() {}
 
   public void onStart() {}

@@ -154,6 +154,7 @@
   <string name="Heart_rate_monitor_is_not_supported_for_your_device">This heart rate monitor is not supported on your device</string>
   <string name="Select_type_of_Bluetooth_device">Select type of Bluetooth device</string>
   <string name="Scanning">Scanning</string>
+  <string name="Amazfit_Helio_HR_scan_hint">Amazfit Helio: enable Heart Rate Push in the Zepp app, then select the band.</string>
   <string name="Failed_to_load_workout">Failed to load workout!!</string>
   <string name="Error">Error</string>
   <string name="Edit_step">Edit step</string>
@@ -337,7 +338,7 @@
   <string name="Time_from_GPS_points">Time from GPS points</string>
   <string name="Current_speed_from_GPS_points">Current speed from GPS points</string>
   <string name="use_step_sensor_title">Step sensor</string>
-  <string name="use_step_sensor_summary">Use for cadence</string>
+  <string name="use_step_sensor_summary">Use for cadence and step count</string>
   <string name="use_temperature_sensor">Temperature sensor</string>
   <string name="use_pressure_sensor_title">Pressure sensor</string>
   <string name="use_pressure_sensor_summary">Use barometer to calculate elevation</string>

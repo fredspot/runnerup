@@ -125,6 +125,7 @@ object MainLayoutNavigation {
                   db,
                   ComputationTracker.TYPE_BEST_TIMES,
                   ComputationTracker.TYPE_STATISTICS,
+                  ComputationTracker.TYPE_MONTHLY_COMPARISON,
               )
               prefs.edit().putLong(PREF_ACTIVITY_BULK_STAMP, requiredStamp).apply()
               bulkRecomputeJustRan = true

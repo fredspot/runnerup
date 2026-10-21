@@ -130,7 +130,7 @@ class HRSettingsDeviceController(
               val hrDevice = deviceList[which]
               host.setBtSelection(hrDevice.name, hrDevice.address)
             }
-    if (hrProvider.includePairingBLE()) {
+    if (hrProvider.includePairingBLE() || hrProvider.providerName == "AndroidBLE") {
       builder.setNeutralButton("Pairing") { dialog, _ ->
         dialog.cancel()
         host.launchBluetoothSettings()
@@ -142,7 +142,11 @@ class HRSettingsDeviceController(
   fun onScanResult(device: HRDeviceRef) {
     val hrProvider = host.getHrProvider() ?: return
     host.log("${hrProvider.providerName}::onScanResult(${device.address}, ${device.name})")
-    deviceList.add(device)
+    if (device.name.contains("helio", ignoreCase = true)) {
+      deviceList.add(0, device)
+    } else {
+      deviceList.add(device)
+    }
     deviceAdapter.notifyDataSetChanged()
   }
 

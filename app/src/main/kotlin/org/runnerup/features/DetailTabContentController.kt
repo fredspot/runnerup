@@ -12,7 +12,6 @@ package org.runnerup.features
 import android.os.Bundle
 import android.view.ViewTreeObserver
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -39,7 +38,7 @@ internal class DetailTabContentController(
               removeListener()
               return
             }
-            if (activity.findViewById<android.view.View>(R.id.summary_sport) != null) {
+            if (activity.findViewById<android.view.View>(R.id.laplist) != null) {
               removeListener()
               bind(savedInstanceState)
             }
@@ -63,40 +62,43 @@ internal class DetailTabContentController(
     activity.manualDistance = activity.findViewById(R.id.summary_manual_distance)
     activity.notes = activity.findViewById(R.id.notes_text)
     val lapList: RecyclerView? = activity.findViewById(R.id.laplist)
-    val sport = activity.sport
-    val manualDistance = activity.manualDistance
-    val notes = activity.notes
-    if (sport == null || manualDistance == null || notes == null || lapList == null) {
+    if (lapList == null) {
       return
     }
     activity.detailTabContentBound = true
 
-    sport.setOnSetValueListener(
-        object : OnSetValueListener {
-          override fun preSetValue(newValue: String): String = newValue
+    val sport = activity.sport
+    val manualDistance = activity.manualDistance
+    if (sport != null) {
+      sport.setOnSetValueListener(
+          object : OnSetValueListener {
+            override fun preSetValue(newValue: String): String = newValue
 
-          override fun preSetValue(newValue: Int): Int {
-            activity.updateViewForSport(newValue)
-            ViewCompat.requestApplyInsets(activity.rootView)
-            activity.headerData.put(DB.ACTIVITY.SPORT, newValue)
-            return newValue
-          }
-        },
-    )
-    sport.setArrayEntries(Sport.getStringArray(activity.resources))
+            override fun preSetValue(newValue: Int): Int {
+              activity.updateViewForSport(newValue)
+              ViewCompat.requestApplyInsets(activity.rootView)
+              activity.headerData.put(DB.ACTIVITY.SPORT, newValue)
+              return newValue
+            }
+          },
+      )
+      sport.setArrayEntries(Sport.getStringArray(activity.resources))
+    }
 
-    manualDistance.setOnSetValueListener(
-        object : OnSetValueListener {
-          override fun preSetValue(newValue: String): String {
-            val dist = SafeParse.parseDouble(newValue, 0.0)
-            activity.headerData.put(DB.ACTIVITY.DISTANCE, dist)
-            activity.updateHeader(activity.headerData, true)
-            return newValue
-          }
+    if (manualDistance != null) {
+      manualDistance.setOnSetValueListener(
+          object : OnSetValueListener {
+            override fun preSetValue(newValue: String): String {
+              val dist = SafeParse.parseDouble(newValue, 0.0)
+              activity.headerData.put(DB.ACTIVITY.DISTANCE, dist)
+              activity.updateHeader(activity.headerData, true)
+              return newValue
+            }
 
-          override fun preSetValue(newValue: Int): Int = newValue
-        },
-    )
+            override fun preSetValue(newValue: Int): Int = newValue
+          },
+      )
+    }
     val injuryController = DetailInjuryController(activity, activity.mDB) { activity.mID }
     activity.injuryController = injuryController
     injuryController.bindViews(activity)
@@ -109,11 +111,14 @@ internal class DetailTabContentController(
             MapWrapper(activity, activity.mDB, activity.mID, activity.formatter, mapView)
         activity.mapWrapper = mapWrapper
         mapWrapper.onCreate(savedInstanceState)
+        DetailMapTouchHelper.wire(mapView)
       }
     }
 
     activity.fillHeaderData()
     activity.requery()
+    val sportValue =
+        sport?.valueInt ?: activity.headerData.getAsInteger(DB.ACTIVITY.SPORT) ?: 0
 
     lapList.layoutManager = LinearLayoutManager(activity)
     activity.lapListAdapter =
@@ -122,7 +127,7 @@ internal class DetailTabContentController(
 
     val graphTabLayout: LinearLayout? = activity.findViewById(R.id.tab_graph)
     val hrzonesBarLayout: LinearLayout? = activity.findViewById(R.id.hrzonesBarLayout)
-    if (graphTabLayout != null && hrzonesBarLayout != null) {
+    if (graphTabLayout != null) {
       activity.graphController.attach(
           activity,
           graphTabLayout,
@@ -130,9 +135,24 @@ internal class DetailTabContentController(
           activity.formatter,
           activity.mDB,
           activity.mID,
-          sport.valueInt,
+          sportValue,
       )
     }
+
+    val compareRoot = activity.findViewById<android.view.View>(R.id.tab_compare)
+    if (compareRoot != null) {
+      activity.compareController.attach(
+          activity,
+          compareRoot,
+          activity.mDB,
+          activity.mID,
+          activity.formatter,
+      )
+      activity.compareController.updateForSport(sportValue)
+    }
+
+    TopographyElevationFiller.fillAsync(activity, activity.mID, force = false)
+    ActivityStepCountFiller.fillAsync(activity, activity.mID)
 
     val discardButton: Button = activity.findViewById(R.id.discard_button) ?: return
     activity.saveModeController.bind(
@@ -140,7 +160,7 @@ internal class DetailTabContentController(
         activity.saveButton,
         discardButton,
         activity.resumeButton,
-        notes,
+        activity.notes,
         sport,
         manualDistance,
         activity.headerData,

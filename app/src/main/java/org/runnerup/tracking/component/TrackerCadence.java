@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.Random;
 import org.runnerup.common.util.Constants;
 import org.runnerup.core.workout.Workout;
+import org.runnerup.tracking.StepCounter;
 
 public class TrackerCadence extends DefaultTrackerComponent implements SensorEventListener {
 
@@ -54,6 +55,7 @@ public class TrackerCadence extends DefaultTrackerComponent implements SensorEve
   private long mPrevTime = -1;
   private Float mCurrentCadence = null;
   final int cutOffTime = 3;
+  private final StepCounter stepCounter = new StepCounter();
 
   public Float getValue() {
     if (!isSportEnabled) {
@@ -81,6 +83,14 @@ public class TrackerCadence extends DefaultTrackerComponent implements SensorEve
     return res;
   }
 
+  /** Steps since workout start, excluding paused time. Null if the sensor has not reported yet. */
+  public Integer getSteps() {
+    if (!isSportEnabled) {
+      return null;
+    }
+    return stepCounter.getSteps();
+  }
+
   @Override
   public void onSensorChanged(SensorEvent event) {
     if (event.values == null || event.values.length < 1) {
@@ -89,6 +99,7 @@ public class TrackerCadence extends DefaultTrackerComponent implements SensorEve
     }
 
     float latestVal = event.values[0];
+    stepCounter.onTotalSinceBoot(latestVal);
     long latestTime = event.timestamp;
     long timeDiff = latestTime - mPrevTime;
     final long nanoSec = 1000000000L;
@@ -186,6 +197,12 @@ public class TrackerCadence extends DefaultTrackerComponent implements SensorEve
   }
 
   @Override
+  public void onStart() {
+    super.onStart();
+    stepCounter.startFromCurrent();
+  }
+
+  @Override
   public void onResume() {
     super.onResume();
     Sensor sensor = getSensor(null);
@@ -197,6 +214,7 @@ public class TrackerCadence extends DefaultTrackerComponent implements SensorEve
   @Override
   public void onPause() {
     super.onPause();
+    stepCounter.hold();
     if (mSensorManager != null) {
       mSensorManager.unregisterListener(this);
     }
@@ -219,6 +237,7 @@ public class TrackerCadence extends DefaultTrackerComponent implements SensorEve
       mPrevVal = null;
       mSensorManager = null;
       isMockSensor = false;
+      stepCounter.reset();
     } else {
       isSportEnabled = true;
     }

@@ -164,6 +164,17 @@ public class ActivityEntity extends AbstractEntity {
     return null;
   }
 
+  public void setSteps(Integer value) {
+    values().put(Constants.DB.ACTIVITY.STEPS, value);
+  }
+
+  public Integer getSteps() {
+    if (values().containsKey(Constants.DB.ACTIVITY.STEPS)) {
+      return values().getAsInteger(Constants.DB.ACTIVITY.STEPS);
+    }
+    return null;
+  }
+
   /** Status of the activity */
   public void setDeleted(Boolean value) {
     values().put(Constants.DB.ACTIVITY.DELETED, value);
@@ -194,6 +205,7 @@ public class ActivityEntity extends AbstractEntity {
     columns.add(Constants.DB.ACTIVITY.MAX_HR);
     columns.add(Constants.DB.ACTIVITY.AVG_HR);
     columns.add(Constants.DB.ACTIVITY.AVG_CADENCE);
+    columns.add(Constants.DB.ACTIVITY.STEPS);
     columns.add(Constants.DB.ACTIVITY.DELETED);
     columns.add(Constants.DB.ACTIVITY.NULLCOLUMNHACK);
     return columns;

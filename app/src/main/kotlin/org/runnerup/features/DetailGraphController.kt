@@ -31,7 +31,7 @@ internal class DetailGraphController {
   fun attach(
       activity: DetailActivity,
       graphTabLayout: LinearLayout,
-      hrzonesBarLayout: LinearLayout,
+      hrzonesBarLayout: LinearLayout?,
       formatter: Formatter,
       db: SQLiteDatabase,
       activityId: Long,
@@ -48,6 +48,10 @@ internal class DetailGraphController {
             activityId,
             useDistanceAsX,
         )
+  }
+
+  fun reload() {
+    graphWrapper?.reload()
   }
 
   fun updateForSport(sportValue: Int) {
