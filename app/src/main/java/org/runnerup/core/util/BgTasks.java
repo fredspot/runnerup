@@ -19,7 +19,7 @@ public final class BgTasks {
     void publish(String message);
   }
 
-  private static final ExecutorService DB_EXECUTOR = Executors.newSingleThreadExecutor();
+  private static final ExecutorService DB_EXECUTOR = Executors.newFixedThreadPool(2);
   private static final ExecutorService NETWORK_EXECUTOR = Executors.newCachedThreadPool();
   private static final Handler MAIN = new Handler(Looper.getMainLooper());
 

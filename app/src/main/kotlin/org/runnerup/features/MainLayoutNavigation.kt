@@ -115,7 +115,6 @@ object MainLayoutNavigation {
                       val id = cursor.getLong(0)
                       try {
                         cleaner.recompute(db, id)
-                        TopographyElevationService.recomputeStoredElevation(db, id)
                       } catch (e: Exception) {
                         Log.w(
                             activity.javaClass.simpleName,
@@ -133,6 +132,27 @@ object MainLayoutNavigation {
               )
               prefs.edit().putLong(PREF_ACTIVITY_BULK_STAMP, requiredStamp).apply()
               bulkRecomputeJustRan = true
+            }
+            val elevStamp = prefs.getInt(PREF_ELEV_SMOOTH_STAMP, 0)
+            if (elevStamp < ELEV_SMOOTH_REVISION) {
+              db.query(
+                      DB.ACTIVITY.TABLE,
+                      arrayOf(DB.PRIMARY_KEY),
+                      DB.ACTIVITY.DELETED + " = ?",
+                      arrayOf("0"),
+                      null,
+                      null,
+                      DB.PRIMARY_KEY + " ASC",
+                  )
+                  .use { cursor ->
+                    while (cursor.moveToNext()) {
+                      val id = cursor.getLong(0)
+                      try {
+                        TopographyElevationService.recomputeStoredElevation(db, id)
+                      } catch (_: Exception) {}
+                    }
+                  }
+              prefs.edit().putInt(PREF_ELEV_SMOOTH_STAMP, ELEV_SMOOTH_REVISION).apply()
             }
             AutoComputeRunner.runAll(db, monthlyComparisonZoneBounds(activity))
             bulkRecomputeJustRan
@@ -172,5 +192,7 @@ object MainLayoutNavigation {
       MonthlyComparisonCalculator.resolveZoneBounds(HRZones(context))
 
   private const val PREF_ACTIVITY_BULK_STAMP = "activity_bulk_recompute_stamp"
-  private const val BULK_RECOMPUTE_DATA_REVISION = 3
+  private const val BULK_RECOMPUTE_DATA_REVISION = 2
+  private const val PREF_ELEV_SMOOTH_STAMP = "activity_elev_smooth_stamp"
+  private const val ELEV_SMOOTH_REVISION = 1
 }

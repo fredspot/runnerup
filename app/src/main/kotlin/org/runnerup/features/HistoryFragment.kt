@@ -128,14 +128,18 @@ class HistoryFragment : Fragment(R.layout.history) {
     val fmt = formatter ?: return
     val gen = ++loadGeneration
     BgTasks.runDb(
-        {
-          val activities = queryActivities(database)
-          val condLines = queryConditionsById(database, activities, fmt)
-          Pair(activities, condLines)
-        },
-        { pair ->
+        { queryActivities(database) },
+        { activities ->
           if (!isAdded || gen != loadGeneration) return@runDb
-          adapter?.submit(buildDisplayRows(pair.first, pair.second))
+          // Render the history list immediately so it never waits on conditions/elevation queries
+          adapter?.submit(buildDisplayRows(activities, emptyMap()))
+          BgTasks.runNetwork(
+              { queryConditionsById(database, activities, fmt) },
+              { condLines ->
+                if (!isAdded || gen != loadGeneration) return@runNetwork
+                adapter?.submit(buildDisplayRows(activities, condLines))
+              },
+          )
         },
     )
   }
@@ -149,6 +153,7 @@ class HistoryFragment : Fragment(R.layout.history) {
     val avgElevById = HashMap<Long, Double>()
     val sensorTempById = HashMap<Long, Double>()
     val gainById = HashMap<Long, Double>()
+    val coordById = HashMap<Long, Pair<Double, Double>>()
     try {
       database
           .rawQuery(
@@ -162,7 +167,7 @@ class HistoryFragment : Fragment(R.layout.history) {
           }
       database
           .rawQuery(
-              "SELECT ${DB.LOCATION.ACTIVITY}, AVG(COALESCE(${DB.LOCATION.TOPO_ALTITUDE}, ${DB.LOCATION.ALTITUDE})), AVG(${DB.LOCATION.TEMPERATURE}) FROM ${DB.LOCATION.TABLE} GROUP BY ${DB.LOCATION.ACTIVITY}",
+              "SELECT ${DB.LOCATION.ACTIVITY}, AVG(COALESCE(${DB.LOCATION.TOPO_ALTITUDE}, ${DB.LOCATION.ALTITUDE})), AVG(${DB.LOCATION.TEMPERATURE}), AVG(${DB.LOCATION.LATITUDE}), AVG(${DB.LOCATION.LONGITUDE}) FROM ${DB.LOCATION.TABLE} GROUP BY ${DB.LOCATION.ACTIVITY}",
               null,
           )
           .use { c ->
@@ -170,6 +175,9 @@ class HistoryFragment : Fragment(R.layout.history) {
               val id = c.getLong(0)
               if (!c.isNull(1)) avgElevById[id] = c.getDouble(1)
               if (!c.isNull(2)) sensorTempById[id] = c.getDouble(2)
+              if (!c.isNull(3) && !c.isNull(4)) {
+                coordById[id] = Pair(c.getDouble(3), c.getDouble(4))
+              }
             }
           }
     } catch (_: Exception) {
@@ -181,8 +189,15 @@ class HistoryFragment : Fragment(R.layout.history) {
       val durSec = (ae.time ?: 0L).toDouble()
       var temp: Double? = sensorTempById[id]
       var hum: Double? = null
-      if (startSec > 0L) {
-        val dayWeather: DailyWeather24h? = DailyWeatherStore.getForActivity(database, id, startSec)
+      val coord = coordById[id]
+      if (startSec > 0L && coord != null) {
+        val dayWeather: DailyWeather24h? =
+            DailyWeatherStore.getDay(
+                database,
+                DailyWeather24h.utcDate(startSec),
+                DailyWeather24h.toCell(coord.first),
+                DailyWeather24h.toCell(coord.second),
+            )
         if (dayWeather != null) {
           val match = dayWeather.matchWindow(startSec, durSec)
           if (temp == null) temp = match.temperatureC

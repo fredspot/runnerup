@@ -129,9 +129,6 @@ public final class TopographyElevationService {
     }
     if (!hasFinite(raw)) return;
     double[] smoothed = ElevationSmoother.smooth(dist, raw);
-    if (anyTopo) {
-      writeTopoAltitudes(db, points, smoothed);
-    }
     ElevationGain.Result gain =
         ElevationGain.compute(dist, smoothed, ElevationGain.DEFAULT_THRESHOLD_M);
     writeGain(db, activityId, gain);
